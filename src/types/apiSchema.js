@@ -2,7 +2,7 @@
  * 用户注册请求体
  * @typedef {object} RegisterRequestBody
  * @property {string} email.required - 用户邮箱 - eg: user@example.com
- * @property {string} password.required - 用户密码 (至少8位) - eg: StrongPwd123
+ * @property {string} password.required - 用户密码 (长度至少10位, 且强度足够) - eg: StrongPwd123$%
  */
 
 /**
@@ -27,7 +27,9 @@
  * 用户登录请求体
  * @typedef {object} LoginRequestBody
  * @property {string} email.required - 用户邮箱 - eg: user@example.com
- * @property {string} password.required - 用户密码 - eg: StrongPwd123
+ * @property {string} password.required - 用户密码 - eg: StrongPwd123$%
+ * @property {string} [token] - 6位TOTP令牌 (如果用户启用了2FA且未使用备份码) - eg: 123456
+ * @property {string} [backupCode] - 备份码 (如果用户启用了2FA且未使用TOTP令牌) - eg: ABCD1234
  */
 
 /**

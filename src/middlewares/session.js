@@ -1,7 +1,7 @@
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
 import { pool } from '../db/index.js';
-import { SESSION_SECRET } from '../config/env.js';
+import { SESSION_SECRET, COOKIE_DOMAIN } from '../config/env.js';
 
 const PgSession = connectPg(session);
 
@@ -17,7 +17,8 @@ export function sessionMiddleware() {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 1000 * 60 * 30
+      maxAge: 1000 * 60 * 30,
+      domain: COOKIE_DOMAIN || undefined
     }
   });
 }

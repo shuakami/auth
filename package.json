@@ -1,5 +1,5 @@
 {
-  "name": "vercel-node-auth-session-2fa",
+  "name": "auth",
   "version": "1.1.0",
   "type": "module",
   "main": "src/index.js",
@@ -15,6 +15,7 @@
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "express-jsdoc-swagger": "^1.8.0",
+    "express-rate-limit": "^7.5.0",
     "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
@@ -23,7 +24,8 @@
     "qrcode": "^1.5.4",
     "resend": "^4.4.0",
     "speakeasy": "^2.0.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "swagger-jsdoc": "^6.2.8"
