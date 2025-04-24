@@ -1,66 +1,116 @@
+"use client"
 import Link from 'next/link';
+import Image from 'next/image';
+import Footer from './dashboard/components/Footer';
+import { useAuth } from '@/context/AuthContext';
+import { motion } from 'framer-motion';
+
+// 定义动画变体
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2, // 子元素依次入场，间隔 0.2 秒
+      ease: "easeOut",
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 }, // 初始状态：透明、下方 20px、略微缩小
+  visible: {
+    opacity: 1,
+    y: 0,           // 最终状态：不透明、原始位置
+    scale: 1,       // 最终状态：原始大小
+    transition: {
+      duration: 0.5, // 动画持续时间
+      ease: [0.4, 0, 0.2, 1] // 自定义缓动效果 (类似 easeOutQuint)
+    }
+  }
+};
 
 export default function HomePage() {
+  const { user, isLoading } = useAuth();
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/90">
-          欢迎来到 ID 中心
-        </p>
-        {/* 可以添加 Logo 等 */}
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        {/* 可以放置主视觉图 */}
-        <h1 className="text-4xl font-bold mb-8">用户身份认证中心</h1>
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-3 lg:text-left">
-        <Link
-          href="/login"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
+    <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
+      <main className="flex-grow flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <motion.div
+          className="w-full max-w-md mx-auto text-center"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
         >
-          <h2 className="mb-3 text-2xl font-semibold">
-            登录{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            已拥有账户？前往登录页面。
-          </p>
-        </Link>
+          <motion.div className="mb-8" variants={itemVariants}>
+            <Image
+                src="/assets/images/logo/logo-text-white.png"
+                alt="Logo"
+                width={150}
+                height={40}
+                className="mx-auto block dark:hidden"
+                priority
+            />
+            <Image
+                src="/assets/images/logo/logo-text-black.png"
+                alt="Logo"
+                width={150}
+                height={40}
+                className="mx-auto hidden dark:block"
+                priority
+            />
+          </motion.div>
 
-        <Link
-          href="/register"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            注册{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            还没有账户？立即注册一个新账户。
-          </p>
-        </Link>
+          <motion.h1
+            className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl"
+            variants={itemVariants}
+          >
+            用户身份认证中心
+          </motion.h1>
 
-        <Link
-          href="/dashboard"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            用户中心{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            管理您的账户信息和安全设置。
-          </p>
-        </Link>
-      </div>
-    </main>
+          <motion.p
+            className="mt-6 text-lg leading-8 text-neutral-600 dark:text-neutral-400"
+            variants={itemVariants}
+          >
+            在这里，您可以安全、便捷地管理您的账户信息、登录方式和安全设置。
+          </motion.p>
+
+          <motion.div
+            className="mt-10 flex items-center justify-center gap-x-6"
+            variants={itemVariants}
+          >
+            <div>
+              {isLoading ? (
+                <div className="h-[15px]"></div>
+              ) : user ? (
+                <Link
+                  href="/dashboard"
+                  className="rounded-md bg-[#0582FF] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#006ADF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0582FF] dark:bg-[#3898FF] dark:hover:bg-[#5CAEFF] dark:focus-visible:outline-[#3898FF]"
+                >
+                  进入用户中心
+                </Link>
+              ) : (
+                <div className="flex items-center justify-center gap-x-6">
+                  <Link
+                    href="/login"
+                    className="rounded-md bg-[#0582FF] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#006ADF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0582FF] dark:bg-[#3898FF] dark:hover:bg-[#5CAEFF] dark:focus-visible:outline-[#3898FF]"
+                  >
+                    登录
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="rounded-md border border-neutral-300 dark:border-neutral-700 px-4 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/50"
+                  >
+                    注册
+                  </Link>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      </main>
+
+      <Footer />
+    </div>
   );
 }

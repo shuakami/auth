@@ -4,7 +4,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
-  title: "用户认证中心",
+  title: "Auth - sdjz.wiki",
   description: "管理您的账户和认证",
 };
 

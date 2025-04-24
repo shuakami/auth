@@ -91,6 +91,18 @@ body {
     to { opacity: 0; scale: 0.96; }
   }
 
+  /* New Pulse animation for loading dots (Keep this if used elsewhere) */
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(0.9);
+    }
+  }
+
   /* Apply animations using data-state selectors directly on elements */
   [data-radix-dialog-overlay][data-state='open'] {
     animation: fadeIn 0.3s ease-out;
@@ -212,7 +224,6 @@ body {
     --chart-r5: 352 83% 91%;
   }
 }
-
 /* Custom faster spin animation */
 @keyframes spin-fast {
   to {
@@ -223,3 +234,4 @@ body {
 .animate-spin-fast {
   animation: spin-fast 0.7s linear infinite;
 }
+
