@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('/fonts/Geist[wght].woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono[wght].woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Add CSS Keyframes for Dialog Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes slideInFromBottom {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  @keyframes slideOutToBottom {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+  }
+
+  @keyframes zoomIn95 {
+    from { transform: scale(0.95); }
+    to { transform: scale(1); }
+  }
+
+  @keyframes zoomOut95 {
+    from { transform: scale(1); }
+    to { transform: scale(0.95); }
+  }
+
+  @keyframes slideInSm {
+    /* Remove translate, rely on base classes for positioning */
+    /* Animate only opacity and scale for desktop entry */
+    from { opacity: 0; scale: 0.96; }
+    to { opacity: 1; scale: 1; }
+  }
+
+  @keyframes slideOutSm {
+    /* Remove translate, rely on base classes for positioning */
+    /* Animate only opacity and scale for desktop exit */
+    from { opacity: 1; scale: 1; }
+    to { opacity: 0; scale: 0.96; }
+  }
+
+  /* Apply animations using data-state selectors directly on elements */
+  [data-radix-dialog-overlay][data-state='open'] {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  [data-radix-dialog-overlay][data-state='closed'] {
+    animation: fadeOut 0.3s ease-out forwards; /* Add forwards to maintain end state */
+  }
+
+  [data-radix-dialog-content][data-state='open'] {
+    animation: fadeIn 0.3s ease-out, slideInFromBottom 0.3s ease-out;
+  }
+
+  [data-radix-dialog-content][data-state='closed'] {
+    animation: fadeOut 0.3s ease-out forwards, slideOutToBottom 0.3s ease-out forwards;
+  }
+
+  /* Apply sm screen animations, overriding mobile */
+  @media (min-width: 640px) {
+    [data-radix-dialog-content][data-state='open'] {
+      /* Use the simplified scale/opacity animation */
+      animation: fadeIn 0.2s ease-out, slideInSm 0.2s ease-out; 
+    }
+
+    [data-radix-dialog-content][data-state='closed'] {
+       /* Use the simplified scale/opacity animation */
+      animation: fadeOut 0.2s ease-out forwards, slideOutSm 0.2s ease-out forwards; 
+    }
+  }
+}
+
+
+
+@layer base {
+  :root {
+    --gray-950: #0d0d0d;
+    --transition-duration: 0.7s;
+    --transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --background: 0 0% 100%; /* 白色 */
+    --foreground: 0 0% 0%; /* 纯黑色 */
+    --card: 0 0% 100%; /* 白色 */
+    --card-foreground: 0 0% 0%; /* 纯黑色 */
+    --popover: 0 0% 100%; /* 白色 */
+    --popover-foreground: 0 0% 0%; /* 纯黑色 */
+    --primary: 0 0% 0%; /* 纯黑色 */
+    --primary-foreground: 0 0% 100%; /* 白色 */
+    --secondary: 0 0% 95%; /* 浅灰色 */
+    --secondary-foreground: 0 0% 0%; /* 纯黑色 */
+    --muted: 0 0% 95%; /* 浅灰色 */
+    --muted-foreground: 0 0% 45%; /* 深灰色 */
+    --accent: 0 0% 95%; /* 浅灰色 */
+    --accent-foreground: 0 0% 0%; /* 纯黑色 */
+    --destructive: 0 85% 60%; /* 红色 */
+    --destructive-foreground: 0 0% 100%; /* 白色 */
+    --border: 0 0% 90%; /* 浅灰色 */
+    --input: 0 0% 90%; /* 浅灰色 */
+    --ring: 0 0% 70%; /* 中灰色 */
+    --radius: 0.5rem;
+    --main-surface-tertiary: rgba(0, 0, 0, 0.05); /* 滚动条颜色 */
+  }
+
+  .dark {
+    --background: 0 0% 7%; /* 深黑色 */
+    --foreground: 0 0% 100%; /* 纯白色 */
+    --card: 0 0% 7%; /* 深黑色 */
+    --card-foreground: 0 0% 100%; /* 纯白色 */
+    --popover: 0 0% 7%; /* 深黑色 */
+    --popover-foreground: 0 0% 100%; /* 纯白色 */
+    --primary: 0 0% 100%; /* 纯白色 */
+    --primary-foreground: 0 0% 7%; /* 深黑色 */
+    --secondary: 0 0% 15%; /* 深灰色 */
+    --secondary-foreground: 0 0% 100%; /* 纯白色 */
+    --muted: 0 0% 15%; /* 深灰色 */
+    --muted-foreground: 0 0% 65%; /* 中灰色 */
+    --accent: 0 0% 15%; /* 深灰色 */
+    --accent-foreground: 0 0% 100%; /* 纯白色 */
+    --destructive: 0 70% 35%; /* 深红色 */
+    --destructive-foreground: 0 0% 100%; /* 纯白色 */
+    --border: 0 0% 20%; /* 深灰色 */
+    --input: 0 0% 32%; /* 深灰色 */
+    --ring: 0 0% 80%; /* 浅灰色 */
+    --main-surface-tertiary: rgba(255, 255, 255, 0.2); /* 暗色模式滚动条颜色 */
+  }
+}
+
+
+@layer base {
+  * {
+    @apply border-neutral-200 dark:border-neutral-700;
+  }
+  body {
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+
+@media (max-width: 640px) {
+  .container {
+    @apply px-4;
+  }
+}
+
+
+@layer base {
+  :root {
+    --chart-r1: 347 77% 50%;
+    --chart-r2: 352 83% 91%;
+    --chart-r3: 350 80% 72%;
+    --chart-r4: 351 83% 82%;
+    --chart-r5: 349 77% 62%;
+  }
+
+  .dark {
+    --chart-r1: 347 77% 50%;
+    --chart-r2: 349 77% 62%;
+    --chart-r3: 350 80% 72%;
+    --chart-r4: 351 83% 82%;
+    --chart-r5: 352 83% 91%;
+  }
+}
+
+/* Custom faster spin animation */
+@keyframes spin-fast {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-fast {
+  animation: spin-fast 0.7s linear infinite;
+}

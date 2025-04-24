@@ -15,17 +15,47 @@ export const pool = new Pool({
 });
 
 export async function init() {
+  // 1. 确保 users 表存在 (并且定义包含 username)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
+      username TEXT UNIQUE,
       password_hash TEXT,
       github_id TEXT,
+      google_id TEXT,
       verified BOOLEAN DEFAULT FALSE,
       totp_secret TEXT,
       totp_enabled BOOLEAN DEFAULT FALSE
     );
+  `);
 
+  // 2. 尝试添加 username、google_id 列，防止表结构过旧
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN username TEXT UNIQUE;`);
+    console.log("成功添加 'username' 列到 'users' 表 (或已存在)。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'username' 列已存在于 'users' 表。");
+    } else {
+      console.error("尝试添加 'username' 列时出错:", err);
+      throw err;
+    }
+  }
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN google_id TEXT;`);
+    console.log("成功添加 'google_id' 列到 'users' 表 (或已存在)。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'google_id' 列已存在于 'users' 表。");
+    } else {
+      console.error("尝试添加 'google_id' 列时出错:", err);
+      throw err;
+    }
+  }
+
+  // 3. 继续创建其他表和索引
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS "session" (
       "sid" varchar NOT NULL COLLATE "default",
       "sess" json NOT NULL,
@@ -36,18 +66,29 @@ export async function init() {
 
     CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
 
-    -- 备份码表，用于存储用户的一次性备份码
     CREATE TABLE IF NOT EXISTS backup_codes (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      code_hash TEXT NOT NULL,  -- 使用 bcrypt 哈希存储
-      used BOOLEAN DEFAULT FALSE,  -- 标记是否已使用
+      code_hash TEXT NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      used_at TIMESTAMP WITH TIME ZONE  -- 使用时间，初始为 NULL
+      used_at TIMESTAMP WITH TIME ZONE
     );
 
-    -- 为 backup_codes 表创建索引以加速查询
     CREATE INDEX IF NOT EXISTS "IDX_backup_codes_user_id" ON backup_codes (user_id);
     CREATE INDEX IF NOT EXISTS "IDX_backup_codes_user_id_used" ON backup_codes (user_id, used);
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_user_id" ON password_reset_tokens (user_id);
+    CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_token" ON password_reset_tokens (token);
   `);
+
+  console.log('数据库初始化检查完成。');
 }

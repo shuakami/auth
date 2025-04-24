@@ -1,40 +1,32 @@
 import express, { json, static as expressStatic } from 'express';
 import cookieParser from 'cookie-parser';
 import { sessionMiddleware } from './middlewares/session.js';
-import { generateCsrf } from './middlewares/csrf.js';
 import authRouter from './routes/auth.js';
 import { initOAuth } from './auth/oauth.js';
 import { setupDocs } from './middlewares/docs.js';
 
 const app = express();
 
-// 解析JSON请求体
+/* 基础中间件 */
 app.use(json());
-
-// 解析Cookie
 app.use(cookieParser());
-
-// 会话中间件
 app.use(sessionMiddleware());
 
-// 静态文件服务
+/* 静态文件 */
 app.use(expressStatic('public'));
 
-// 应用CSRF保护
-app.use(generateCsrf);
-
-// 开发环境下设置API文档
+/* 开发环境 API 文档 */
 setupDocs(app);
 
-// 初始化OAuth配置
+/* OAuth */
 initOAuth(app);
 
-// 认证路由
-app.use(authRouter);
+/* 业务 API 路由 */
+app.use('/api', authRouter);
 
-// 错误处理中间件
-app.use((err, req, res, next) => {
-  console.error("未处理错误:", err.stack || err);
+/* 全局错误处理 */
+app.use((err, _req, res, _next) => {
+  console.error('未处理错误:', err.stack || err);
   res.status(err.status || 500).json({ error: err.message || '内部服务器错误' });
 });
 

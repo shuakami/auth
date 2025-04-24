@@ -1,14 +1,20 @@
 import expressJSDocSwagger from 'express-jsdoc-swagger';
 
-// API文档配置
+/* --------------------------------------------------------------------------
+ * Swagger / API-Docs 配置
+ * ----------------------------------------------------------------------- */
 const options = {
   info: {
     version: '1.0.0',
     title: 'Auth | 统一身份验证服务',
-    description: `SDJZ.Wiki 统一身份验证服务 API 文档`,
-    license: {
-      name: 'GPL-3.0',
-    },
+    description: `SDJZ.Wiki 统一身份验证服务 API 文档
+
+[![Security: XSS Defense](https://img.shields.io/badge/Security-XSS_Defense-22c55e?style=flat-square&logo=shield&logoColor=white)](https://owasp.org/www-community/attacks/xss/)
+[![Security: Rate Limiting](https://img.shields.io/badge/Security-Rate_Limiting-22c55e?style=flat-square&logo=shield&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+[![Auth: Session Mechanism](https://img.shields.io/badge/Auth-Session_Mechanism-3b82f6?style=flat-square&logo=sessionize&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+[![Auth: Argon2 Hashing](https://img.shields.io/badge/Auth-Argon2_Hashing-3b82f6?style=flat-square&logo=keycdn&logoColor=white)](https://github.com/P-H-C/phc-winner-argon2)
+`,
+    license: { name: 'GPL-3.0' }
   },
   components: {
     securitySchemes: {
@@ -16,178 +22,88 @@ const options = {
         type: 'apiKey',
         in: 'cookie',
         name: 'sid',
-        description: '会话 Cookie (Session ID)。登录后自动设置，有效期 30 分钟，具有滚动续期机制。'
+        description:
+          '会话 Cookie (Session ID)。登录后自动设置，有效期 30 分钟，具有滚动续期机制。'
       }
     }
   },
-  security: [
-    {
-      cookieAuth: []
-    }
-  ],
+  security: [{ cookieAuth: [] }],
   baseDir: process.cwd(),
   filesPattern: './src/{routes,types}/**/*.js',
   swaggerUIPath: '/api-docs/swagger',
   exposeSwaggerUI: true,
   exposeApiDocs: true,
   apiDocsPath: '/api-docs/json',
-  notRequiredAsNullable: false,
+  notRequiredAsNullable: false
 };
 
-// 文档中间件
+/* --------------------------------------------------------------------------
+ * 文档中间件
+ * ----------------------------------------------------------------------- */
 export function setupDocs(app) {
-  if (process.env.NODE_ENV !== 'production') {
-    const instance = expressJSDocSwagger(app)(options);
-    const appVersion = process.env.npm_package_version || '1.1.0'; // 从 package.json 获取版本号
-    const environment = (process.env.NODE_ENV || 'development').toUpperCase(); // 获取环境并大写
+  /* 仅在开发环境启用文档与调试 UI */
+  if (process.env.NODE_ENV === 'production') return;
 
-    // 监听文档生成完成事件
-    instance.on('finish', (swaggerDef) => {
-      console.log('Swagger生成完成');
-    });
-    app.get('/', (req, res) => {
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>API Documentation</title>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <link rel="icon" type="image/x-icon" href="/favicon.ico">
-            <style>
-              :root {
-                --header-bg: var(--scalar-background-color);
-                --header-border: var(--scalar-background-2);
-                --header-text: #333;
-                --header-info: #555;
-              }
+  /* 初始化 swagger-ui / scalar-ui */
+  const swagger = expressJSDocSwagger(app)(options);
 
-              @media (prefers-color-scheme: dark) {
-                :root {
-                  --header-text: #eee;
-                  --header-info: #bbb;
-                }
-              }
+  const appVersion = process.env.npm_package_version || '1.1.0';
+  const environment = (process.env.NODE_ENV || 'development').toUpperCase();
 
-              /* Custom header styling */
-              .custom-scalar-header {
-                background-color: var(--header-bg);
-                padding: 8px 20px;
-                border-bottom: 1px solid var(--header-border);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, sans-serif;
-                color: var(--header-text);
-              }
+  swagger.on('finish', () => console.log('Swagger 生成完成'));
 
-              .custom-scalar-header img.scalar-logo {
-                height: 24px;
-                width: auto;
-              }
+  /* ------------------------------------------------------------------
+   * 根路由：自定义 Scalar UI
+   * ----------------------------------------------------------------*/
+  app.get('/', (_req, res) => {
+    res.send(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Documentation</title>
+  <link rel="icon" href="/favicon.ico" />
 
-              .custom-scalar-header .header-info {
-                font-size: 0.8em;
-                color: var(--header-info);
-              }
+  <style>
+    :root{
+      --header-bg:var(--scalar-background-color);
+      --header-border:var(--scalar-background-2);
+      --header-text:#333;
+      --header-info:#555;
+    }
+    @media(prefers-color-scheme:dark){
+      :root{--header-text:#eee;--header-info:#bbb;}
+    }
+    .custom-scalar-header{
+      background:var(--header-bg);
+      padding:8px 20px;
+      border-bottom:1px solid var(--header-border);
+      display:flex;align-items:center;justify-content:space-between;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,sans-serif;
+      color:var(--header-text);
+    }
+    .custom-scalar-header img{height:24px}
+    .custom-scalar-header .header-info{font-size:.8em;color:var(--header-info);}
+    .custom-scalar-header .header-info span+span{margin-left:10px;}
+  </style>
+</head>
+<body>
+  <!-- 顶部信息栏 -->
+  <div class="custom-scalar-header">
+    <img src="/assets/images/logo/logo-text-white.png" alt="Logo" />
+    <div class="header-info"><span>${appVersion}</span><span>/</span><span>${environment}</span></div>
+  </div>
 
-              .custom-scalar-header .header-info span + span {
-                margin-left: 10px;
-              }
+  <!-- Scalar UI 占位 -->
+  <script id="api-reference" data-url="/api-docs/json"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference" defer></script>
+</body>
+</html>`);
+  });
 
-              /* Floating Logo styles */
-              #floating-logo {
-                position: fixed;
-                bottom: 15px;
-                right: 5px;
-                z-index: 1000;
-                opacity: 0;
-                visibility: hidden;
-                transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 48px;
-                height: 48px;
-              }
-
-              #floating-logo.visible {
-                opacity: 1;
-                visibility: visible;
-              }
-
-              #floating-logo img {
-                width: 32px;
-                height: 32px;
-              }
-            </style>
-          </head>
-          <body>
-            <!-- Custom Header with Logo and Info -->
-            <div class="custom-scalar-header">
-              <img class="scalar-logo" src="/assets/images/logo/logo-text-white.png" alt="Logo" />
-              <div class="header-info">
-                <span>${appVersion}</span>
-                <span>/</span>
-                <span>${environment}</span>
-              </div>
-            </div>
-
-            <!-- Scalar API Reference script tag -->
-            <script
-              id="api-reference"
-              data-url="/api-docs/json"
-            >
-            </script>
-
-            <!-- Floating Logo / Scroll to Top -->
-            <a href="#" id="floating-logo" title="返回顶部">
-              <img src="/assets/images/logo/logo-white.png" alt="Logo" />
-            </a>
-
-            <!-- Scalar CDN script & Scroll logic -->
-            <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-            <script>
-              const floatingLogo = document.getElementById('floating-logo');
-              const scrollThreshold = 150;
-
-              window.addEventListener('scroll', () => {
-                if (window.scrollY > scrollThreshold) {
-                  floatingLogo.classList.add('visible');
-                } else {
-                  floatingLogo.classList.remove('visible');
-                }
-              });
-
-              floatingLogo.addEventListener('click', (event) => {
-                event.preventDefault();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              });
-
-              // 根据暗色模式切换logo
-              const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-              const updateLogos = (isDark) => {
-                document.querySelector('.scalar-logo').src = isDark ? 
-                  '/assets/images/logo/logo-text-black.png' : 
-                  '/assets/images/logo/logo-text-white.png';
-                document.querySelector('#floating-logo img').src = isDark ? 
-                  '/assets/images/logo/logo-black.png' : 
-                  '/assets/images/logo/logo-white.png';
-              };
-
-              prefersDark.addEventListener('change', (e) => updateLogos(e.matches));
-              updateLogos(prefersDark.matches);
-            </script>
-          </body>
-        </html>
-      `);
-    });
-
-    // 添加错误处理中间件
-    app.use('/api-docs/json', (err, req, res, next) => {
-      console.error('API文档生成错误:', err);
-      res.status(500).json({ error: '文档生成失败' });
-    });
-  }
-} 
+  /* API-Docs 生成错误处理 */
+  app.use('/api-docs/json', (err, _req, res, _next) => {
+    console.error('API 文档生成错误:', err);
+    res.status(500).json({ error: '文档生成失败' });
+  });
+}

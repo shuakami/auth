@@ -7,14 +7,35 @@ import { pool } from '../db/index.js';
 import { decrypt } from './cryptoUtils.js';
 import { verifyBackupCode } from './backupCodes.js';
 import { validatePassword } from '../utils/passwordPolicy.js';
+import { validateUsername } from '../utils/usernamePolicy.js';
+import { PUBLIC_BASE_URL } from '../config/env.js';
 
 export async function register(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
     const exists = await User.findByEmail(email);
-    if (exists) return res.status(400).json({ error: 'email already used' });
+    if (exists) {
+      if (exists.github_id) {
+        return res.status(400).json({ error: '该邮箱已绑定 Github 账号，请直接用 Github 登录' });
+      } else {
+        return res.status(400).json({ error: '邮箱已注册，请直接登录。' });
+      }
+    }
+
+    // 验证用户名格式（如果提供了用户名）
+    if (username) {
+      const usernameError = validateUsername(username);
+      if (usernameError) {
+        return res.status(400).json({ error: usernameError });
+      }
+      // 检查用户名是否已被使用
+      const usernameExists = await User.findByUsername(username);
+      if (usernameExists) {
+        return res.status(400).json({ error: '用户名已被使用' });
+      }
+    }
 
     // 验证密码复杂度
     const passwordError = validatePassword(password);
@@ -24,27 +45,18 @@ export async function register(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const id = uuidv4();
-    await User.createUser({ id, email, passwordHash });
+    await User.createUser({ id, email, username, passwordHash });
 
     // 发送验证邮件
     const token = signEmailToken({ id });
-    const link = `${req.protocol}://${req.get('host')}/verify?token=${token}`;
-    await sendVerifyEmail(email, link);
+    const link = `${PUBLIC_BASE_URL}/verify?token=${token}`;
+    const emailSent = await sendVerifyEmail(email, link);
 
-    // 重新生成session
-    req.session.regenerate((regenErr) => {
-      if (regenErr) return next(regenErr);
-
-      // 将用户信息保存到新的session
-      req.login({ id, email }, (loginErr) => {
-        if (loginErr) return next(loginErr);
-        // 显式保存 session 以确保 cookie 更新
-        req.session.save((saveErr) => {
-          if (saveErr) return next(saveErr);
-          // 重新生成session并登录用户
-          res.json({ ok: true });
-        });
-      });
+    // 返回成功消息
+    res.json({ 
+      ok: true, 
+      message: "注册成功，请查收验证邮件完成账号激活。",
+      emailSent: emailSent 
     });
   } catch (err) {
     next(err);
@@ -55,11 +67,40 @@ export async function verifyEmail(req, res, next) {
   try {
     const { token } = req.query;
     if (!token) {
-      return res.status(400).json({ error: 'Verification token is missing.' });
+      console.warn('收到缺少验证令牌的请求');
+      return res.status(400).json({ error: '缺少验证令牌', message: '验证链接无效，缺少必要的令牌。' });
     }
+    
+    console.log('正在验证邮件令牌...');
     const payload = verifyEmailToken(token);
+    
     if (!payload || !payload.id) {
-      return res.status(400).json({ error: 'Invalid or expired verification token.' });
+      console.warn('验证失败：无效或过期的令牌', { payload });
+      return res.status(400).json({ 
+        error: '无效或过期的验证令牌', 
+        message: '邮箱验证链接已过期或无效，请重新登录获取新的验证链接。'
+      });
+    }
+
+    console.log(`验证成功，正在更新用户(${payload.id})的验证状态...`);
+    
+    // 先检查用户是否存在
+    const user = await User.findById(payload.id);
+    if (!user) {
+      console.error(`用户验证失败：ID ${payload.id} 不存在`);
+      return res.status(404).json({ 
+        error: '用户不存在', 
+        message: '找不到对应的用户账号，请重新注册。'
+      });
+    }
+    
+    // 如果用户已经验证过邮箱，直接返回成功
+    if (user.verified) {
+      console.log(`用户(${payload.id})邮箱已经验证过`);
+      return res.json({ 
+        message: "邮箱已验证，无需重复验证。",
+        alreadyVerified: true
+      });
     }
 
     // 使用 pool.query 更新用户状态
@@ -69,17 +110,28 @@ export async function verifyEmail(req, res, next) {
     );
 
     if (result.rowCount === 0) {
-        // 如果没有行被更新，可能意味着用户不存在或ID错误
-        return res.status(404).json({ error: 'User not found for verification.' });
+      console.error(`用户验证失败：更新操作对ID ${payload.id} 无效`);
+      return res.status(404).json({ 
+        error: '验证失败', 
+        message: '更新验证状态失败，请联系管理员。'
+      });
     }
 
+    console.log(`用户(${payload.id})邮箱验证成功完成`);
+
     // 返回 JSON 响应，与文档保持一致
-    res.json({ message: "Email verified successfully." });
+    res.json({ 
+      message: "邮箱验证成功，现在您可以登录账号了。",
+      verified: true
+    });
 
   } catch (err) {
-    console.error("Error verifying email:", err);
-    // 将错误传递给下一个错误处理中间件
-    next(err);
+    console.error("邮箱验证过程中出错:", err);
+    // 返回友好的错误信息
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: '验证邮箱时发生错误，请稍后再试或联系客服。'
+    });
   }
 }
 
@@ -87,10 +139,27 @@ export async function login(req, res, next) {
   try {
     const { email, password, token, backupCode } = req.body;
     const user = await User.findByEmail(email);
-    if (!user) return res.status(401).json({ error: 'invalid credentials' });
+    if (!user) return res.status(401).json({ error: '账号或密码错误' });
+    if (!user.password_hash) {
+      return res.status(400).json({ error: '请用第三方账号登录' });
+    }
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'invalid credentials' });
+    if (!valid) return res.status(401).json({ error: '账号或密码错误' });
+    
+    // 检查邮箱是否已验证
+    if (!user.verified) {
+      // 重新发送验证邮件
+      const verificationToken = signEmailToken({ id: user.id });
+      const verificationLink = `${PUBLIC_BASE_URL}/verify?token=${verificationToken}`;
+      const emailSent = await sendVerifyEmail(user.email, verificationLink);
+      
+      return res.status(403).json({ 
+        error: 'email_not_verified', 
+        message: '您的邮箱尚未验证，请先完成邮箱验证。我们已重新发送一封验证邮件。',
+        emailSent: emailSent
+      });
+    }
 
     if (user.totp_enabled) {
       // 如果用户提供了备份码，优先尝试验证备份码
@@ -100,7 +169,7 @@ export async function login(req, res, next) {
           // 备份码验证成功，继续登录流程
           return req.session.regenerate((regenErr) => {
             if (regenErr) return next(regenErr);
-            req.login({ id: user.id, email: user.email }, (loginErr) => {
+            req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
               if (loginErr) return next(loginErr);
               // 显式保存 session 以确保 cookie 更新
               req.session.save((saveErr) => {
@@ -133,7 +202,7 @@ export async function login(req, res, next) {
 
     req.session.regenerate((regenErr) => {
       if (regenErr) return next(regenErr);
-      req.login({ id: user.id, email: user.email }, (loginErr) => {
+      req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
         if (loginErr) return next(loginErr);
         // 显式保存 session 以确保 cookie 更新
         req.session.save((saveErr) => {

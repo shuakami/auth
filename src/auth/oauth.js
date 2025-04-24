@@ -1,10 +1,12 @@
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { v4 as uuidv4 } from 'uuid';
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, SUCCESS_REDIRECT } from '../config/env.js';
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SUCCESS_REDIRECT, PUBLIC_BASE_URL } from '../config/env.js';
 import * as User from '../services/userService.js';
 
 export function initOAuth(app) {
+  // GitHub OAuth2
   passport.use(
     new GitHubStrategy(
       {
@@ -16,19 +18,166 @@ export function initOAuth(app) {
       async (accessToken, refreshToken, profile, cb) => {
         try {
           const githubId = profile.id;
-          let user = await User.findByGithubId(githubId);
-          if (!user) {
-            const primaryEmail = profile.emails?.find((e) => e.primary)?.value;
-            const email = primaryEmail || `${githubId}@users.noreply.github.com`;
-            user = await User.findByEmail(email);
-            if (!user) {
-              const id = uuidv4();
-              await User.createUser({ id, email, githubId, verified: true });
-              user = { id, email };
-            }
+          let email = null;
+          if (Array.isArray(profile.emails)) {
+            email = profile.emails.find(e => e.primary && e.verified)?.value;
+            if (!email) email = profile.emails.find(e => e.verified)?.value;
+            if (!email) email = profile.emails.find(e => e.primary)?.value;
+            if (!email && profile.emails.length > 0) email = profile.emails[0].value;
           }
-          cb(null, { id: user.id, email: user.email });
+          if (!email) email = `${githubId}@users.noreply.github.com`;
+
+          let userByGithub = await User.findByGithubId(githubId); // 账号A
+          let userByEmail = await User.findByEmail(email);        // 账号B
+          console.log('[OAuth] userByGithub:', userByGithub);
+          console.log('[OAuth] userByEmail:', userByEmail);
+
+          // 只要 userByEmail 存在且 github_id 未绑定，就绑定 github_id
+          if (userByEmail && !userByEmail.github_id) {
+            console.log(`[OAuth] 绑定 github_id: ${githubId} 到 userByEmail: ${userByEmail.id}`);
+            await User.bindGithubId(userByEmail.id, githubId);
+            userByEmail.github_id = githubId;
+          }
+
+          if (userByGithub && userByEmail && userByGithub.id !== userByEmail.id) {
+            console.log(`[OAuth] 合并账号：userByGithub(${userByGithub.id}) => userByEmail(${userByEmail.id})`);
+            // 两个账号，合并：保留邮箱账号，迁移密码（如有必要）
+            if (userByGithub.password_hash && !userByEmail.password_hash) {
+              console.log(`[OAuth] 迁移 password_hash: ${userByGithub.id} => ${userByEmail.id}`);
+              await User.migratePasswordHash(userByEmail.id, userByGithub.password_hash);
+            }
+            userByGithub = null;
+            userByEmail = await User.findByEmail(email); // 重新获取
+          }
+
+          let user = userByGithub || userByEmail;
+
+          if (!user) {
+            console.log(`[OAuth] 新建用户: ${email}, githubId: ${githubId}`);
+            // 新用户
+            const id = uuidv4();
+            await User.createUser({ id, email, githubId, verified: true });
+            user = await User.findByEmail(email);
+            if (!user) throw new Error('Failed to fetch newly created user');
+          }
+
+          // 查询完整用户信息，包含totp_enabled
+          const fullUser = await User.findById(user.id);
+          if (!fullUser) throw new Error(`User not found by ID ${user.id} after creation/lookup`);
+
+          console.log('[OAuth] 最终待处理用户:', fullUser);
+
+          // 检查 2FA 状态
+          if (fullUser.totp_enabled) {
+            // 如果启用了 2FA，不自动登录，传递状态信息给 authenticate 回调
+            console.log(`[OAuth] 用户 ${fullUser.id} 需要 2FA，传递状态`);
+            cb(null, false, { message: '2FA required', userId: fullUser.id });
+          } else {
+            // 如果未启用 2FA，正常传递用户信息以自动登录
+            console.log(`[OAuth] 用户 ${fullUser.id} 无需 2FA，正常登录`);
+            // 传递给 Passport 以触发 req.login() 的完整用户信息
+            cb(null, {
+              id: fullUser.id,
+              email: fullUser.email,
+              totp_enabled: fullUser.totp_enabled,
+              username: fullUser.username,
+              verified: fullUser.verified,
+              github_id: fullUser.github_id,
+              google_id: fullUser.google_id,
+              has_password: !!fullUser.password_hash
+            });
+          }
         } catch (err) {
+          console.error('[OAuth] GitHub Strategy Error:', err);
+          cb(err);
+        }
+      }
+    )
+  );
+
+  // Google OAuth2
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        callbackURL: '/auth/google/callback',
+      },
+      async (accessToken, refreshToken, profile, cb) => {
+        try {
+          const googleId = profile.id;
+          let email = null;
+          if (Array.isArray(profile.emails)) {
+            email = profile.emails.find(e => e.verified)?.value;
+            if (!email && profile.emails.length > 0) email = profile.emails[0].value;
+          }
+          // 返回邮箱不存在，尝试使用 display name 生成邮箱
+          if (!email && profile.displayName) {
+             // 尝试使用 display name 部分生成邮箱（可靠性较低）
+             const nameParts = profile.displayName.split(' ');
+             email = `${nameParts[0].toLowerCase()}.${googleId.substring(0, 5)}@noreply.google.placeholder.com`;
+          } else if (!email) {
+             email = `${googleId}@users.noreply.google.com`; // 原始邮箱生成
+          }
+
+          let userByGoogle = await User.findByGoogleId?.(googleId);
+          let userByEmail = await User.findByEmail(email);
+
+          // 绑定 google_id 如果邮箱存在且 google_id 未设置
+           if (userByEmail && !userByEmail.google_id) {
+             console.log(`[OAuth] 绑定 google_id: ${googleId} 到 userByEmail: ${userByEmail.id}`);
+             await User.bindGoogleId?.(userByEmail.id, googleId);
+             userByEmail.google_id = googleId; // Update local object
+           }
+
+          // 处理账号合并
+          if (userByGoogle && userByEmail && userByGoogle.id !== userByEmail.id) {
+             console.log(`[OAuth] 合并账号：userByGoogle(${userByGoogle.id}) => userByEmail(${userByEmail.id})`);
+             if (userByGoogle.password_hash && !userByEmail.password_hash) {
+               console.log(`[OAuth] 迁移 password_hash: ${userByGoogle.id} => ${userByEmail.id}`);
+               await User.migratePasswordHash(userByEmail.id, userByGoogle.password_hash);
+             }
+
+             userByGoogle = null;
+             userByEmail = await User.findByEmail(email);
+           }
+
+          let user = userByGoogle || userByEmail;
+
+          if (!user) {
+            console.log(`[OAuth] 新建用户: ${email}, googleId: ${googleId}`);
+            const id = uuidv4();
+            // 确保 verified 基于 Google 的信息设置，默认 true
+            const isVerified = profile.emails?.some(e => e.verified) || false;
+            await User.createUser({ id, email, googleId, verified: isVerified });
+             user = await User.findByEmail(email);
+             if (!user) throw new Error('Failed to fetch newly created user');
+          }
+
+          const fullUser = await User.findById(user.id);
+           if (!fullUser) throw new Error(`User not found by ID ${user.id} after creation/lookup`);
+
+          console.log('[OAuth] 最终待处理用户:', fullUser);
+
+          // 检查 2FA 状态
+          if (fullUser.totp_enabled) {
+            console.log(`[OAuth] 用户 ${fullUser.id} 需要 2FA，传递状态`);
+            cb(null, false, { message: '2FA required', userId: fullUser.id });
+          } else {
+            console.log(`[OAuth] 用户 ${fullUser.id} 无需 2FA，正常登录`);
+            cb(null, {
+              id: fullUser.id,
+              email: fullUser.email,
+              totp_enabled: fullUser.totp_enabled,
+              username: fullUser.username,
+              verified: fullUser.verified,
+              github_id: fullUser.github_id, // Include github_id if applicable
+              google_id: fullUser.google_id,
+              has_password: !!fullUser.password_hash
+            });
+          }
+        } catch (err) {
+          console.error('[OAuth] Google Strategy Error:', err);
           cb(err);
         }
       }
@@ -38,7 +187,14 @@ export function initOAuth(app) {
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id, done) => {
     const user = await User.findById(id);
-    if (user) return done(null, { id: user.id, email: user.email });
+    if (user) return done(null, {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      verified: user.verified,
+      totp_enabled: user.totp_enabled,
+      github_id: user.github_id
+    });
     done(null, false);
   });
 
@@ -49,9 +205,67 @@ export function initOAuth(app) {
 
   app.get(
     '/auth/github/callback',
-    passport.authenticate('github', { failureRedirect: '/', session: true }),
-    (req, res) => {
-      res.redirect(SUCCESS_REDIRECT);
+    (req, res, next) => { // 拦截 passport.authenticate 行为
+      passport.authenticate('github', { failureRedirect: '/', session: true }, (err, user, info) => {
+        if (err) { return next(err); }
+        // Case 1: 需要 2FA (user 为 false，info 包含我们的消息)
+        if (user === false && info?.message === '2FA required') {
+          console.log(`[OAuth Callback] GitHub 用户 ${info.userId} 需要 2FA`);
+          req.session.pending2fa = true;
+          req.session.pending2faUserId = info.userId;
+          // 确保 session 保存后再重定向
+          return req.session.save((saveErr) => {
+              if (saveErr) { return next(saveErr); }
+              res.redirect(`${PUBLIC_BASE_URL}/2fa-required`);
+          });
+        }
+        // Case 2: 其他原因认证失败
+        if (!user) {
+          console.log('[OAuth Callback] GitHub 登录失败或用户未找到');
+          return res.redirect('/'); // 或特定登录失败页面
+        }
+        // Case 3: 认证成功，无需 2FA (user 对象存在)
+        // Passport 的默认行为通过 cb(null, user) 已经调用 req.login()
+        console.log(`[OAuth Callback] GitHub 用户 ${user.id} 登录成功 (无需 2FA)`);
+         // 确保 session 保存后再重定向
+         req.session.save((saveErr) => {
+             if (saveErr) { return next(saveErr); }
+             res.redirect(SUCCESS_REDIRECT);
+         });
+      })(req, res, next);
+    }
+  );
+
+  app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: true }));
+
+  app.get(
+    '/auth/google/callback',
+    (req, res, next) => { // 拦截 passport.authenticate 行为
+      passport.authenticate('google', { failureRedirect: '/', session: true }, (err, user, info) => {
+        if (err) { return next(err); }
+        // Case 1: 需要 2FA (user 为 false，info 包含我们的消息)
+        if (user === false && info?.message === '2FA required') {
+          console.log(`[OAuth Callback] Google 用户 ${info.userId} 需要 2FA`);
+          req.session.pending2fa = true;
+          req.session.pending2faUserId = info.userId;
+          // 确保 session 保存后再重定向
+          return req.session.save((saveErr) => {
+              if (saveErr) { return next(saveErr); }
+              res.redirect(`${PUBLIC_BASE_URL}/2fa-required`);
+           });
+        }
+        // Case 2: 认证失败
+        if (!user) {
+          console.log('[OAuth Callback] Google 登录失败或用户未找到');
+          return res.redirect('/');
+        }
+        // Case 3: 认证成功，无需 2FA (user 对象存在)
+        console.log(`[OAuth Callback] Google 用户 ${user.id} 登录成功 (无需 2FA)`);
+        return req.session.save((saveErr) => {
+          if (saveErr) { return next(saveErr); }
+          res.redirect(SUCCESS_REDIRECT);
+        });
+      })(req, res, next);
     }
   );
 }

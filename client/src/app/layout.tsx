@@ -1,0 +1,31 @@
+import type { Metadata } from "next";
+import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "next-themes";
+
+export const metadata: Metadata = {
+  title: "用户认证中心",
+  description: "管理您的账户和认证",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body>
+        {/* @ts-ignore // Ignore the incorrect children type error for ThemeProvider */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

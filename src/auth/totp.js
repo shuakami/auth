@@ -1,8 +1,11 @@
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
+import { TOTP_ISSUER } from '../config/env.js';
 
-export function generateTotpSecret() {
-  const secret = speakeasy.generateSecret({ length: 20 });
+export function generateTotpSecret(email) {
+  const issuer = TOTP_ISSUER || 'AuthApp';
+  const label = email;
+  const secret = speakeasy.generateSecret({ length: 20, name: `${issuer}:${label}`, issuer });
   return { base32: secret.base32, otpauth: secret.otpauth_url };
 }
 
