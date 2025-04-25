@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>验证您的邮箱</title>
+<style>
+  /* Copied styles from reset-password.html for consistency */
+  :root {
+    color-scheme: light dark;
+    supported-color-schemes: light dark;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+    background-color: #f9fafb; /* Light mode: softer white background */
+    color: #374151; /* Light mode: softer black text */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .email-wrapper {
+    padding: 20px 0;
+  }
+  .email-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 40px;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+  .logo {
+    display: block;
+    margin: 0 auto 30px;
+    height: 28px;
+    width: auto;
+  }
+  h2 {
+    color: #111827;
+    margin-top: 0;
+    margin-bottom: 24px;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+  }
+  p {
+    color: #4b5563;
+    font-size: 15px;
+    margin-bottom: 18px;
+    text-align: left;
+  }
+  p.centered {
+    text-align: center;
+  }
+  p.small {
+    font-size: 13px;
+    color: #6b7280;
+  }
+  a {
+    color: #0582FF;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .button-wrapper {
+    text-align: center;
+    margin: 35px 0;
+  }
+  .button {
+    display: inline-block;
+    padding: 12px 28px;
+    background-color: #0582FF;
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    -webkit-border-radius: 8px;
+    -moz-border-radius: 8px;
+    transition: background-color 0.2s ease-in-out;
+  }
+  .button:hover {
+    background-color: #006ADF !important;
+  }
+  .link-wrapper {
+    margin-top: 10px; /* Adjusted from reset password */
+    text-align: center;
+    word-break: break-all;
+  }
+  .footer {
+    margin-top: 40px;
+    padding-top: 25px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  /* Dark Mode Styles */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #111827 !important;
+      color: #d1d5db !important;
+    }
+    .email-container {
+      background-color: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+    .logo.dark-mode-logo {
+      display: block !important;
+    }
+    .logo.light-mode-logo {
+      display: none !important;
+    }
+    h2 {
+      color: #f9fafb !important;
+    }
+    p {
+      color: #d1d5db !important;
+    }
+    p.small {
+      color: #9ca3af !important;
+    }
+    a:not(.button) {
+      color: #60a5fa !important;
+    }
+    .footer {
+      border-top-color: #374151 !important;
+      color: #9ca3af !important;
+    }
+  }
+</style>
+</head>
+<body style="margin: 0; padding: 0; width: 100%; background-color: #f9fafb;">
+  <div class="email-wrapper" style="padding: 20px 0;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="center" valign="top">
+          <div class="email-container" style="max-width: 500px; margin: 0 auto; padding: 40px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <!-- Logo -->
+            <img src="https://auth.sdjz.wiki/assets/images/logo/logo-text-white.png" alt="Logo" class="logo light-mode-logo" style="display: block; margin: 0 auto 30px; height: 28px; width: auto;">
+            <img src="https://auth.sdjz.wiki/assets/images/logo/logo-text-black.png" alt="Logo" class="logo dark-mode-logo" style="display: none; margin: 0 auto 30px; height: 28px; width: auto;">
+
+            <h2 style="color: #111827; margin-top: 0; margin-bottom: 24px; font-size: 22px; font-weight: 600; text-align: center;">验证您的邮箱地址</h2>
+            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">您好,</p>
+            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">感谢您的注册！请点击下面的按钮来验证您的邮箱地址。</p>
+
+            <!-- Button -->
+            <div class="button-wrapper" style="text-align: center; margin: 35px 0;">
+              <a href="{{link}}" target="_blank" class="button" style="display: inline-block; padding: 12px 28px; background-color: #0582FF; color: #ffffff; font-size: 15px; font-weight: 600; text-align: center; text-decoration: none; border-radius: 8px;">验证邮箱</a>
+            </div>
+
+            <!-- Fallback Link -->
+            <p class="small centered" style="font-size: 13px; color: #6b7280; text-align: center;">如果按钮无法点击，请复制并粘贴以下链接到您的浏览器地址栏：</p>
+            <div class="link-wrapper" style="margin-top: 10px; text-align: center; word-break: break-all;">
+              <a href="{{link}}" target="_blank" style="color: #0582FF; text-decoration: none; font-weight: 500; font-size: 13px;">{{link}}</a>
+            </div>
+
+            <p class="small centered" style="margin-top: 30px; font-size: 13px; color: #6b7280; text-align: center;">如果您没有请求此验证，请忽略此邮件。</p>
+
+            <!-- Footer -->
+            <div class="footer" style="margin-top: 40px; padding-top: 25px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af;">
+              © {{currentYear}} sdjz.wiki Auth. All rights reserved.<br>
+              <!-- 您可以在这里添加其他页脚信息 -->
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html> 
