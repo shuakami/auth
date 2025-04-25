@@ -184,18 +184,47 @@ export function initOAuth(app) {
     )
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    // 序列化时只存储 user.id 到 Session 中
+    // console.log('[SerializeUser] Attempting to serialize user:', user); 
+    if (!user || !user.id) { 
+        console.error('[SerializeUser] Error: Invalid user object received for serialization.');
+        return done(new Error('Invalid user object for serialization'));
+    }
+    // console.log('[SerializeUser] Serializing user ID:', user.id);
+    done(null, user.id);
+  });
+  
   passport.deserializeUser(async (id, done) => {
-    const user = await User.findById(id);
-    if (user) return done(null, {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      verified: user.verified,
-      totp_enabled: user.totp_enabled,
-      github_id: user.github_id
-    });
-    done(null, false);
+    // 反序列化时根据 Session 中的 ID 从数据库查找完整用户对象
+    // console.log(`[DeserializeUser] Attempting to deserialize user with ID: ${id}`); 
+    if (!id) { 
+        console.error('[DeserializeUser] Error: Invalid ID received for deserialization.');
+        return done(new Error('Invalid ID for deserialization'));
+    }
+    try { 
+      const user = await User.findById(id);
+      if (user) {
+        // console.log(`[DeserializeUser] User found for ID ${id}:`, { id: user.id, email: user.email, username: user.username }); 
+        // 将数据库查到的用户对象附加到 req.user
+        return done(null, { 
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          verified: user.verified,
+          totp_enabled: user.totp_enabled,
+          github_id: user.github_id,
+          google_id: user.google_id,
+          has_password: !!user.password_hash
+        });
+      } else {
+        // console.log(`[DeserializeUser] User not found for ID: ${id}`); 
+        return done(null, false); // 用户未找到
+      }
+    } catch (err) {
+      console.error(`[DeserializeUser] Error finding user by ID ${id}:`, err); 
+      return done(err);
+    }
   });
 
   app.use(passport.initialize());
@@ -205,33 +234,49 @@ export function initOAuth(app) {
 
   app.get(
     '/auth/github/callback',
-    (req, res, next) => { // 拦截 passport.authenticate 行为
+    (req, res, next) => { 
       passport.authenticate('github', { failureRedirect: '/', session: true }, (err, user, info) => {
         if (err) { return next(err); }
-        // Case 1: 需要 2FA (user 为 false，info 包含我们的消息)
+        // Case 1: 2FA Required
         if (user === false && info?.message === '2FA required') {
           console.log(`[OAuth Callback] GitHub 用户 ${info.userId} 需要 2FA`);
           req.session.pending2fa = true;
           req.session.pending2faUserId = info.userId;
-          // 确保 session 保存后再重定向
           return req.session.save((saveErr) => {
-              if (saveErr) { return next(saveErr); }
+              if (saveErr) { 
+                  console.error('[OAuth Callback] [2FA Flow] Session save failed:', saveErr);
+                  return next(saveErr);
+              }
+              // console.log('[OAuth Callback] [2FA Flow] Session saved successfully. Redirecting to /2fa-required...');
               res.redirect(`${PUBLIC_BASE_URL}/2fa-required`);
           });
         }
-        // Case 2: 其他原因认证失败
+        // Case 2: Auth Failed
         if (!user) {
           console.log('[OAuth Callback] GitHub 登录失败或用户未找到');
-          return res.redirect('/'); // 或特定登录失败页面
+          return res.redirect('/'); 
         }
-        // Case 3: 认证成功，无需 2FA (user 对象存在)
-        // Passport 的默认行为通过 cb(null, user) 已经调用 req.login()
+        // Case 3: Success (No 2FA)
         console.log(`[OAuth Callback] GitHub 用户 ${user.id} 登录成功 (无需 2FA)`);
-         // 确保 session 保存后再重定向
-         req.session.save((saveErr) => {
-             if (saveErr) { return next(saveErr); }
-             res.redirect(SUCCESS_REDIRECT);
-         });
+        
+        // Explicitly call req.login() - Keep this call
+        req.login(user, (loginErr) => {
+            if (loginErr) {
+                console.error('[OAuth Callback] [Success Flow] req.login() failed:', loginErr);
+                return next(loginErr);
+            }
+            // console.log('[OAuth Callback] [Success Flow] req.login() successful. Proceeding to save session...');
+            
+            // Save session and redirect
+            req.session.save((saveErr) => {
+                if (saveErr) { 
+                    console.error('[OAuth Callback] [Success Flow] Session save failed after req.login():', saveErr);
+                    return next(saveErr);
+                }
+                // console.log('[OAuth Callback] [Success Flow] Session saved successfully after req.login(). Redirecting...');
+                res.redirect(SUCCESS_REDIRECT); // Restore redirect
+            });
+        });
       })(req, res, next);
     }
   );
@@ -240,30 +285,48 @@ export function initOAuth(app) {
 
   app.get(
     '/auth/google/callback',
-    (req, res, next) => { // 拦截 passport.authenticate 行为
+    (req, res, next) => { 
       passport.authenticate('google', { failureRedirect: '/', session: true }, (err, user, info) => {
         if (err) { return next(err); }
-        // Case 1: 需要 2FA (user 为 false，info 包含我们的消息)
+        // Case 1: 2FA Required
         if (user === false && info?.message === '2FA required') {
           console.log(`[OAuth Callback] Google 用户 ${info.userId} 需要 2FA`);
           req.session.pending2fa = true;
           req.session.pending2faUserId = info.userId;
-          // 确保 session 保存后再重定向
           return req.session.save((saveErr) => {
-              if (saveErr) { return next(saveErr); }
-              res.redirect(`${PUBLIC_BASE_URL}/2fa-required`);
-           });
+               if (saveErr) { 
+                   console.error('[OAuth Callback] [2FA Flow] Session save failed:', saveErr);
+                   return next(saveErr);
+               }
+               // console.log('[OAuth Callback] [2FA Flow] Session saved successfully. Redirecting to /2fa-required...');
+               res.redirect(`${PUBLIC_BASE_URL}/2fa-required`);
+            });
         }
-        // Case 2: 认证失败
+        // Case 2: Auth Failed
         if (!user) {
           console.log('[OAuth Callback] Google 登录失败或用户未找到');
           return res.redirect('/');
         }
-        // Case 3: 认证成功，无需 2FA (user 对象存在)
+        // Case 3: Success (No 2FA)
         console.log(`[OAuth Callback] Google 用户 ${user.id} 登录成功 (无需 2FA)`);
-        return req.session.save((saveErr) => {
-          if (saveErr) { return next(saveErr); }
-          res.redirect(SUCCESS_REDIRECT);
+
+        // Explicitly call req.login() - Keep this call
+        req.login(user, (loginErr) => {
+            if (loginErr) {
+                console.error('[OAuth Callback] [Success Flow] req.login() failed:', loginErr);
+                return next(loginErr);
+            }
+            // console.log('[OAuth Callback] [Success Flow] req.login() successful. Proceeding to save session...');
+
+            // Save session and redirect
+            return req.session.save((saveErr) => { // Keep return for clarity
+              if (saveErr) { 
+                  console.error('[OAuth Callback] [Success Flow] Session save failed after req.login():', saveErr);
+                  return next(saveErr); 
+              }
+              // console.log('[OAuth Callback] [Success Flow] Session saved successfully after req.login(). Redirecting...');
+              res.redirect(SUCCESS_REDIRECT); // Restore redirect
+            });
         });
       })(req, res, next);
     }

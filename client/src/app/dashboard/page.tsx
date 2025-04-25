@@ -28,6 +28,7 @@ import {
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import { useRedirectHandler } from '@/hooks/useRedirectHandler';
 
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
@@ -1037,6 +1038,12 @@ function DashboardContent() {
 /* ---------------------------- default export ----------------------------- */
 
 export default function DashboardPage() {
+  const { isRedirecting } = useRedirectHandler();
+
+  if (isRedirecting) {
+    return <LoadingIndicator />;
+  }
+
   return (
     <ProtectedRoute>
       <DashboardContent />

@@ -37,10 +37,11 @@ export default function LoginPage() {
         event.data === 'github-2fa-success' ||
         event.data === 'google-login-success'
       ) {
-        // 重新检查认证状态并跳转，而不是直接跳转
+        // 重新检查认证状态并跳转
         checkAuth().then(user => {
           if (user) {
-            router.push('/dashboard');
+            router.push('/dashboard'); // 恢复跳转
+            console.log('[LoginPage OAuth Callback] OAuth success, user found. Initiating navigation towards /dashboard.');
           } else {
              setError('第三方登录成功，但无法获取用户信息。');
           }
@@ -76,7 +77,8 @@ export default function LoginPage() {
         // 登录成功 (status 200)
         const loggedInUser = await checkAuth();
         if (loggedInUser) {
-          router.push('/dashboard');
+           router.push('/dashboard'); // 恢复跳转
+           console.log('[LoginPage handleLoginSubmit] Login success, user found. Initiating navigation towards /dashboard.');
         } else {
           setError('登录成功，但无法获取用户信息，请稍后再试。');
         }
@@ -112,7 +114,8 @@ export default function LoginPage() {
         setShow2fa(false); // 可以隐藏 2FA 表单了
         const loggedInUser = await checkAuth();
         if (loggedInUser) {
-          router.push('/dashboard');
+            router.push('/dashboard'); // 恢复跳转
+           console.log('[LoginPage handle2faSubmit] 2FA success, user found. Initiating navigation towards /dashboard.');
         } else {
           setError('2FA验证成功，但无法获取用户信息。'); // 在主区域显示错误
         }
