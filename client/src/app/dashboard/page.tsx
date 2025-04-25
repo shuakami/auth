@@ -666,7 +666,7 @@ function DashboardContent() {
 
   /* --------------------------- render ------------------------------------ */
   return (
-    <div className="flex min-h-screen flex-col bg-white text-neutral-900 dark:bg-zinc-900 dark:text-zinc-100">
+    <div className="flex min-h-screen flex-col bg-white text-neutral-900 dark:bg-zinc-950 dark:text-zinc-100">
       <Header user={user} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
