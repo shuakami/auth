@@ -1,5 +1,5 @@
 'use client';
-import { useState, type ReactNode, type FormEvent, useEffect } from 'react';
+import React, { useState, type ReactNode, type FormEvent, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { resetPassword } from '@/services/api';
 import Link from 'next/link';
@@ -52,7 +52,8 @@ const LoadingSpinner = () => (
   </svg>
 );
 
-export default function ResetPasswordPage() {
+// 新建内部组件，包含所有客户端逻辑
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token') || '';
@@ -80,11 +81,8 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword(token, password);
       setSuccess(true);
-      // No need for setTimeout, success message will be shown
-      // Optionally redirect after a few seconds from the success message UI
     } catch (err: any) {
       setError(err?.response?.data?.error || '重置失败，链接可能已失效或过期，请重新申请。 ');
-      // Don't set success=true on error
     } finally {
       setLoading(false);
     }
@@ -92,12 +90,10 @@ export default function ResetPasswordPage() {
 
   const renderContent = () => {
     if (!isTokenChecked) {
-        // Optionally show a loading state while checking token
         return <p className="text-center text-neutral-500 dark:text-neutral-400">正在检查链接...</p>;
     }
 
     if (!isTokenValid) {
-      // Invalid or Missing Token State
       return (
         <div className="text-center lg:text-left space-y-4">
           <p className="text-sm text-red-600 dark:text-red-400">重置链接无效或已过期。</p>
@@ -113,7 +109,6 @@ export default function ResetPasswordPage() {
     }
 
     if (success) {
-      // Success State
       return (
         <div className="text-center lg:text-left space-y-4">
           <p className="text-sm text-green-600 dark:text-green-400">密码重置成功！</p>
@@ -128,10 +123,9 @@ export default function ResetPasswordPage() {
       );
     }
 
-    // Default State: Input New Password Form
     return (
-       <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+         <div>
           <label htmlFor="password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
             设置新密码
           </label>
@@ -165,23 +159,15 @@ export default function ResetPasswordPage() {
             {loading ? <LoadingSpinner /> : '确认重置密码'}
           </button>
         </div>
-      </form>
+       </form>
     );
   };
 
   return (
-    <AuthLayout
-      leftContent={
-        <LeftContent
-          title={success ? "重置成功" : (isTokenValid ? "设置新密码" : "链接无效")}
-          description={success ? "您的密码已成功更新。" : (isTokenValid ? "请在下方输入您的新密码进行重置。" : "无法识别此重置链接，可能已过期或不正确。")}
-        />
-      }
-      rightContent={
-        <div className="mt-10 lg:mt-0 w-full max-w-md mx-auto">
-           {/* Logo 和标题 (小屏幕显示) */}
-          <div className="text-center lg:hidden mb-8">
-            <Image
+      <div className="mt-10 lg:mt-0 w-full max-w-md mx-auto">
+          {/* Logo 和标题 (小屏幕显示) */}
+         <div className="text-center lg:hidden mb-8">
+           <Image
               src="/assets/images/logo/logo-text-white.png"
               alt="Logo"
               width={120}
@@ -195,25 +181,42 @@ export default function ResetPasswordPage() {
               height={32}
               className="mx-auto hidden dark:block"
             />
-            <h2 className="mt-6 text-center text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-               {success ? "重置成功" : (isTokenValid ? "设置新密码" : "链接无效")}
-            </h2>
-          </div>
+           <h2 className="mt-6 text-center text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+              {success ? "重置成功" : (isTokenValid ? "设置新密码" : "链接无效")}
+           </h2>
+         </div>
 
-          {/* 集成式表单/内容区域 */}
-          <div className="space-y-6">
-             {/* 大屏幕显示标题 */}
-             <div className="hidden lg:block">
-                  <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-                     {success ? "密码已更新" : (isTokenValid ? "输入新密码" : "无法重置")}
-                  </h2>
-                  <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                     {success ? "您现在可以使用新密码登录了。" : (isTokenValid ? "请设置一个安全的、您记得住的新密码。" : "请返回忘记密码页面重新申请。")}
-                  </p>
-              </div>
-              {renderContent()} { /* Render different content based on state */}
-          </div>
-        </div>
+         {/* 集成式表单/内容区域 */}
+         <div className="space-y-6">
+            {/* 大屏幕显示标题 */}
+            <div className="hidden lg:block">
+                 <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                    {success ? "密码已更新" : (isTokenValid ? "输入新密码" : "无法重置")}
+                 </h2>
+                 <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                    {success ? "您现在可以使用新密码登录了。" : (isTokenValid ? "请设置一个安全的、您记得住的新密码。" : "请返回忘记密码页面重新申请。")}
+                 </p>
+             </div>
+             {renderContent()} { /* Render different content based on state */}
+         </div>
+       </div>
+  );
+}
+
+// 原始页面组件现在只负责布局和渲染 Suspense
+export default function ResetPasswordPage() {
+  return (
+    <AuthLayout
+      leftContent={
+        <LeftContent
+          title="重置您的密码"
+          description="安全地更新您的账户密码。"
+        />
+      }
+      rightContent={
+        <Suspense fallback={<div className="text-center p-10">加载中...</div>}>
+          <ResetPasswordForm />
+        </Suspense>
       }
     />
   );
