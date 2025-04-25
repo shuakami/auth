@@ -212,7 +212,6 @@ function DashboardContent() {
   const [emailLoading, setEmailLoading] = useState(false);
 
   /* delete */
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [showDeleteVerifyModal, setShowDeleteVerifyModal] = useState(false);
   const [deletePwd, setDeletePwd] = useState('');
   const [deleteCode, setDeleteCode] = useState('');
