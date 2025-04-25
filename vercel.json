@@ -17,6 +17,10 @@
       "dest": "/src/index.js"
     },
     {
+      "src": "/auth/(.*)",
+      "dest": "/src/index.js"
+    },
+    {
       "src": "/_next/static/(.*)",
       "dest": "/client/_next/static/$1"
     },
