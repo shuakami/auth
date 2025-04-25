@@ -8,8 +8,7 @@
     },
     {
       "src": "client/package.json",
-      "use": "@vercel/next",
-      "config": { "workspaces": [".."] }
+      "use": "@vercel/next"
     }
   ],
   "routes": [
@@ -18,7 +17,11 @@
       "dest": "/src/index.js"
     },
     {
-      "handle": "filesystem" 
+      "src": "/_next/static/(.*)",
+      "dest": "/client/_next/static/$1"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
