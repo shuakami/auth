@@ -53,16 +53,19 @@ export default function RegisterPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
+    setRegisteredEmail('');
     setLoading(true);
 
     try {
       const response = await register(email, password, username);
       setSuccessMessage(response.data.message || '注册成功！请检查您的邮箱以完成验证。');
+      setRegisteredEmail(email);
       setEmail('');
       setPassword('');
       setUsername('');
@@ -79,14 +82,14 @@ export default function RegisterPage() {
   };
 
   const handleResend = async () => {
-    if (!email && successMessage) {
-      setError('请输入您注册时使用的邮箱地址以重发验证邮件。');
+    if (!registeredEmail) {
+      setError('无法获取您注册时使用的邮箱地址，请刷新页面或联系支持。');
       return;
     }
     setResendMsg('发送中...');
     setError('');
     try {
-      await resendVerifyEmail(email);
+      await resendVerifyEmail(registeredEmail);
       setResendMsg('验证邮件已重新发送，请查收。');
     } catch (err: unknown) {
       let errorMessage = '发送失败，请稍后再试或检查邮箱地址是否正确。';
@@ -149,10 +152,16 @@ export default function RegisterPage() {
               <div className="text-center lg:text-left space-y-4">
                 <p className="text-green-600 dark:text-green-400">{successMessage}</p>
                 <div>
-                  <button type="button" onClick={handleResend} className="text-sm font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-[#09090b]">
+                  {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+                  <button 
+                    type="button" 
+                    onClick={handleResend} 
+                    disabled={resendMsg === '发送中...'}
+                    className="text-sm font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-[#09090b] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     未收到验证邮件？重新发送
                   </button>
-                  {resendMsg && <p className={`mt-2 text-sm ${resendMsg.includes('失败') || resendMsg.includes('错误') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{resendMsg}</p>}
+                  {resendMsg && <p className={`mt-2 text-sm ${resendMsg.includes('失败') || resendMsg.includes('错误') || resendMsg.includes('无法') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{resendMsg}</p>}
                 </div>
                 <p className="pt-2">
                   <Link href="/login" className="inline-flex justify-center rounded-md border border-transparent bg-[#0582FF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#006ADF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-[#09090b]">

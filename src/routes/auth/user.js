@@ -2,6 +2,9 @@ import express                from 'express';
 import { ensureAuth }         from '../../middlewares/authenticated.js';
 import * as User              from '../../services/userService.js';
 import bcrypt                 from 'bcryptjs';
+import { verifyTotp }         from '../../auth/totp.js';
+import { verifyBackupCode }   from '../../auth/backupCodes.js';
+import { decrypt }            from '../../auth/cryptoUtils.js';
 
 const router = express.Router();
 
@@ -30,28 +33,90 @@ router.get('/me', ensureAuth, async (req, res) => {
  * DELETE /me
  * @tags 用户
  * @summary 删除当前登录用户账号
+ * @description 需要提供当前密码进行验证。如果启用了 2FA，则还需要提供有效的 TOTP 验证码或备份码。
  * @security cookieAuth
+ * @param {object} request.body.required - 验证信息 { password: string, code?: string }
  * @return {SimpleSuccessResponse} 200 - 删除成功
- * @return {ErrorResponse} 401 - 未授权
+ * @return {ErrorResponse} 400 - 缺少参数或验证码/备份码无效
+ * @return {ErrorResponse} 401 - 未授权或密码错误
+ * @return {ErrorResponse} 403 - 2FA 验证需要但未提供或无效
+ * @return {ErrorResponse} 500 - 服务器内部错误
  */
-router.delete('/me', ensureAuth, async (req, res) => {
+router.delete('/me', ensureAuth, async (req, res, next) => {
+  const { password, code } = req.body;
+  const userId = req.user.id;
+
   try {
-    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ error: '未授权 - 用户不存在' });
+    }
+
+    if (user.password_hash) {
+      if (!password) {
+        return res.status(400).json({ error: '缺少密码' });
+      }
+      const validPassword = await bcrypt.compare(password, user.password_hash);
+      if (!validPassword) {
+        return res.status(401).json({ error: '密码错误' });
+      }
+    } else {
+      console.warn(`User ${userId} is deleting account without a password set.`);
+    }
+
+    if (user.totp_enabled) {
+      if (!code) {
+        return res.status(403).json({ error: '需要 2FA 验证码或备份码' });
+      }
+
+      let validCode = false;
+      const isPossibleTotp = /^[0-9]{6}$/.test(code);
+      const encryptedSecret = user.totp_secret;
+
+      if (isPossibleTotp && encryptedSecret) {
+        const decryptedSecret = decrypt(encryptedSecret);
+        if (decryptedSecret && verifyTotp(decryptedSecret, code)) {
+          validCode = true;
+        }
+      }
+
+      if (!validCode) {
+        const backupOk = await verifyBackupCode(userId, code);
+        if (backupOk) {
+          validCode = true;
+        }
+      }
+
+      if (!validCode) {
+        return res.status(403).json({ error: '无效的 2FA 验证码或备份码' });
+      }
+    }
+
     await User.deleteUser(userId);
+    
     if (typeof req.logout === 'function') {
       req.logout(function(err) {
-        req.session?.destroy?.(() => {
-          if (err) return res.status(500).json({ error: '注销失败', detail: err?.message });
+        req.session?.destroy?.((destroyErr) => {
+          if (err || destroyErr) {
+            console.error('Logout or session destroy failed after account deletion:', err || destroyErr);
+            return res.status(200).json({ ok: true, message: '账号已删除，但会话清理可能失败' });
+          }
           res.json({ ok: true, message: '账号已删除' });
         });
       });
     } else {
-      req.session?.destroy?.(() => {
+      req.session?.destroy?.((destroyErr) => {
+         if (destroyErr) {
+           console.error('Session destroy failed after account deletion:', destroyErr);
+           return res.status(200).json({ ok: true, message: '账号已删除，但会话清理可能失败' });
+         }
         res.json({ ok: true, message: '账号已删除' });
       });
     }
+
   } catch (err) {
-    res.status(500).json({ error: '删除账号失败', detail: err?.message });
+    console.error('Error during account deletion:', err);
+    res.status(500).json({ error: '删除账号时发生服务器内部错误', detail: err?.message });
   }
 });
 

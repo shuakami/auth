@@ -86,8 +86,13 @@ export const resetPassword = async (token: string, password: string) => {
   return apiClient.post('/reset-password', { token, password });
 };
 
-export const deleteAccount = async () => {
-  return apiClient.delete('/me');
+interface DeleteAccountPayload {
+  password?: string;
+  code?: string;
+}
+
+export const deleteAccount = async (data: DeleteAccountPayload) => {
+  return apiClient.delete('/me', { data }); // Send credentials in the request body for DELETE
 };
 
 export const updatePassword = async (data: { oldPassword?: string; newPassword: string }) => {

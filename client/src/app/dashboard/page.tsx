@@ -10,6 +10,7 @@ import React, {
   type FormEvent,
   MouseEventHandler,
   ChangeEventHandler,
+  useRef,
 } from 'react';
 import dynamic from 'next/dynamic';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
@@ -106,6 +107,7 @@ const Input = memo(
     required = false,
     disabled = false,
     className = '',
+    autoFocus = false,
     ...props
   }: {
     type?: string;
@@ -115,6 +117,7 @@ const Input = memo(
     required?: boolean;
     disabled?: boolean;
     className?: string;
+    autoFocus?: boolean;
     pattern?: string;
     maxLength?: number;
   }) => (
@@ -125,6 +128,7 @@ const Input = memo(
       placeholder={placeholder}
       required={required}
       disabled={disabled}
+      autoFocus={autoFocus}
       className={`w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder-zinc-500 ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
@@ -156,6 +160,7 @@ NavItem.displayName = 'NavItem';
 
 function DashboardContent() {
   const { user, logout, checkAuth } = useAuth();
+  const popupCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   /* ------------------------------ state ---------------------------------- */
   const [activeSection, setActiveSection] = useState<'general' | 'security' | 'connections'>('general');
@@ -207,8 +212,12 @@ function DashboardContent() {
   const [emailLoading, setEmailLoading] = useState(false);
 
   /* delete */
-  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showDeleteVerifyModal, setShowDeleteVerifyModal] = useState(false);
+  const [deletePwd, setDeletePwd] = useState('');
+  const [deleteCode, setDeleteCode] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState('');
 
   /* misc */
   const [showUserId, setShowUserId] = useState(false);
@@ -220,32 +229,71 @@ function DashboardContent() {
         .then((res) => setBackupCount(res.data.count))
         .catch(() => {});
     }
+
+    return () => {
+      if (popupCheckInterval.current) {
+        clearInterval(popupCheckInterval.current);
+      }
+    };
   }, [user?.totp_enabled]);
 
+  /* --------------------------- helpers ----------------------------------- */
+  const monitorPopup = useCallback((popup: Window | null) => {
+    if (!popup) return;
+
+    if (popupCheckInterval.current) {
+      clearInterval(popupCheckInterval.current);
+    }
+
+    popupCheckInterval.current = setInterval(() => {
+      if (!popup || popup.closed) {
+        if (popupCheckInterval.current) {
+          clearInterval(popupCheckInterval.current);
+          popupCheckInterval.current = null;
+        }
+        console.log('OAuth popup closed, refreshing auth state...');
+        checkAuth();
+      }
+    }, 1000);
+  }, [checkAuth]);
+
   /* --------------------------- handlers ---------------------------------- */
-  const handleDeleteAccount = useCallback(async () => {
-    setDeleteAccountLoading(true);
+  const handleDeleteAccountClick = useCallback(() => {
+    setDeletePwd('');
+    setDeleteCode('');
+    setDeleteMsg('');
+    setShowDeleteVerifyModal(true);
+  }, []);
+
+  const handleConfirmDeleteAccount = useCallback(async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    setDeleteLoading(true);
+    setDeleteMsg('');
     try {
-      await deleteAccount();
-      alert('账号已删除');
+      const payload: { password?: string; code?: string } = {};
+      if (user?.has_password) {
+        payload.password = deletePwd;
+      }
+      if (user?.totp_enabled) {
+        payload.code = deleteCode;
+      }
+      await deleteAccount(payload);
+      setShowDeleteVerifyModal(false);
+      alert('账号已成功删除。');
       logout();
     } catch (err: unknown) {
-      let errorMessage = '未知错误';
-      if (typeof err === 'object' && err !== null) {
-        if ('response' in err) {
-          const response = (err as { response?: { data?: { error?: string } } }).response;
-          if (response?.data?.error && typeof response.data.error === 'string') {
-            errorMessage = response.data.error;
-          }
-        } else if ('message' in err && typeof (err as { message?: string }).message === 'string') {
-          errorMessage = (err as { message: string }).message;
+      let errorMessage = '删除失败，请重试';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error && typeof response.data.error === 'string') {
+          errorMessage = response.data.error;
         }
       }
-      alert('删除失败：' + errorMessage);
+      setDeleteMsg(errorMessage);
     } finally {
-      setDeleteAccountLoading(false);
+      setDeleteLoading(false);
     }
-  }, [logout]);
+  }, [deletePwd, deleteCode, user, logout]);
 
   const handlePwdSubmit = useCallback(
     async (e?: FormEvent) => {
@@ -429,12 +477,14 @@ function DashboardContent() {
   );
 
   const handleBindGithub = useCallback(() => {
-    window.open('/auth/github', 'github_oauth', 'width=1000,height=700');
-  }, []);
+    const popup = window.open('/auth/github', 'github_oauth', 'width=1000,height=700');
+    monitorPopup(popup);
+  }, [monitorPopup]);
 
   const handleBindGoogle = useCallback(() => {
-    window.open('/auth/google', 'google_oauth', 'width=1000,height=700');
-  }, []);
+    const popup = window.open('/auth/google', 'google_oauth', 'width=1000,height=700');
+    monitorPopup(popup);
+  }, [monitorPopup]);
 
   /* --------------------------- helpers ----------------------------------- */
   const renderEmailStatus = useCallback(
@@ -633,7 +683,7 @@ function DashboardContent() {
                   <h4 className="text-base font-medium text-red-900 dark:text-red-300">删除账户</h4>
                   <p className="text-sm text-red-700/90 dark:text-red-400/90">删除后，您的所有数据将被永久清除且无法恢复。</p>
                 </div>
-                <Button onClick={() => setShowDeleteAccountModal(true)} variant="danger" size="sm">
+                <Button onClick={handleDeleteAccountClick} variant="danger" size="sm">
                   删除我的账户
                 </Button>
               </div>
@@ -677,12 +727,12 @@ function DashboardContent() {
           {/* Google */}
           <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700/50">
             <div className="flex items-center gap-4 border-b border-neutral-200 bg-neutral-50 px-6 py-4 dark:border-zinc-700/50 dark:bg-zinc-800/50">
-              <svg className="h-5 w-5 text-neutral-700 dark:text-zinc-300" fill="currentColor" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.21 0 6.14.98 8.53 2.7l4.79-4.79C33.58 4.57 29.01 3 24 3 14.7 3 6.96 8.5 4.21 16.81l5.44 4.24C11.41 14.06 17.23 9.5 24 9.5z" />
-                <path fill="#4285F4" d="M46.06 24.55c0-1.59-.14-3.12-.4-4.55H24v8.48h12.31c-.54 2.77-2.09 5.12-4.39 6.7l5.21 4.04C41.36 35.55 44.8 30.58 46.06 24.55z" />
-                <path fill="#34A853" d="M9.65 28.95c-.46-.93-.72-1.95-.72-3.02s.26-2.09.72-3.02l-5.44-4.24C3.02 20.4 2 23.14 2 25.93s1.02 5.53 2.79 7.64l5.86-4.62z" />
-                <path fill="#FBBC05" d="M24 44.5c4.89 0 9.04-1.63 12.01-4.38l-5.21-4.04c-1.6 1.08-3.64 1.72-5.8 1.72-6.77 0-12.59-4.56-14.35-10.71l-5.44 4.24C6.96 39.5 14.7 44.5 24 44.5z" />
-                <path fill="none" d="M0 0h48v48H0z" />
+              <svg height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg" style={{flex: '0 0 auto', lineHeight: 1}} className="h-5 w-5 text-neutral-700 dark:text-zinc-300">
+                <title>Google</title>
+                <path d="M23 12.245c0-.905-.075-1.565-.236-2.25h-10.54v4.083h6.186c-.124 1.014-.797 2.542-2.294 3.569l-.021.136 3.332 2.53.23.022C21.779 18.417 23 15.593 23 12.245z" fill="#4285F4"></path>
+                <path d="M12.225 23c3.03 0 5.574-.978 7.433-2.665l-3.542-2.688c-.948.648-2.22 1.1-3.891 1.1a6.745 6.745 0 01-6.386-4.572l-.132.011-3.465 2.628-.045.124C4.043 20.531 7.835 23 12.225 23z" fill="#34A853"></path>
+                <path d="M5.84 14.175A6.65 6.65 0 015.463 12c0-.758.138-1.491.361-2.175l-.006-.147-3.508-2.67-.115.054A10.831 10.831 0 001 12c0 1.772.436 3.447 1.197 4.938l3.642-2.763z" fill="#FBBC05"></path>
+                <path d="M12.225 5.253c2.108 0 3.529.892 4.34 1.638l3.167-3.031C17.787 2.088 15.255 1 12.225 1 7.834 1 4.043 3.469 2.197 7.062l3.63 2.763a6.77 6.77 0 016.398-4.572z" fill="#EB4335"></path>
               </svg>
               <div>
                 <h3 className="font-medium text-neutral-900 dark:text-zinc-100">Google</h3>
@@ -726,6 +776,7 @@ function DashboardContent() {
     handleDisable2FASubmit,
     handleBindGithub,
     handleBindGoogle,
+    handleDeleteAccountClick,
   ]);
 
   /* --------------------------- render ------------------------------------ */
@@ -1091,17 +1142,51 @@ function DashboardContent() {
         isLoading={emailLoading}
       />
 
-      {/* 删除账户 */}
+      {/* 删除账户 - 验证 Modal */}
       <ConfirmModal
-        isOpen={showDeleteAccountModal}
-        onClose={() => setShowDeleteAccountModal(false)}
-        onConfirm={handleDeleteAccount}
-        title="删除账户"
-        message="您确定要删除您的账户吗？此操作将永久删除所有数据且无法恢复！"
+        isOpen={showDeleteVerifyModal}
+        onClose={() => setShowDeleteVerifyModal(false)}
+        onConfirm={handleConfirmDeleteAccount}
+        title="确认删除账户"
+        message={
+          <form className="space-y-4" onSubmit={handleConfirmDeleteAccount}>
+            <p className="text-sm text-red-600 dark:text-red-400">此操作无法撤销！请输入您的凭据以确认删除。</p>
+            {user?.has_password && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <Input
+                  type="password"
+                  value={deletePwd}
+                  onChange={(e) => setDeletePwd(e.target.value)}
+                  required
+                  placeholder="请输入当前密码"
+                  autoFocus
+                />
+              </div>
+            )}
+            {user?.totp_enabled && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">2FA 验证码 / 备份码</label>
+                <Input
+                  type="text"
+                  value={deleteCode}
+                  onChange={(e) => setDeleteCode(e.target.value)}
+                  required
+                  placeholder="6 位验证码或备份码"
+                />
+              </div>
+            )}
+            {deleteMsg && (
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {deleteMsg}
+              </div>
+            )}
+          </form>
+        }
         type="danger"
-        confirmText="删除账户"
+        confirmText={deleteLoading ? '删除中...' : '确认删除'}
         cancelText="取消"
-        isLoading={deleteAccountLoading}
+        isLoading={deleteLoading}
       />
     </div>
   );
