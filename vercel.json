@@ -21,11 +21,15 @@
       "dest": "/client/_next/static/$1"
     },
     {
+      "src": "/_next/image(.*)",
+      "dest": "/client/_next/image$1"
+    },
+    {
       "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/client" 
+      "dest": "/client/$1" 
     }
   ]
 }

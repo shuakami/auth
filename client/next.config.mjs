@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  basePath: '/client',
 
   // ESLint and TypeScript checks should run during build
   // eslint: {
