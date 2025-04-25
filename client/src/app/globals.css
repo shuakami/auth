@@ -235,3 +235,15 @@ body {
   animation: spin-fast 0.7s linear infinite;
 }
 
+/* 自定义覆盖 dark:bg-gray-900 的颜色 */
+.dark .dark\:bg-gray-900 {
+  background-color: oklch(0.18 0 0);
+}
+
+/* 针对系统 prefers-color-scheme 切换模式 */
+@media (prefers-color-scheme: dark) {
+  .dark\:bg-gray-900 {
+    background-color: oklch(0.18 0 0);
+  }
+}
+

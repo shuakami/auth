@@ -122,7 +122,7 @@ const Input = memo(
       placeholder={placeholder}
       required={required}
       disabled={disabled}
-      className={`w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-500 ${
+      className={`w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder-zinc-500 ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
       {...props}
@@ -720,13 +720,13 @@ function DashboardContent() {
               <Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} required />
             </div>
             {pwdMsg && (
-              <p
+              <div
                 className={`text-sm ${
                   pwdMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 {pwdMsg}
-              </p>
+              </div>
             )}
           </form>
         }
@@ -768,7 +768,7 @@ function DashboardContent() {
                 placeholder="请输入当前密码"
               />
             </div>
-            {setup2faPwdMsg && <p className="text-sm text-red-600 dark:text-red-400">{setup2faPwdMsg}</p>}
+            {setup2faPwdMsg && <div className="text-sm text-red-600 dark:text-red-400">{setup2faPwdMsg}</div>}
           </form>
         }
         type="default"
@@ -822,13 +822,13 @@ function DashboardContent() {
               />
             </div>
             {totpMsg && (
-              <p
+              <div
                 className={`text-sm ${
                   totpMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 {totpMsg}
-              </p>
+              </div>
             )}
           </form>
         }
@@ -893,7 +893,7 @@ function DashboardContent() {
               />
             </div>
             {disable2faMsg && (
-              <p
+              <div
                 className={`text-sm ${
                   disable2faMsg.includes('成功') || disable2faMsg.includes('刷新')
                     ? 'text-green-600 dark:text-green-400'
@@ -901,7 +901,7 @@ function DashboardContent() {
                 }`}
               >
                 {disable2faMsg}
-              </p>
+              </div>
             )}
           </form>
         }
@@ -928,16 +928,16 @@ function DashboardContent() {
                 required
                 placeholder="请输入新用户名"
               />
-              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">可包含字母、数字、下划线和连字符</p>
+              <div className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">可包含字母、数字、下划线和连字符</div>
             </div>
             {usernameMsg && (
-              <p
+              <div
                 className={`text-sm ${
                   usernameMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 {usernameMsg}
-              </p>
+              </div>
             )}
           </form>
         }
@@ -965,7 +965,7 @@ function DashboardContent() {
                 placeholder="请输入当前密码"
               />
             </div>
-            {genBackupPwdMsg && <p className="text-sm text-red-600 dark:text-red-400">{genBackupPwdMsg}</p>}
+            {genBackupPwdMsg && <div className="text-sm text-red-600 dark:text-red-400">{genBackupPwdMsg}</div>}
           </form>
         }
         type="default"
@@ -1003,13 +1003,13 @@ function DashboardContent() {
               />
             </div>
             {emailMsg && (
-              <p
+              <div
                 className={`text-sm ${
                   emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
                 }`}
               >
                 {emailMsg}
-              </p>
+              </div>
             )}
           </form>
         }

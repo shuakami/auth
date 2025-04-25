@@ -5,7 +5,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -67,9 +66,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                         )}>
                             {title}
                         </DialogTitle>
-                        <DialogDescription as="div" className="text-base font-normal text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                        <div className="text-base font-normal text-neutral-500 dark:text-neutral-400 leading-relaxed">
                             {message}
-                        </DialogDescription>
+                        </div>
                     </DialogHeader>
                 </div>
                 <DialogFooter className="px-8 py-5 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-200/50 dark:border-neutral-700/50">
