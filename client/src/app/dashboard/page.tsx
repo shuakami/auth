@@ -29,6 +29,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useRedirectHandler } from '@/hooks/useRedirectHandler';
+import Image from 'next/image';
 
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
@@ -42,6 +43,7 @@ const Section = memo(({ title, children }: { title: string; children: ReactNode 
     {children}
   </section>
 ));
+Section.displayName = 'Section';
 
 const Button = memo(
   ({
@@ -93,6 +95,7 @@ const Button = memo(
     );
   },
 );
+Button.displayName = 'Button';
 
 const Input = memo(
   ({
@@ -129,6 +132,7 @@ const Input = memo(
     />
   ),
 );
+Input.displayName = 'Input';
 
 const NavItem = memo(
   ({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) => (
@@ -144,6 +148,7 @@ const NavItem = memo(
     </button>
   ),
 );
+NavItem.displayName = 'NavItem';
 
 /* -------------------------------------------------------------------------- */
 /* Dashboard                                                                  */
@@ -224,8 +229,19 @@ function DashboardContent() {
       await deleteAccount();
       alert('账号已删除');
       logout();
-    } catch (err: any) {
-      alert('删除失败：' + (err?.response?.data?.error || err?.message || '未知错误'));
+    } catch (err: unknown) {
+      let errorMessage = '未知错误';
+      if (typeof err === 'object' && err !== null) {
+        if ('response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        } else if ('message' in err && typeof (err as { message?: string }).message === 'string') {
+          errorMessage = (err as { message: string }).message;
+        }
+      }
+      alert('删除失败：' + errorMessage);
     } finally {
       setDeleteAccountLoading(false);
     }
@@ -248,8 +264,15 @@ function DashboardContent() {
           setNewPwd('');
           setOldPwd('');
         }, 1200);
-      } catch (err: any) {
-        setPwdMsg(err?.response?.data?.error || '设置失败');
+      } catch (err: unknown) {
+        let errorMessage = '设置失败';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setPwdMsg(errorMessage);
       } finally {
         setPwdLoading(false);
       }
@@ -272,8 +295,15 @@ function DashboardContent() {
         await verify2FA(totpToken);
         setTotpMsg('2FA 启用成功！正在刷新...');
         setTimeout(() => window.location.reload(), 1200);
-      } catch (err: any) {
-        setTotpMsg(err?.response?.data?.error || '验证码错误');
+      } catch (err: unknown) {
+        let errorMessage = '验证码错误';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setTotpMsg(errorMessage);
       } finally {
         setTotpLoading(false);
       }
@@ -296,8 +326,15 @@ function DashboardContent() {
         await disable2FA({ token: totpToken || undefined, backupCode: disableBackupCode || undefined });
         setDisable2faMsg('2FA已关闭，正在刷新...');
         setTimeout(() => window.location.reload(), 1200);
-      } catch (err: any) {
-        setDisable2faMsg(err?.response?.data?.error || '关闭失败');
+      } catch (err: unknown) {
+        let errorMessage = '关闭失败';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setDisable2faMsg(errorMessage);
       } finally {
         setDisable2faLoading(false);
       }
@@ -318,8 +355,15 @@ function DashboardContent() {
           setShowUsernameModal(false);
           setUsernameMsg('');
         }, 1200);
-      } catch (err: any) {
-        setUsernameMsg(err?.response?.data?.error || '设置失败');
+      } catch (err: unknown) {
+        let errorMessage = '设置失败';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setUsernameMsg(errorMessage);
       } finally {
         setUsernameLoading(false);
       }
@@ -339,8 +383,15 @@ function DashboardContent() {
         setShowGenBackupPwdModal(false);
         setShowBackupCodesModal(true);
         setGenBackupPwd('');
-      } catch (err: any) {
-        setGenBackupPwdMsg(err?.response?.data?.error || '密码验证失败');
+      } catch (err: unknown) {
+        let errorMessage = '密码验证失败';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setGenBackupPwdMsg(errorMessage);
       }
     },
     [genBackupPwd],
@@ -361,8 +412,15 @@ function DashboardContent() {
           setNewEmail('');
           setEmailPwd('');
         }, 1500);
-      } catch (err: any) {
-        setEmailMsg(err?.response?.data?.error || '更换失败');
+      } catch (err: unknown) {
+        let errorMessage = '更换失败';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { error?: string } } }).response;
+          if (response?.data?.error && typeof response.data.error === 'string') {
+            errorMessage = response.data.error;
+          }
+        }
+        setEmailMsg(errorMessage);
       } finally {
         setEmailLoading(false);
       }
@@ -511,6 +569,7 @@ function DashboardContent() {
         </Section>
       </div>
     );
+    GeneralSection.displayName = 'GeneralSection';
 
     /* 两步验证 */
     const SecuritySection = () => (
@@ -583,6 +642,7 @@ function DashboardContent() {
         </Section>
       </div>
     );
+    SecuritySection.displayName = 'SecuritySection';
 
     /* 账号绑定 */
     const ConnectionsSection = () => (
@@ -642,6 +702,7 @@ function DashboardContent() {
         </div>
       </div>
     );
+    ConnectionsSection.displayName = 'ConnectionsSection';
 
     switch (activeSection) {
       case 'general':
@@ -663,6 +724,8 @@ function DashboardContent() {
     handleGenBackupCodes,
     handleSetup2FA,
     handleDisable2FASubmit,
+    handleBindGithub,
+    handleBindGoogle,
   ]);
 
   /* --------------------------- render ------------------------------------ */
@@ -751,8 +814,15 @@ function DashboardContent() {
             setShowSetup2faPwdModal(false);
             setShow2faModal(true);
             setSetup2faPwd('');
-          } catch (err: any) {
-            setSetup2faPwdMsg(err?.response?.data?.error || '密码验证失败');
+          } catch (err: unknown) {
+            let errorMessage = '密码验证失败';
+            if (typeof err === 'object' && err !== null && 'response' in err) {
+              const response = (err as { response?: { data?: { error?: string } } }).response;
+              if (response?.data?.error && typeof response.data.error === 'string') {
+                errorMessage = response.data.error;
+              }
+            }
+            setSetup2faPwdMsg(errorMessage);
           }
         }}
         title="验证密码以启用 2FA"
@@ -786,10 +856,12 @@ function DashboardContent() {
           <form className="space-y-4" onSubmit={handleVerify2FASubmit}>
             <p className="text-sm text-neutral-600 dark:text-zinc-400">请使用 Authenticator 扫描二维码或手动输入密钥。</p>
             {qr && (
-              <img
+              <Image
                 src={qr}
-                alt="QR"
-                className="mx-auto block h-40 w-40 rounded border border-neutral-300 p-1 dark:border-zinc-600"
+                alt="QR Code"
+                width={160}
+                height={160}
+                className="mx-auto block rounded border border-neutral-300 p-1 dark:border-zinc-600"
               />
             )}
             <div className="text-center">

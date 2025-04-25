@@ -11,12 +11,20 @@ const apiClient = axios.create({
 
 // --- 认证相关 API ---
 
+// Define interface for login payload
+interface LoginPayload {
+  email: string;
+  password: string;
+  token?: string;
+  backupCode?: string;
+}
+
 export const login = async (
   email: string,
   password: string,
   opts?: { token?: string; backupCode?: string }
 ) => {
-  const data: any = { email, password };
+  const data: LoginPayload = { email, password };
   if (opts?.token) data.token = opts.token;
   if (opts?.backupCode) data.backupCode = opts.backupCode;
   return apiClient.post('/login', data, { validateStatus: () => true });
@@ -63,8 +71,13 @@ export const forgotPassword = async (email: string) => {
   try {
     const res = await apiClient.post('/forgot-password', { email });
     return res.data;
-  } catch (err: any) {
-    if (err.response) return err.response.data;
+  } catch (err: unknown) {
+    if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = err as { response?: { data?: unknown } };
+        if (response.response) {
+            return response.response.data;
+        }
+    }
     throw err;
   }
 };

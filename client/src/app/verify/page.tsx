@@ -74,9 +74,14 @@ function VerifyEmailContent() {
         const response = await verifyEmail(token);
         setStatus('success');
         setMessage(response.data.message || '邮箱验证成功！感谢您的注册。');
-      } catch (err: any) { // Specify type for err
+      } catch (err: unknown) { // Specify type for err
         setStatus('error');
-        setMessage(err.response?.data?.message || err.response?.data?.error || '邮箱验证失败。链接可能已过期或已被使用。');
+        let errorMessage = '邮箱验证失败。链接可能已过期或已被使用。';
+        if (typeof err === 'object' && err !== null && 'response' in err) {
+          const response = (err as { response?: { data?: { message?: string, error?: string } } }).response;
+          errorMessage = response?.data?.message || response?.data?.error || errorMessage;
+        }
+        setMessage(errorMessage);
       }
     };
 

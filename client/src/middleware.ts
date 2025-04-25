@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   if (isSafeRedirectUri(redirectUriFromQuery)) {
     console.log('[Middleware] Step 1: Found valid redirect_uri in query:', redirectUriFromQuery);
     // 初始化响应，以便设置 Cookie
-    let response = NextResponse.next(); 
+    const response = NextResponse.next(); 
     
     // 设置非 HttpOnly 的 Cookie，存储安全的重定向目标
     response.cookies.set(CLIENT_REDIRECT_COOKIE_NAME, redirectUriFromQuery, {

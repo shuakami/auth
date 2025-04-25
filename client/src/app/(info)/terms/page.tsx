@@ -43,7 +43,7 @@ export default function TermsPage() {
               服务条款
             </h1>
             <p className={`${theme.textSecondary} text-base leading-relaxed mb-2`}>
-              欢迎使用 sdjz.wiki 统一身份认证服务（以下简称"本服务"）。这些服务条款（以下简称"本条款"）适用于您对本服务的所有访问和使用。请在使用本服务前仔细阅读本条款。访问或使用本服务即表示您同意受本条款的约束。
+              欢迎使用 sdjz.wiki 统一身份认证服务（以下简称&quot;本服务&quot;）。这些服务条款（以下简称&quot;本条款&quot;）适用于您对本服务的所有访问和使用。请在使用本服务前仔细阅读本条款。访问或使用本服务即表示您同意受本条款的约束。
             </p>
             <p className={`${theme.textSecondary} text-sm`}>最后更新日期：{lastUpdated}</p>
           </div>
@@ -102,7 +102,7 @@ export default function TermsPage() {
             </Section>
 
             <Section title="免责声明">
-              <p>本服务按"现状"和"可用"的基础提供，不附带任何形式的明示或暗示担保，包括但不限于对适销性、特定用途适用性、非侵权性或服务不间断或无错误的担保。</p>
+              <p>本服务按&quot;现状&quot;和&quot;可用&quot;的基础提供，不附带任何形式的明示或暗示担保，包括但不限于对适销性、特定用途适用性、非侵权性或服务不间断或无错误的担保。</p>
               <p>我们不保证本服务将满足您的要求，或本服务将始终可用、安全、及时或无错误。我们也不对通过本服务获得或存储的任何信息的准确性或可靠性作任何保证。</p>
             </Section>
 

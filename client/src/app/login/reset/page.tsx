@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, type ReactNode, type FormEvent, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { resetPassword } from '@/services/api';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -55,7 +55,6 @@ const LoadingSpinner = () => (
 // 新建内部组件，包含所有客户端逻辑
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const token = searchParams.get('token') || '';
   const [password, setPassword] = useState('');
   const [success, setSuccess] = useState(false);
@@ -81,8 +80,15 @@ function ResetPasswordForm() {
     try {
       await resetPassword(token, password);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || '重置失败，链接可能已失效或过期，请重新申请。 ');
+    } catch (err: unknown) {
+      let errorMessage = '重置失败，链接可能已失效或过期，请重新申请。';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error && typeof response.data.error === 'string') {
+          errorMessage = response.data.error;
+        }
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

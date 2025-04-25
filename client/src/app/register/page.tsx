@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ReactNode, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import { register, resendVerifyEmail } from '@/services/api';
 import Link from 'next/link';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
@@ -54,7 +53,6 @@ export default function RegisterPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
-  const router = useRouter();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,9 +66,13 @@ export default function RegisterPage() {
       setEmail('');
       setPassword('');
       setUsername('');
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || err.response?.data?.error || '注册失败，请稍后重试。';
-      setError(errMsg);
+    } catch (err: unknown) {
+      let errorMessage = '注册失败，请稍后重试。';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { message?: string, error?: string } } }).response;
+        errorMessage = response?.data?.message || response?.data?.error || errorMessage;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -86,8 +88,15 @@ export default function RegisterPage() {
     try {
       await resendVerifyEmail(email);
       setResendMsg('验证邮件已重新发送，请查收。');
-    } catch (err: any) {
-      setResendMsg(err?.response?.data?.error || '发送失败，请稍后再试或检查邮箱地址是否正确。');
+    } catch (err: unknown) {
+      let errorMessage = '发送失败，请稍后再试或检查邮箱地址是否正确。';
+       if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error && typeof response.data.error === 'string') {
+          errorMessage = response.data.error;
+        }
+      }
+      setResendMsg(errorMessage);
     }
   };
 

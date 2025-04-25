@@ -54,7 +54,7 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, rounded, asChild = false, loading, leftIcon, rightIcon, tooltip, children, ...props }, ref) => {
+  ({ className, variant, size, rounded, asChild = false, loading, leftIcon, rightIcon, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     
     const button = (

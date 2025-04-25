@@ -74,8 +74,15 @@ export default function TwoFARequiredPage() {
           router.push("/dashboard");
         }
       }, 1200);
-    } catch (err: any) {
-      setTotpMsg(err?.response?.data?.error || "验证码错误或已失效");
+    } catch (err: unknown) {
+      let errorMessage = "验证码错误或已失效";
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error && typeof response.data.error === 'string') {
+          errorMessage = response.data.error;
+        }
+      }
+      setTotpMsg(errorMessage);
     } finally {
       setTotpLoading(false);
     }

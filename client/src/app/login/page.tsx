@@ -83,17 +83,20 @@ export default function LoginPage() {
           setError('登录成功，但无法获取用户信息，请稍后再试。');
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[LoginPage] 登录过程出错:', err);
-      const errMsg = err.response?.data?.message || err.response?.data?.error || '发生未知错误，请稍后重试。';
-       if (err.response?.data?.error === 'email_not_verified') {
-        setError('邮箱尚未验证，请检查您的邮箱并点击验证链接。');
-      } else if (err.response?.status === 401 && err.response?.data?.error === 'Invalid credentials') {
-        setError('邮箱或密码错误，请重新输入。'); // 更具体的错误提示
+      let errorMessage = '发生未知错误，请稍后重试。';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { message?: string; error?: string }; status?: number } }).response;
+        if (response?.data?.error === 'email_not_verified') {
+          errorMessage = '邮箱尚未验证，请检查您的邮箱并点击验证链接。';
+        } else if (response?.status === 401 && response?.data?.error === 'Invalid credentials') {
+          errorMessage = '邮箱或密码错误，请重新输入。';
+        } else if (response?.data?.message || response?.data?.error) {
+          errorMessage = response.data.message || response.data.error || errorMessage;
+        }
       }
-      else {
-        setError(errMsg);
-      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -123,9 +126,16 @@ export default function LoginPage() {
         // 2FA 验证失败
         setTotpMsg(resp.data?.error || (mode === 'totp' ? '动态验证码错误或已失效' : '备份码错误或已被使用'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[LoginPage] 2FA 验证出错:', err);
-      setTotpMsg(err?.response?.data?.error || '验证过程中发生错误，请稍后重试');
+      let errorMessage = '验证过程中发生错误，请稍后重试';
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error && typeof response.data.error === 'string') {
+          errorMessage = response.data.error;
+        }
+      }
+      setTotpMsg(errorMessage);
     } finally {
       setTotpLoading(false);
     }

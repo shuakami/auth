@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       // 获取用户信息失败，检查是否是 401 (未授权)
-      // @ts-ignore - 检查 Axios 错误结构
+      // @ts-expect-error - 检查 Axios 错误结构
       if (error.response && error.response.status === 401) {
         // 401 是预期情况（用户未登录），静默处理
         console.log('User not authenticated (401).'); // 可以选择性地打印普通日志

@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
         setError(''); // 清除之前的错误
         setSent(true); // 邮箱存在，切换到显示成功发送的界面
       }
-    } catch (err) {
+    } catch {
       setError('请求处理时发生错误，请稍后重试。');
       setSent(true); // Still show the "sent" state UI
     } finally {
