@@ -8,11 +8,18 @@ import { setupDocs } from './middlewares/docs.js';
 const app = express();
 
 // 信任 Vercel 等反向代理设置的 X-Forwarded-* 头
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 /* 基础中间件 */
 app.use(json());
 app.use(cookieParser());
+
+// 打印收到的原始 Cookies (在 Session 中间件处理之前)
+app.use((req, res, next) => {
+  console.log(`[RawCookies] Request path: ${req.path}, Cookies received:`, req.cookies);
+  next();
+});
+
 app.use(sessionMiddleware());
 
 // 全局 Session 状态日志中间件 (在 sessionMiddleware 之后)
