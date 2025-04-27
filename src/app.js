@@ -15,6 +15,15 @@ app.use(json());
 app.use(cookieParser());
 app.use(sessionMiddleware());
 
+// 全局 Session 状态日志中间件 (在 sessionMiddleware 之后)
+app.use((req, res, next) => {
+  if (req.session) {
+    const expires = req.session.cookie?.expires;
+    console.log(`[SessionCheck] Request path: ${req.path}, SessionID: ${req.sessionID}, Expires: ${expires ? expires.toISOString() : 'N/A'}, Authenticated: ${req.isAuthenticated ? req.isAuthenticated() : 'N/A (passport not initialized yet?)'}`);
+  }
+  next();
+});
+
 /* 静态文件 */
 app.use(expressStatic('public'));
 

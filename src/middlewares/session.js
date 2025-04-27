@@ -6,7 +6,7 @@ import { SESSION_SECRET, COOKIE_DOMAIN } from '../config/env.js';
 const PgSession = connectPg(session);
 
 export function sessionMiddleware() {
-  return session({
+  const sessionOptions = {
     store: new PgSession({ pool, tableName: 'session' }),
     name: 'sid',
     secret: SESSION_SECRET,
@@ -20,5 +20,18 @@ export function sessionMiddleware() {
       maxAge: 1000 * 60 * 30,
       domain: COOKIE_DOMAIN || undefined
     }
+  };
+
+  console.log('[SessionInit] Initializing session middleware with options:', {
+    name: sessionOptions.name,
+    rolling: sessionOptions.rolling,
+    cookie: {
+      secure: sessionOptions.cookie.secure,
+      maxAge: sessionOptions.cookie.maxAge,
+      domain: sessionOptions.cookie.domain,
+      sameSite: sessionOptions.cookie.sameSite
+    }
   });
+
+  return session(sessionOptions);
 }

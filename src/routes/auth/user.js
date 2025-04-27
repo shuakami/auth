@@ -95,7 +95,14 @@ router.delete('/me', ensureAuth, async (req, res, next) => {
     await User.deleteUser(userId);
     
     if (typeof req.logout === 'function') {
+      const sessionID = req.sessionID;
+      console.log(`[DeleteUserAttempt] Calling req.logout() after deleting user ${userId}. SessionID: ${sessionID}`);
       req.logout(function(err) {
+        if (err) {
+           console.error(`[DeleteUserError] Error during req.logout() after deleting user ${userId}. SessionID: ${sessionID}`, err);
+           // Continue to destroy session even if logout fails
+        }
+        console.log(`[DeleteUserAttempt] Attempting to destroy session after deleting user ${userId}. SessionID: ${sessionID}`);
         req.session?.destroy?.((destroyErr) => {
           if (err || destroyErr) {
             console.error('Logout or session destroy failed after account deletion:', err || destroyErr);
@@ -105,6 +112,8 @@ router.delete('/me', ensureAuth, async (req, res, next) => {
         });
       });
     } else {
+      const sessionID = req.sessionID;
+      console.log(`[DeleteUserAttempt] Attempting to destroy session after deleting user ${userId} (no req.logout). SessionID: ${sessionID}`);
       req.session?.destroy?.((destroyErr) => {
          if (destroyErr) {
            console.error('Session destroy failed after account deletion:', destroyErr);
