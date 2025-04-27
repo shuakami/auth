@@ -339,7 +339,7 @@ function DashboardContent() {
       setTotpLoading(true);
       setTotpMsg('');
       try {
-        await verify2FA(totpToken);
+        await verify2FA({ token: totpToken });
         setTotpMsg('2FA 启用成功！正在刷新...');
         setTimeout(() => window.location.reload(), 1200);
       } catch (err: unknown) {
