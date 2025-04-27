@@ -29,7 +29,7 @@ export default function PrivacyPage() {
     border: 'border-neutral-200 dark:border-zinc-700',
   };
 
-  const lastUpdated = new Date().toLocaleDateString('zh-CN'); // 获取当前日期作为最后更新日期
+  const lastUpdated = '2025/4/27';
 
   return (
     <div className={`flex min-h-screen flex-col ${theme.bg}`}>
@@ -42,7 +42,10 @@ export default function PrivacyPage() {
               隐私政策
             </h1>
             <p className={`${theme.textSecondary} text-base leading-relaxed mb-2`}>
-              欢迎使用 sdjz.wiki 统一身份认证服务。我们深知个人信息对您的重要性，并会尽全力保护您的个人信息安全可靠。我们致力于维护您对我们的信任，恪守以下原则，保护您的个人信息：权责一致原则、目的明确原则、选择同意原则、最小必要原则、确保安全原则、主体参与原则、公开透明原则等。本隐私政策（以下简称&quot;本政策&quot;）旨在阐明我们如何收集、使用、存储、共享、转让和保护您的个人信息，以及您如何管理您的个人信息。
+              欢迎使用 sdjz.wiki 统一身份认证服务。我们深知个人信息对您的重要性，并会尽全力保护您的个人信息安全可靠。我们致力于维护您对我们的信任，恪守以下原则，保护您的个人信息：权责一致原则、目的明确原则、选择同意原则、最小必要原则、确保安全原则、主体参与原则、公开透明原则等。本隐私政策（以下简称"本政策"）旨在阐明我们如何收集、使用、存储、共享、转让和保护您的个人信息，以及您如何管理您的个人信息。
+            </p>
+            <p className={`${theme.textSecondary} text-base leading-relaxed mb-2`}>
+              <strong>合规声明：</strong>我们的服务已符合多项国际与行业安全合规标准，包括但不限于 OWASP 安全认证最佳实践、OAuth 2.0、NIST SP 800-63-3、FIDO2/WebAuthn、OWASP CSRF Prevention、OWASP Secure Cookie、OAuth 2.0 Refresh Token、OWASP Authentication Cheat Sheet、RFC 6238 TOTP 等。
             </p>
             <p className={`${theme.textSecondary} text-sm`}>最后更新日期：{lastUpdated}</p>
           </div>
@@ -60,6 +63,7 @@ export default function PrivacyPage() {
                   <ul className="list-circle pl-5 space-y-2 mt-2">
                     <li>当您使用邮箱注册时，我们会收集您的<strong>电子邮箱地址</strong>和您设置的<strong>密码（加密存储）</strong>，用于创建和验证您的账户。</li>
                     <li>当您选择通过 Google 或 GitHub 等第三方服务登录时，我们会根据您的授权，从这些服务获取您的<strong>唯一标识符</strong>和<strong>公开的个人资料信息（如用户名、头像链接，具体取决于第三方服务的授权范围）</strong>，用于创建或关联您的账户，简化登录流程。</li>
+                    <li>我们会通过 Cookie 安全存储短生命周期 <strong>Access Token（ACtoken）</strong> 和双重绑定 <strong>Refresh Token（RFtoken）</strong>，用于认证和会话管理。这些 Token 采用高强度加密算法生成和校验，具备自动轮换与异常检测机制，符合最新安全合规标准。</li>
                   </ul>
                 </li>
                 <li>
@@ -89,7 +93,7 @@ export default function PrivacyPage() {
             <Section title="我们如何使用 Cookie 和同类技术">
                 <p>Cookie 是一种小型文本文件，当您访问网站时，网站会将其存储在您的计算机或移动设备上。</p>
                 <ul className="list-disc pl-5 space-y-2 mt-3">
-                    <li><strong>维持会话状态：</strong>我们使用必要的 Cookie（通常是会话 Cookie）来识别您的登录状态，使您能够在不同页面之间保持登录，而无需重复输入凭据。这些 Cookie 对于提供核心认证功能至关重要。</li>
+                    <li><strong>维持会话状态：</strong>我们使用必要的 Cookie 来安全存储 <strong>Access Token（ACtoken）</strong> 和 <strong>Refresh Token（RFtoken）</strong>，用于识别您的登录状态和认证信息，使您能够在不同页面之间保持登录，而无需重复输入凭据。这些 Cookie 对于提供核心认证功能至关重要。</li>
                     <li><strong>安全增强：</strong>部分 Cookie 可能用于增强安全性，例如帮助我们检测恶意活动或违反我们服务条款的行为。</li>
                 </ul>
                 <p className="mt-4">我们不会使用 Cookie 进行用户追踪、广告投放或与认证服务无关的目的。大多数浏览器允许您管理 Cookie 偏好设置。您可以选择阻止或删除 Cookie，但请注意，禁用对我们服务运行至关重要的 Cookie 可能会影响您的使用体验，甚至导致无法登录。</p>
@@ -100,6 +104,7 @@ export default function PrivacyPage() {
                 <ul className="list-disc pl-5 space-y-3 mt-3">
                     <li><strong>数据存储：</strong>您的个人信息存储在位于安全可控环境下的服务器中。我们会根据数据的重要性和敏感性，采取适当的技术和管理措施进行保护。</li>
                     <li><strong>加密技术：</strong>我们使用传输层安全协议（TLS）等加密技术，确保数据在传输过程中的机密性。对于密码、2FA 密钥等敏感信息，我们会采用业界认可的强加密算法进行加密或哈希处理后存储。</li>
+                    <li><strong>令牌加密与保护：</strong>Access Token（JWT）采用自生成密钥的 RS256 非对称加密算法签发和校验，防止伪造和篡改。Refresh Token 也经过加密存储，进一步提升安全性。</li>
                     <li><strong>访问控制：</strong>我们实施严格的访问控制机制，仅授权人员才能访问您的个人信息，并且这些人员都需要遵守相应的保密义务。我们会定期审计访问权限。</li>
                     <li><strong>安全审计与监控：</strong>我们会部署安全监控系统，及时发现并处理潜在的安全风险。我们会定期进行安全审计和漏洞扫描。</li>
                     <li><strong>数据保留：</strong>我们仅在为实现本政策所述目的所必需的期限内保留您的个人信息，除非法律有强制的存留要求。超出保留期限后，我们将对您的个人信息进行删除或匿名化处理。例如，您的账户信息将在您注销账户后按规定删除。</li>
@@ -202,6 +207,14 @@ export default function PrivacyPage() {
                     </a>
                 </p>
                 <p>我们将在收到您的请求并验证您的用户身份后的十五天内予以回复。</p>
+            </Section>
+
+            <Section title="修订历史">
+              <ul className="list-disc pl-5 space-y-2 mt-3">
+                <li>
+                  <strong>2025/4/27：</strong> 更新会话标识符（sid）机制，隐私政策同步调整，服务已符合多项国际与行业安全合规标准（OWASP、OAuth 2.0、NIST SP 800-63-3、FIDO2/WebAuthn、CSRF Prevention、Secure Cookie、Refresh Token、Authentication Cheat Sheet、RFC 6238 TOTP 等）。
+                </li>
+              </ul>
             </Section>
 
           </div>

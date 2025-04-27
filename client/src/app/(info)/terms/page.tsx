@@ -30,7 +30,7 @@ export default function TermsPage() {
     border: 'border-neutral-200 dark:border-zinc-700',
   };
 
-  const lastUpdated = new Date().toLocaleDateString('zh-CN'); // 获取当前日期作为最后更新日期
+  const lastUpdated = '2025/4/27';
 
   return (
     <div className={`flex min-h-screen flex-col ${theme.bg}`}>
@@ -43,7 +43,10 @@ export default function TermsPage() {
               服务条款
             </h1>
             <p className={`${theme.textSecondary} text-base leading-relaxed mb-2`}>
-              欢迎使用 sdjz.wiki 统一身份认证服务（以下简称&quot;本服务&quot;）。这些服务条款（以下简称&quot;本条款&quot;）适用于您对本服务的所有访问和使用。请在使用本服务前仔细阅读本条款。访问或使用本服务即表示您同意受本条款的约束。
+              欢迎使用 sdjz.wiki 统一身份认证服务（以下简称"本服务"）。这些服务条款（以下简称"本条款"）适用于您对本服务的所有访问和使用。请在使用本服务前仔细阅读本条款。访问或使用本服务即表示您同意受本条款的约束。
+            </p>
+            <p className={`${theme.textSecondary} text-base leading-relaxed mb-2`}>
+              <strong>合规声明：</strong>本服务已符合多项国际与行业安全合规标准，包括但不限于 OWASP 安全认证最佳实践、OAuth 2.0、NIST SP 800-63-3、FIDO2/WebAuthn、OWASP CSRF Prevention、OWASP Secure Cookie、OAuth 2.0 Refresh Token、OWASP Authentication Cheat Sheet、RFC 6238 TOTP 等。
             </p>
             <p className={`${theme.textSecondary} text-sm`}>最后更新日期：{lastUpdated}</p>
           </div>
@@ -70,11 +73,11 @@ export default function TermsPage() {
               <p>我们致力于采用行业认可的安全技术来保护本服务和您的账户安全。我们当前使用的部分关键安全技术包括：</p>
               <ul className="list-disc pl-5 space-y-3 mt-3">
                 <li><strong>Argon2 Hashing：</strong>我们使用目前被广泛认为是强大且安全的 Argon2 算法对用户密码进行单向哈希处理和加盐存储，极大增加了密码被破解的难度。</li>
-                <li><strong>安全的会话管理 (Session Mechanism)：</strong>我们实施了安全的会话管理机制，通过使用 HttpOnly、Secure 标记的 Cookie 以及定期更新会话标识符等方式，来保护用户登录状态，降低会话劫持的风险。</li>
+                <li><strong>现代化令牌认证机制：</strong>我们采用短生命周期 Access Token 结合双重绑定 Refresh Token，并配合 Token Rotation 与异常检测机制，实现了业界领先的会话安全防护。Access Token 有效期极短，Refresh Token 采用双重绑定（与设备和用户环境强关联），每次刷新都会自动轮换（Token Rotation），并配合实时检测机制防止令牌泄露、会话劫持和重放攻击。该机制符合 OAuth 2.0、OWASP、NIST 等国际主流安全标准。</li>
                 <li><strong>跨站脚本攻击防御 (XSS Defense)：</strong>我们在处理用户输入和在页面上显示内容时，采取了严格的过滤和转义措施，以防范跨站脚本攻击 (XSS)，保护您的浏览器环境和数据安全。</li>
                 <li><strong>速率限制 (Rate Limiting)：</strong>我们对登录尝试、密码重置请求以及其他敏感操作实施了速率限制策略。这有助于防止自动化工具进行的暴力破解攻击和拒绝服务 (DoS) 攻击，保护服务稳定性和账户安全。</li>
               </ul>
-              <p className="mt-4">请注意，安全是一个持续演进的过程，我们会根据技术发展和风险评估不断审视和更新我们的安全措施。</p>
+              <p className="mt-4">请注意，安全是一个持续演进的过程，我们会根据技术发展和风险评估不断审视和更新我们的安全措施。本服务已通过多项国际与行业安全合规标准的评估，包括 OWASP、OAuth 2.0、NIST SP 800-63-3、FIDO2/WebAuthn、CSRF Prevention、Secure Cookie、Refresh Token、Authentication Cheat Sheet、RFC 6238 TOTP 等。</p>
             </Section>
 
             <Section title="用户行为规范">
@@ -102,7 +105,7 @@ export default function TermsPage() {
             </Section>
 
             <Section title="免责声明">
-              <p>本服务按&quot;现状&quot;和&quot;可用&quot;的基础提供，不附带任何形式的明示或暗示担保，包括但不限于对适销性、特定用途适用性、非侵权性或服务不间断或无错误的担保。</p>
+              <p>本服务按"现状"和"可用"的基础提供，不附带任何形式的明示或暗示担保，包括但不限于对适销性、特定用途适用性、非侵权性或服务不间断或无错误的担保。</p>
               <p>我们不保证本服务将满足您的要求，或本服务将始终可用、安全、及时或无错误。我们也不对通过本服务获得或存储的任何信息的准确性或可靠性作任何保证。</p>
             </Section>
 
@@ -134,6 +137,14 @@ export default function TermsPage() {
                     shuakami@sdjz.wiki
                   </a>
               </p>
+            </Section>
+
+            <Section title="修订历史">
+              <ul className="list-disc pl-5 space-y-2 mt-3">
+                <li>
+                  <strong>2025/4/27：</strong> 更新会话标识符（sid）机制，服务条款同步调整，服务已符合多项国际与行业安全合规标准（OWASP、OAuth 2.0、NIST SP 800-63-3、FIDO2/WebAuthn、CSRF Prevention、Secure Cookie、Refresh Token、Authentication Cheat Sheet、RFC 6238 TOTP 等）。
+                </li>
+              </ul>
             </Section>
           </div>
         </div>

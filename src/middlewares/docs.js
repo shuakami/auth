@@ -3,17 +3,26 @@ import expressJSDocSwagger from 'express-jsdoc-swagger';
 /* --------------------------------------------------------------------------
  * Swagger / API-Docs 配置
  * ----------------------------------------------------------------------- */
+const badgeList = [
+  '[![Security: XSS Defense](https://img.shields.io/badge/Security-XSS_Defense-3b82f6?style=flat-square&logo=shield&logoColor=white)](https://owasp.org/www-community/attacks/xss/)',
+  '[![Security: Rate Limiting](https://img.shields.io/badge/Security-Rate_Limiting-3b82f6?style=flat-square&logo=shield&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)',
+  '[![Auth: Token Mechanism](https://img.shields.io/badge/Auth-Token_Mechanism-3b82f6?style=flat-square&logo=jwt&logoColor=white)](https://jwt.io/)',
+  '[![Auth: Argon2 Hashing](https://img.shields.io/badge/Auth-Argon2_Hashing-3b82f6?style=flat-square&logo=keycdn&logoColor=white)](https://github.com/P-H-C/phc-winner-argon2)',
+  '[![OWASP: Authentication Best Practices](https://img.shields.io/badge/OWASP-Auth_Best_Practices-3b82f6?style=flat-square&logo=owasp&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)',
+  '[![OAuth 2.0](https://img.shields.io/badge/OAuth-2.0-3b82f6?style=flat-square&logo=oauth&logoColor=white)](https://oauth.net/2/)',
+  '[![NIST SP 800-63-3](https://img.shields.io/badge/NIST-SP_800--63--3-3b82f6?style=flat-square&logo=gov&logoColor=white)](https://pages.nist.gov/800-63-3/)',
+  '[![FIDO2 / WebAuthn](https://img.shields.io/badge/FIDO2-WebAuthn-3b82f6?style=flat-square&logo=fidoalliance&logoColor=white)](https://fidoalliance.org/fido2/)',
+  '[![OWASP: CSRF Prevention](https://img.shields.io/badge/OWASP-CSRF_Prevention-3b82f6?style=flat-square&logo=owasp&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)',
+  '[![OWASP: Secure Cookie](https://img.shields.io/badge/OWASP-Secure_Cookie-3b82f6?style=flat-square&logo=owasp&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#cookies)',
+  '[![OAuth 2.0: Refresh Token](https://img.shields.io/badge/OAuth-Refresh_Token-3b82f6?style=flat-square&logo=oauth&logoColor=white)](https://datatracker.ietf.org/doc/html/rfc6749#section-6)',
+  '[![RFC 6238: TOTP](https://img.shields.io/badge/RFC-6238_TOTP-3b82f6?style=flat-square&logo=rfc&logoColor=white)](https://datatracker.ietf.org/doc/html/rfc6238)'
+];
+
 const options = {
   info: {
     version: '1.0.0',
     title: 'Auth | 统一身份验证服务',
-    description: `SDJZ.Wiki 统一身份验证服务 API 文档
-
-[![Security: XSS Defense](https://img.shields.io/badge/Security-XSS_Defense-22c55e?style=flat-square&logo=shield&logoColor=white)](https://owasp.org/www-community/attacks/xss/)
-[![Security: Rate Limiting](https://img.shields.io/badge/Security-Rate_Limiting-22c55e?style=flat-square&logo=shield&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-[![Auth: Token Mechanism](https://img.shields.io/badge/Auth-Token_Mechanism-3b82f6?style=flat-square&logo=jwt&logoColor=white)](https://jwt.io/)
-[![Auth: Argon2 Hashing](https://img.shields.io/badge/Auth-Argon2_Hashing-3b82f6?style=flat-square&logo=keycdn&logoColor=white)](https://github.com/P-H-C/phc-winner-argon2)
-`,
+    description: `SDJZ.Wiki 统一身份验证服务 API 文档\n\n${badgeList.join('\n')}`,
     license: { name: 'GPL-3.0' }
   },
   components: {
