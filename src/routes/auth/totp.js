@@ -76,6 +76,21 @@ router.post('/2fa/setup', ensureAuth, async (req, res, next) => {
  */
 router.post('/2fa/verify', authLimiter, async (req, res, next) => {
   try {
+    // 自动识别accessToken，兼容已登录用户
+    if (!req.user) {
+      let token = req.cookies?.accessToken;
+      if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+      }
+      if (token) {
+        try {
+          const payload = verifyAccessToken(token);
+          if (payload && payload.uid) {
+            req.user = { id: payload.uid };
+          }
+        } catch (e) { /* 忽略无效token */ }
+      }
+    }
     const { token, totp, backupCode } = req.body;
     // 优先支持OAuth临时token
     if (token) {
