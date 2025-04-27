@@ -88,7 +88,7 @@ router.get('/github/callback', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 重定向到前端成功页，不带Token
-    return res.redirect(`${PUBLIC_BASE_URL}/oauth-success`);
+    return res.redirect(`${PUBLIC_BASE_URL}/login/github-callback`);
   } catch (err) {
     console.error('GitHub OAuth回调失败:', err);
     res.status(500).send('GitHub OAuth回调失败');
@@ -160,7 +160,7 @@ router.get('/google/callback', async (req, res) => {
       sameSite: 'strict',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
-    return res.redirect(`${PUBLIC_BASE_URL}/oauth-success`);
+    return res.redirect(`${PUBLIC_BASE_URL}/login/google-callback`);
   } catch (err) {
     console.error('Google OAuth回调失败:', err);
     res.status(500).send('Google OAuth回调失败');
