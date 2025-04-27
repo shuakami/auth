@@ -72,17 +72,60 @@ router.post('/2fa/setup', ensureAuth, async (req, res, next) => {
  * @return {ErrorResponse} 429 - 请求过于频繁 - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
-router.post('/2fa/verify', ensureAuth, authLimiter, async (req, res, next) => {
+router.post('/2fa/verify', authLimiter, async (req, res, next) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token is required.' });
+    const { token, totp, backupCode } = req.body;
+    // 优先支持OAuth临时token
+    if (token) {
+      // 兼容性处理
+      const verifyAccessToken = require('../../auth/jwt.js').verifyAccessToken;
+      const realPayload = verifyAccessToken(token);
+      if (!realPayload || !realPayload.uid || realPayload.type !== '2fa_challenge') {
+        return res.status(401).json({ error: '无效或过期的2FA临时Token' });
+      }
+      const user = await User.findById(realPayload.uid);
+      if (!user || !user.totp_enabled) {
+        return res.status(401).json({ error: '用户未开启2FA' });
+      }
+      // 校验TOTP或备份码
+      let ok = false;
+      if (totp) {
+        const encryptedSecret = user.totp_secret;
+        if (!encryptedSecret) return res.status(400).json({ error: '2FA密钥缺失' });
+        const decryptedSecret = decrypt(encryptedSecret);
+        if (!decryptedSecret) return res.status(500).json({ error: '2FA密钥解密失败' });
+        ok = verifyTotp(decryptedSecret, totp);
+      } else if (backupCode) {
+        const { verifyBackupCode } = await import('../../auth/backupCodes.js');
+        ok = await verifyBackupCode(user.id, backupCode);
+      }
+      if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
+      // 校验通过，签发正式Token
+      const accessTokenJwt = require('../../auth/jwt.js').signAccessToken({ uid: user.id });
+      const { token: refreshTokenJwt } = await require('../../services/refreshTokenService.js').createRefreshToken(user.id, 'oauth-2fa', null);
+      res.cookie('accessToken', accessTokenJwt, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 10 * 60 * 1000
+      });
+      res.cookie('refreshToken', refreshTokenJwt, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      });
+      return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+    }
+    // 否则走原有AccessToken流程
+    if (!req.user || !req.user.id) return res.status(401).json({ error: '未授权，缺少Access Token' });
     const user = await User.findById(req.user.id);
     if (!user || !user.totp_secret) return res.status(401).json({ error: '2FA not setup for this user.' });
     const decryptedSecret = decrypt(user.totp_secret);
     if (!decryptedSecret) {
       return res.status(500).json({ error: 'Failed to verify 2FA token due to internal error.' });
     }
-    const ok = verifyTotp(decryptedSecret, token);
+    const ok = verifyTotp(decryptedSecret, totp || token); // 兼容老前端
     if (!ok) return res.status(401).json({ error: 'Invalid token.' });
     await User.enableTotp(user.id);
     res.json({ ok: true });
