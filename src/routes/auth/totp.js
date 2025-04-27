@@ -146,9 +146,24 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
  * @return {SimpleSuccessResponse} 200 - 关闭成功
  * @return {ErrorResponse} 400/401 - 参数错误或认证失败
  */
-router.post('/2fa/disable', ensureAuth, async (req, res, next) => {
+router.post('/2fa/disable', async (req, res, next) => {
   try {
-    const { token, backupCode } = req.body;
+    // 自动识别accessToken，兼容已登录用户
+    if (!req.user) {
+      let token = req.cookies?.accessToken;
+      if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+      }
+      if (token) {
+        try {
+          const payload = verifyAccessToken(token);
+          if (payload && payload.uid) {
+            req.user = { id: payload.uid };
+          }
+        } catch (e) { /* 忽略无效token */ }
+      }
+    }
+    const { token: reqToken, backupCode } = req.body;
     let userId;
     if (req.user && req.user.id) {
       userId = req.user.id;
@@ -167,16 +182,16 @@ router.post('/2fa/disable', ensureAuth, async (req, res, next) => {
       userId = user.id;
     }
     // 必须提供token或备份码
-    if (!token && !backupCode) {
+    if (!reqToken && !backupCode) {
       return res.status(400).json({ error: '必须提供2FA验证码或备份码' });
     }
     // 校验token
-    if (token) {
+    if (reqToken) {
       const encryptedSecret = await User.getTotpSecret(userId);
       if (!encryptedSecret) return res.status(400).json({ error: '未启用2FA' });
       const decryptedSecret = decrypt(encryptedSecret);
       if (!decryptedSecret) return res.status(500).json({ error: '2FA密钥解密失败' });
-      const ok = verifyTotp(decryptedSecret, token);
+      const ok = verifyTotp(decryptedSecret, reqToken);
       if (!ok) return res.status(401).json({ error: '2FA验证码错误' });
     } else if (backupCode) {
       const { verifyBackupCode } = await import('../../auth/backupCodes.js');
