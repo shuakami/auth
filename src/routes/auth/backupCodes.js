@@ -12,15 +12,15 @@ const router = express.Router();
  * @tags 双因素认证
  * @summary 生成新的备份码
  * @description
- *   为当前登录用户生成新的一性备份码。需要有效的 Session Cookie (`sid`) 才能访问。
+ *   为当前登录用户生成新的一次性备份码。需要有效的 Access Token 才能访问。
  *   **重要：生成新的备份码会使旧的备份码失效。** 用户必须已启用 2FA 才能生成备份码。
  * 
  *   **必须在请求体中提供 password 字段（当前用户密码），否则无法生成新备份码。**
- * @security cookieAuth
+ * @security bearerAuth
  * @param {GenerateBackupCodesRequestBody} request.body - 必填，当前用户密码
  * @return {GenerateBackupCodesResponse} 200 - 成功生成备份码 - application/json
  * @return {ErrorResponse} 400 - 缺少密码 - application/json
- * @return {ErrorResponse} 401 - 未授权（无效或缺少 Session Cookie/未设置密码/密码错误） - application/json
+ * @return {ErrorResponse} 401 - 未授权（无效或缺少 Access Token/未设置密码/密码错误） - application/json
  * @return {ErrorResponse} 403 - 用户未启用 2FA - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
@@ -55,10 +55,10 @@ router.post('/backup-codes/generate', ensureAuth, async (req, res, next) => {
  * GET /backup-codes/remaining
  * @tags 双因素认证
  * @summary 获取剩余可用的备份码数量
- * @description 返回当前登录用户剩余的未使用备份码数量。需要有效的 Session Cookie (`sid`) 才能访问。
- * @security cookieAuth
+ * @description 返回当前登录用户剩余的未使用备份码数量。需要有效的 Access Token 才能访问。
+ * @security bearerAuth
  * @return {RemainingBackupCodesResponse} 200 - 成功获取剩余数量 - application/json
- * @return {ErrorResponse} 401 - 未授权（无效或缺少 Session Cookie） - application/json
+ * @return {ErrorResponse} 401 - 未授权（无效或缺少 Access Token） - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
 router.get('/backup-codes/remaining', ensureAuth, async (req, res, next) => {
