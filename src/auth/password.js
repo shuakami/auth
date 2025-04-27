@@ -9,6 +9,7 @@ import { verifyBackupCode } from './backupCodes.js';
 import { validatePassword } from '../utils/passwordPolicy.js';
 import { validateUsername } from '../utils/usernamePolicy.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
+import { signAccessToken } from './jwt.js';
 
 export async function register(req, res, next) {
   try {
@@ -143,51 +144,47 @@ export async function login(req, res, next) {
     if (!user.password_hash) {
       return res.status(400).json({ error: '请用第三方账号登录' });
     }
-
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: '账号或密码错误' });
-    
     // 检查邮箱是否已验证
     if (!user.verified) {
-      // 重新发送验证邮件
       const verificationToken = signEmailToken({ id: user.id });
       const verificationLink = `${PUBLIC_BASE_URL}/verify?token=${verificationToken}`;
       const emailSent = await sendVerifyEmail(user.email, verificationLink);
-      
       return res.status(403).json({ 
         error: 'email_not_verified', 
         message: '您的邮箱尚未验证，请先完成邮箱验证。我们已重新发送一封验证邮件。',
         emailSent: emailSent
       });
     }
-
     if (user.totp_enabled) {
       // 如果用户提供了备份码，优先尝试验证备份码
       if (backupCode) {
         const backupOk = await verifyBackupCode(user.id, backupCode);
         if (backupOk) {
           // 备份码验证成功，继续登录流程
-          return req.session.regenerate((regenErr) => {
-            if (regenErr) {
-              return next(regenErr);
-            }
-            req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
-              if (loginErr) {
-                return next(loginErr);
-              }
-              req.session.save((saveErr) => {
-                if (saveErr) {
-                  return next(saveErr);
-                }
-                res.json({ ok: true });
-              });
-            });
+          // 生成Token
+          const accessToken = signAccessToken({ uid: user.id });
+          const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+          // 使用httpOnly Cookie下发Token，防止XSS窃取
+          res.cookie('accessToken', accessToken, {
+            httpOnly: true, // 仅允许服务端访问
+            secure: process.env.NODE_ENV === 'production', // 生产环境强制HTTPS
+            sameSite: 'strict', // 防止CSRF
+            maxAge: 10 * 60 * 1000 // 10分钟
           });
+          res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30天
+          });
+          // 响应体不再返回Token，仅返回登录状态
+          return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
         }
         // 备份码验证失败
         return res.status(401).json({ error: 'invalid backup code' });
       }
-
       // 如果没有提供备份码，检查 TOTP 令牌
       if (!token) return res.status(206).json({ error: 'TOTP_REQUIRED' });
       const encryptedSecret = user.totp_secret;
@@ -203,24 +200,39 @@ export async function login(req, res, next) {
       const { verifyTotp } = await import('./totp.js');
       const ok = verifyTotp(decryptedSecret, token);
       if (!ok) return res.status(401).json({ error: 'invalid token' });
-    }
-
-    req.session.regenerate((regenErr) => {
-      if (regenErr) {
-        return next(regenErr);
-      }
-      req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
-        if (loginErr) {
-          return next(loginErr);
-        }
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            return next(saveErr);
-          }
-          res.json({ ok: true });
-        });
+      // TOTP验证通过，下发Token
+      const accessToken = signAccessToken({ uid: user.id });
+      const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 10 * 60 * 1000
       });
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      });
+      return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+    }
+    // 未开启2FA，直接下发Token
+    const accessToken = signAccessToken({ uid: user.id });
+    const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 10 * 60 * 1000
     });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+    res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
   } catch (err) {
     console.error("Error during login:", err);
     next(err);

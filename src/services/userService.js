@@ -69,21 +69,22 @@ export async function migratePasswordHash(userId, passwordHash) {
   await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
 }
 
-export async function clearOtherSessions(userId, currentSid) {
-  const { rows } = await pool.query('SELECT sid, sess FROM session');
-  const toDelete = rows.filter(row => {
-    try {
-      const sess = typeof row.sess === 'string' ? JSON.parse(row.sess) : row.sess;
-      return sess?.passport?.user === userId && row.sid !== currentSid;
-    } catch {
-      return false;
-    }
-  });
-  if (toDelete.length > 0) {
-    const sids = toDelete.map(row => row.sid);
-    await pool.query('DELETE FROM session WHERE sid = ANY($1)', [sids]);
-  }
-}
+// 已废弃Session相关方法，无需清理其他会话
+// export async function clearOtherSessions(userId, currentSid) {
+//   const { rows } = await pool.query('SELECT sid, sess FROM session');
+//   const toDelete = rows.filter(row => {
+//     try {
+//       const sess = typeof row.sess === 'string' ? JSON.parse(row.sess) : row.sess;
+//       return sess?.passport?.user === userId && row.sid !== currentSid;
+//     } catch {
+//       return false;
+//     }
+//   });
+//   if (toDelete.length > 0) {
+//     const sids = toDelete.map(row => row.sid);
+//     await pool.query('DELETE FROM session WHERE sid = ANY($1)', [sids]);
+//   }
+// }
 
 export async function disableTotp(userId) {
   const client = await pool.connect();

@@ -11,30 +11,35 @@ const options = {
 
 [![Security: XSS Defense](https://img.shields.io/badge/Security-XSS_Defense-22c55e?style=flat-square&logo=shield&logoColor=white)](https://owasp.org/www-community/attacks/xss/)
 [![Security: Rate Limiting](https://img.shields.io/badge/Security-Rate_Limiting-22c55e?style=flat-square&logo=shield&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-[![Auth: Session Mechanism](https://img.shields.io/badge/Auth-Session_Mechanism-3b82f6?style=flat-square&logo=sessionize&logoColor=white)](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+[![Auth: Token Mechanism](https://img.shields.io/badge/Auth-Token_Mechanism-3b82f6?style=flat-square&logo=jwt&logoColor=white)](https://jwt.io/)
 [![Auth: Argon2 Hashing](https://img.shields.io/badge/Auth-Argon2_Hashing-3b82f6?style=flat-square&logo=keycdn&logoColor=white)](https://github.com/P-H-C/phc-winner-argon2)
 `,
     license: { name: 'GPL-3.0' }
   },
   components: {
     securitySchemes: {
-      cookieAuth: {
-        type: 'apiKey',
-        in: 'cookie',
-        name: 'sid',
-        description:
-          '会话 Cookie (Session ID)。登录后自动设置，有效期 30 分钟，具有滚动续期机制。'
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: '认证使用短生命周期Access Token（JWT），通过Authorization: Bearer <token>传递。'
       }
     }
   },
-  security: [{ cookieAuth: [] }],
+  security: [{ bearerAuth: [] }],
   baseDir: process.cwd(),
   filesPattern: './src/{routes,types}/**/*.js',
   swaggerUIPath: '/api-docs/swagger',
   exposeSwaggerUI: true,
   exposeApiDocs: true,
   apiDocsPath: '/api-docs/json',
-  notRequiredAsNullable: false
+  notRequiredAsNullable: false,
+  servers: [
+    {
+      url: '/api',
+      description: 'API Server'
+    }
+  ]
 };
 
 /* --------------------------------------------------------------------------

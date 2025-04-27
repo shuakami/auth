@@ -10,9 +10,8 @@ export function middleware(request: NextRequest) {
   console.log(`[Middleware] Request received for path: ${pathname}`);
 
   const redirectUriFromQuery = searchParams.get('redirect_uri');
-  const isAuthenticated = request.cookies.has('sid'); // 仍然可以用于日志或未来逻辑
 
-  console.log('[Middleware] Initial state:', { pathname, isAuthenticated, redirectUriFromQuery });
+  console.log('[Middleware] Initial state:', { pathname, redirectUriFromQuery });
 
   if (isSafeRedirectUri(redirectUriFromQuery)) {
     console.log('[Middleware] Step 1: Found valid redirect_uri in query:', redirectUriFromQuery);
@@ -62,10 +61,7 @@ export const config = {
   matcher: [
     '/login',
     '/register',
-    // OAuth 回调也可能需要（如果它们可能接收 redirect_uri）
-    // '/login/github-callback',
-    // '/login/google-callback',
-    // 可以根据需要添加其他入口点
-     '/((?!api|_next/static|_next/image|favicon.ico).*)', // 通用匹配器，排除静态资源等
+    // 通用匹配器，排除静态资源和auth相关路由，防止OAuth死循环
+    '/((?!api|_next/static|_next/image|favicon.ico|auth).*)',
   ],
 }

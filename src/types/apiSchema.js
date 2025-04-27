@@ -49,6 +49,14 @@
  */
 
 /**
+ * 关闭2FA请求体
+ * @typedef {object} Disable2FARequestBody
+ * @property {string} email.required - 用户邮箱
+ * @property {string} password.required - 用户密码
+ * @property {string} backupCode.optional - 用户输入的备份码 - eg: ABCD1234
+ */
+
+/**
  * 2FA 验证成功响应体
  * @typedef {object} Verify2FASuccessResponse
  * @property {boolean} ok.required - 验证结果 - eg: true

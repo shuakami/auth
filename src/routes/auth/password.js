@@ -3,6 +3,8 @@ import { register, login, verifyEmail }  from '../../auth/password.js';
 import { authLimiter }                   from '../../middlewares/rateLimit.js';
 import * as PasswordReset                from '../../services/passwordResetService.js';
 import bcrypt                            from 'bcryptjs';
+import { signAccessToken } from '../../auth/jwt.js';
+import * as RefreshTokenService from '../../services/refreshTokenService.js';
 
 const router = express.Router();
 
@@ -24,10 +26,10 @@ const router = express.Router();
  *   - 长度至少 **10** 位
  *   - 通过 `zxcvbn` 强度检测（评分 >= **2**）
  *
- *   注册成功后会发送验证邮件，并重新生成 Session ID 并保存。
- *   通过 Passport.js 建立一个具有 **30 分钟** 滚动有效期的 Session。
+ *   注册成功后会发送验证邮件。
+ *   本接口仅完成账号注册和邮箱验证。
  * @param {RegisterRequestBody} request.body - 用户注册信息
- * @return {SimpleSuccessResponse} 200 - 注册成功并已登录 (Session 已建立) - application/json
+ * @return {SimpleSuccessResponse} 200 - 注册成功，验证邮件已发送 - application/json
  * @return {ErrorResponse} 400 - 请求参数错误（如邮箱格式错误、密码不符合要求） - application/json
  * @return {ErrorResponse} 409 - 用户已存在 - application/json
  * @return {ErrorResponse} 429 - 请求过于频繁 - application/json
@@ -39,8 +41,13 @@ router.post('/register', authLimiter, register);
  * GET /verify
  * @tags 认证
  * @summary 验证用户邮箱
- * @description 通过点击邮件中的链接来验证用户的邮箱地址。验证成功后用户才能正常登录。
- * @param {string} token - 邮箱验证令牌 (此 token 为 JWT，仅用于验证邮箱) - in:query
+ * @description
+ *   通过点击邮件中的链接来验证用户的邮箱地址。验证成功后用户才能正常登录。
+ *   
+ *   - token参数为注册后发送到邮箱的验证链接中的JWT字符串。
+ *   - 典型调用方式：GET /verify?token=xxxxxx
+ *
+ * @param {string} token.query.required - 邮箱验证令牌（JWT字符串）
  * @return {VerifyEmailSuccessResponse} 200 - 邮箱验证成功 - application/json
  * @return {ErrorResponse} 400 - 无效或过期的令牌 - application/json
  * @return {ErrorResponse} 404 - 用户不存在 - application/json
@@ -51,32 +58,60 @@ router.get('/verify', verifyEmail);
 /**
  * POST /login
  * @tags 认证
- * @summary 用户登录接口 (Session认证)
- * @description
- *   (速率限制: **10次/分钟/IP**)
- *
- *   使用邮箱和密码进行登录。用户必须已验证邮箱才能成功登录。
- *
- *   **2FA 流程:**
- *   - 如果用户启用了2FA，则必须在请求体中额外提供 `token` (6位TOTP码) 或 `backupCode` (一次性备份码) 中的一个。
- *   - 登录成功（包括2FA验证通过）后，服务器会重新生成并保存 Session ID，并通过 Passport.js 建立一个 Session，通过 `Set-Cookie` 响应头返回 Session ID (`sid`)。
- *
- *   **Session 管理:**
- *   - Session 的有效期为 **30 分钟**，但用户每次与服务器交互（发送请求）时，有效期会自动刷新（滚动续期）。
- *   - 如果用户 **30 分钟** 内无任何操作，Session 将失效，需要重新登录。
- *   - 后续请求需要携带此 Cookie (`sid`) 进行认证。
- * @param {LoginRequestBody} request.body - 用户登录信息 (包含 `email`, `password`, 以及可选的 `username`, `token` 或 `backupCode`)
- * @return {SimpleSuccessResponse} 200 - 登录成功 (Session 已建立) - application/json
- * @return {ErrorResponse} 206 - 需要进行2FA验证 (用户启用了2FA但未提供 `token` 或 `backupCode`) - application/json
- * @return {ErrorResponse} 400 - 请求参数错误 - application/json
- * @return {ErrorResponse} 401 - 认证失败 (可能原因: 邮箱/密码错误、无效的TOTP令牌、或无效的备份码) - application/json
- * @return {ErrorResponse} 403 - 邮箱未验证 (包含错误代码`email_not_verified`) - application/json
+ * @summary 用户登录
+ * @param {LoginRequestBody} request.body - 登录请求体
+ * @return {LoginSuccessResponse} 200 - 登录成功 - application/json
+ * @return {ErrorResponse} 400 - 请求参数错误（如邮箱格式错误、密码不符合要求） - application/json
+ * @return {ErrorResponse} 401 - 账号或密码错误 - application/json
+ * @return {ErrorResponse} 403 - 邮箱未验证 - application/json
  * @return {ErrorResponse} 429 - 请求过于频繁 - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
-router.post('/login', authLimiter, login);
-
-
+router.post('/login', authLimiter, async (req, res, next) => {
+  try {
+    const { email, password, token, backupCode, deviceInfo } = req.body;
+    const user = await (await import('../../services/userService.js')).findByEmail(email);
+    if (!user) return res.status(401).json({ error: '账号或密码错误' });
+    if (!user.password_hash) {
+      return res.status(400).json({ error: '请用第三方账号登录' });
+    }
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: '账号或密码错误' });
+    if (!user.verified) {
+      // 重新发送验证邮件
+      const { signEmailToken } = await import('../../auth/jwt.js');
+      const { sendVerifyEmail } = await import('../../mail/resend.js');
+      const verificationToken = signEmailToken({ id: user.id });
+      const verificationLink = `${process.env.PUBLIC_BASE_URL || 'http://localhost:3000'}/verify?token=${verificationToken}`;
+      const emailSent = await sendVerifyEmail(user.email, verificationLink);
+      return res.status(403).json({ 
+        error: 'email_not_verified', 
+        message: '您的邮箱尚未验证，请先完成邮箱验证。我们已重新发送一封验证邮件。',
+        emailSent: emailSent
+      });
+    }
+    // 登录成功，生成Access Token和Refresh Token
+    const accessToken = signAccessToken({ uid: user.id });
+    const { token: refreshToken } = await RefreshTokenService.createRefreshToken(user.id, deviceInfo || req.headers['user-agent'] || '', null);
+    // 用httpOnly Cookie下发Token，防止XSS
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 10 * 60 * 1000 // 10分钟
+    });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30天
+    });
+    // 响应体不再返回Token字段
+    res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * POST /forgot-password

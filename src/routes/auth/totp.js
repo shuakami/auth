@@ -22,12 +22,12 @@ const router = express.Router();
  * @description
  *   为当前登录用户生成2FA密钥并加密存储，同时生成备份码。
  *   用户需要使用 Authenticator App 扫描二维码或手动输入原始密钥，并**妥善保管备份码**。
- *   需要有效的 Session Cookie (`sid`) 才能访问。
+ *   需要有效的 Access Token 才能访问。
  * 
  *   **调用此接口之后不会直接开启2FA，只有在调用此接口再调用`2fa/verify`之后，2FA才会真的开启。**
- * @security cookieAuth
+ * @security bearerAuth
  * @return {Setup2FAResponse} 200 - 成功获取2FA设置信息 (`secret`字段为原始Base32密钥，仅用于用户首次设置，服务器不存储；`backupCodes`字段为备份码数组，请妥善保管) - application/json
- * @return {ErrorResponse} 401 - 未授权（无效或缺少 Session Cookie） - application/json
+ * @return {ErrorResponse} 401 - 未授权（无效或缺少 Access Token） - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
 router.post('/2fa/setup', ensureAuth, async (req, res, next) => {
@@ -39,11 +39,11 @@ router.post('/2fa/setup', ensureAuth, async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: '密码错误' });
 
-    const { base32, otpauth } = generateTotpSecret(req.user.email);
+    const { base32, otpauth } = generateTotpSecret(user.email);
     const qr = await otpauthToDataURL(otpauth);
     const encryptedSecret = encrypt(base32);
-    await User.setTotp(req.user.id, encryptedSecret);
-    const backupCodes = await generateAndSaveBackupCodes(req.user.id);
+    await User.setTotp(user.id, encryptedSecret);
+    const backupCodes = await generateAndSaveBackupCodes(user.id);
     res.json({ 
       qr, 
       secret: base32,
@@ -64,75 +64,28 @@ router.post('/2fa/setup', ensureAuth, async (req, res, next) => {
  *   (速率限制: **10次/分钟/IP**)
  *
  *   验证用户输入的6位动态验证码是否正确。服务器会解密存储的密钥进行验证。
- * 
- *   *注意：此接口本身不再处理 Session，实际登录流程中的2FA验证和 Session 更新已整合到 `/login` 接口。调用此接口通常在 `/login` 返回 **206** 状态码之后。*
- *
- *   验证成功后会**重新生成并保存 Session ID** 以提高安全性。在此期间用户会被登出。
- *   需要有效的 Session Cookie (`sid`) 才能访问。
- * @security cookieAuth
+ *   需要有效的 Access Token 才能访问。
+ * @security bearerAuth
  * @param {Verify2FARequestBody} request.body - 2FA验证信息
- * @return {Verify2FASuccessResponse} 200 - 2FA令牌验证成功 (Session ID 已更新) - application/json
+ * @return {Verify2FASuccessResponse} 200 - 2FA令牌验证成功 - application/json
  * @return {ErrorResponse} 401 - 未授权、未设置2FA或无效的2FA令牌 - application/json
  * @return {ErrorResponse} 429 - 请求过于频繁 - application/json
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
-router.post('/2fa/verify', authLimiter, async (req, res, next) => {
+router.post('/2fa/verify', ensureAuth, authLimiter, async (req, res, next) => {
   try {
     const { token } = req.body;
-    let userId;
-    // 优先支持pending2faUserId（OAuth 2FA场景）
-    if (req.session.pending2faUserId) {
-      userId = req.session.pending2faUserId;
-    } else if (req.user && req.user.id) {
-      userId = req.user.id;
-    } else {
-      return res.status(401).json({ error: '未授权' });
-    }
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required.' });
-    }
-    // 获取加密后的 secret
-    const encryptedSecret = await User.getTotpSecret(userId);
-    if (!encryptedSecret) {
-      return res.status(401).json({ error: '2FA not setup for this user.' });
-    }
-    // 解密 secret
-    const decryptedSecret = decrypt(encryptedSecret);
+    if (!token) return res.status(400).json({ error: 'Token is required.' });
+    const user = await User.findById(req.user.id);
+    if (!user || !user.totp_secret) return res.status(401).json({ error: '2FA not setup for this user.' });
+    const decryptedSecret = decrypt(user.totp_secret);
     if (!decryptedSecret) {
-      // 解密失败或验证失败
-      console.error(`Failed to decrypt TOTP secret for user ${userId}`);
       return res.status(500).json({ error: 'Failed to verify 2FA token due to internal error.' });
     }
-    // 使用解密后的 secret 进行验证
     const ok = verifyTotp(decryptedSecret, token);
     if (!ok) return res.status(401).json({ error: 'Invalid token.' });
-    // 验证成功，开启2FA
-    await User.enableTotp(userId);
-    // 验证成功，重新生成 session 并登录
-    req.session.regenerate(async (regenErr) => {
-      if (regenErr) {
-        return next(regenErr);
-      }
-      // 2FA场景下自动登录
-      const user = await User.findById(userId);
-      if (!user) {
-        return next(new Error('User not found after 2FA verification'));
-      }
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          return next(loginErr);
-        }
-        // 清理pending2fa相关session字段
-        delete req.session.pending2fa;
-        delete req.session.pending2faUserId;
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            return next(saveErr);
-          }
-          res.json({ ok: true });
-        });
-      });
-    });
+    await User.enableTotp(user.id);
+    res.json({ ok: true });
   } catch (err) {
     console.error("Error verifying 2FA:", err);
     next(err);
@@ -146,7 +99,7 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
  * @description
  *   已登录用户可直接关闭2FA；未登录用户需提供邮箱、密码、备份码。
  *   关闭2FA会清空TOTP密钥并删除所有备份码。
- * @param {object} request.body - { email, password, backupCode }（未登录时必填）
+ * @param {Disable2FARequestBody} request.body - 关闭2FA请求体
  * @return {SimpleSuccessResponse} 200 - 关闭成功
  * @return {ErrorResponse} 400/401 - 参数错误或认证失败
  */

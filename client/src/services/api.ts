@@ -3,11 +3,75 @@ import axios from 'axios';
 // 后端 API 的基础 URL (相对于前端)
 const API_BASE_URL = '/api';
 
+// 全局维护AccessToken过期时间
+let accessTokenExp: number | null = null;
+
 // 创建 Axios 实例，配置 Cookie 传递
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // 确保跨域请求
 });
+
+// Silent Refresh逻辑
+async function silentRefreshIfNeeded() {
+  if (!accessTokenExp) return;
+  const now = Math.floor(Date.now() / 1000);
+  // 距离过期小于2分钟自动刷新
+  if (accessTokenExp - now < 120) {
+    try {
+      const res = await apiClient.post('/refresh');
+      if (res.data && res.data.exp) {
+        accessTokenExp = res.data.exp;
+      }
+    } catch (err) {
+      // 刷新失败，交由拦截器处理
+    }
+  }
+}
+
+// 请求拦截器：每次请求前自动Silent Refresh
+apiClient.interceptors.request.use(async (config) => {
+  await silentRefreshIfNeeded();
+  return config;
+});
+
+// 响应拦截器：处理401/403和exp维护
+apiClient.interceptors.response.use(
+  res => {
+    // 登录/刷新等接口下发exp时，维护全局exp
+    if (res.data && typeof res.data.exp === 'number') {
+      accessTokenExp = res.data.exp;
+    }
+    return res;
+  },
+  async err => {
+    const status = err.response?.status;
+    const code = err.response?.data?.code;
+    // 401: Token失效，尝试刷新，跳转会话过期页
+    if (status === 401 && code === 'refresh_token_invalid') {
+      try {
+        await apiClient.post('/logout');
+      } catch {}
+      window.location.href = '/account/session-expired';
+      return;
+    }
+    // 403: Refresh被盗/异常，跳转强制下线页
+    if (status === 403 && code === 'refresh_token_compromised') {
+      alert('检测到账号异常，已强制下线，请重新登录！');
+      await apiClient.post('/logout');
+      window.location.href = '/account/force-logout';
+      return;
+    }
+    // 403: Refresh超期，跳转会话过期页
+    if (status === 403 && code === 'refresh_token_expired') {
+      alert('登录已超最大时长，请重新登录。');
+      await apiClient.post('/logout');
+      window.location.href = '/account/session-expired';
+      return;
+    }
+    return Promise.reject(err);
+  }
+);
 
 // --- 认证相关 API ---
 

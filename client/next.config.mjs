@@ -1,28 +1,42 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig = {
   reactStrictMode: false,
+  
+  async rewrites() {
+    if (isDev) {
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'http://localhost:3000/api/:path*',
+        },
+        {
+          source: '/auth/:path*',
+          destination: 'http://localhost:3000/auth/:path*',
+        },
+      ];
+    }
+    return [];
+  },
 
-  // ESLint and TypeScript checks should run during build
-  // eslint: {
-  //   ignoreDuringBuilds: false,
-  // },
-  // typescript: {
-  //   ignoreBuildErrors: false,
-  // },
-
-  // Rewrites are handled by vercel.json, no need for them here on Vercel
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/api/:path*',
-  //       destination: '/api/:path*',
-  //     },
-  //     {
-  //       source: '/auth/:path*',
-  //       destination: '/api/auth/:path*',
-  //     },
-  //   ];
-  // },
+  async redirects() {
+    if (isDev) {
+      return [
+        {
+          source: '/auth/github',
+          destination: 'http://localhost:3000/api/github',
+          permanent: false,
+        },
+        {
+          source: '/auth/google',
+          destination: 'http://localhost:3000/api/google',
+          permanent: false,
+        },
+      ];
+    }
+    return [];
+  },
 };
 
 export default nextConfig; 
