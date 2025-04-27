@@ -17,6 +17,7 @@ const router = express.Router();
 router.get('/github', (req, res) => {
   const state = uuidv4();
   const redirectUri = `${PUBLIC_BASE_URL}/api/github/callback`;
+  console.log('[OAuth] GitHub 授权请求 redirect_uri:', redirectUri);
   const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${state}`;
   res.redirect(url);
 });
@@ -25,13 +26,18 @@ router.get('/github/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('缺少code');
   try {
+    const redirectUri = `${PUBLIC_BASE_URL}/api/github/callback`;
+    console.log('[OAuth] GitHub 回调 redirect_uri:', redirectUri);
     // 获取access_token
     const tokenRes = await axios.post('https://github.com/login/oauth/access_token', {
       client_id: GITHUB_CLIENT_ID,
       client_secret: GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: `${PUBLIC_BASE_URL}/api/github/callback`
+      redirect_uri: redirectUri
     }, { headers: { Accept: 'application/json' } });
+    if (tokenRes.data.error) {
+      console.error('[OAuth] GitHub access_token 获取失败:', tokenRes.data);
+    }
     const accessToken = tokenRes.data.access_token;
     if (!accessToken) return res.status(400).send('GitHub授权失败');
     // 获取用户信息
