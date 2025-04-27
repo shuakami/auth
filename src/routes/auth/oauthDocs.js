@@ -14,7 +14,7 @@ const router = express.Router();
  * -------------------------------------------------------------------------*/
 
 /**
- * GET /auth/github
+ * GET /api/github
  * @tags OAuth
  * @summary 使用 GitHub 账号登录
  * @description 跳转到 GitHub OAuth 授权页面，用户授权后自动回调 /auth/github/callback。
@@ -35,7 +35,7 @@ const router = express.Router();
  * -------------------------------------------------------------------------*/
 
 /**
- * GET /auth/google
+ * GET /api/google
  * @tags OAuth
  * @summary 使用 Google 账号登录
  * @description 跳转到 Google OAuth 授权页面，用户授权后自动回调 /auth/google/callback。
