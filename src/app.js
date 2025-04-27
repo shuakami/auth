@@ -8,7 +8,7 @@ import { setupDocs } from './middlewares/docs.js';
 const app = express();
 
 // 信任 Vercel 等反向代理设置的 X-Forwarded-* 头
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 /* 基础中间件 */
 app.use(json());
