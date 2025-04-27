@@ -11,8 +11,6 @@ import { verifyBackupCode } from './backupCodes.js';
 
 const router = express.Router();
 
-// 生产环境：OAuth回调严格支持2FA
-
 // GitHub OAuth2
 router.get('/github', (req, res) => {
   const state = uuidv4();
