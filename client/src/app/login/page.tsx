@@ -303,7 +303,7 @@ export default function LoginPage() {
                 <div className="grid grid-cols-2 gap-3">
                    <button
                       type="button"
-                      onClick={() => openOAuthPopup('/auth/github')}
+                      onClick={() => openOAuthPopup('/api/github')}
                       className="inline-flex w-full items-center justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-300 dark:hover:bg-[#262626] dark:focus:ring-offset-[#09090b]"
                     >
                       <GithubIcon />
@@ -311,7 +311,7 @@ export default function LoginPage() {
                    </button>
                     <button
                       type="button"
-                      onClick={() => openOAuthPopup('/auth/google')}
+                      onClick={() => openOAuthPopup('/api/google')}
                       className="inline-flex w-full items-center justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-300 dark:hover:bg-[#262626] dark:focus:ring-offset-[#09090b]"
                     >
                       <GoogleIcon />
