@@ -146,7 +146,7 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
  * @return {SimpleSuccessResponse} 200 - 关闭成功
  * @return {ErrorResponse} 400/401 - 参数错误或认证失败
  */
-router.post('/2fa/disable', async (req, res, next) => {
+router.post('/2fa/disable', ensureAuth, async (req, res, next) => {
   try {
     const { token, backupCode } = req.body;
     let userId;
