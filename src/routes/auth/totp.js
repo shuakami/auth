@@ -8,6 +8,8 @@ import { generateAndSaveBackupCodes }       from '../../auth/backupCodes.js';
 import { authLimiter }                      from '../../middlewares/rateLimit.js';
 import * as User                            from '../../services/userService.js';
 import bcrypt                               from 'bcryptjs';
+import { verifyAccessToken, signAccessToken } from '../../auth/jwt.js';
+import { createRefreshToken } from '../../services/refreshTokenService.js';
 
 const router = express.Router();
 
@@ -77,8 +79,6 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
     const { token, totp, backupCode } = req.body;
     // 优先支持OAuth临时token
     if (token) {
-      // 兼容性处理
-      const verifyAccessToken = require('../../auth/jwt.js').verifyAccessToken;
       const realPayload = verifyAccessToken(token);
       if (!realPayload || !realPayload.uid || realPayload.type !== '2fa_challenge') {
         return res.status(401).json({ error: '无效或过期的2FA临时Token' });
@@ -101,8 +101,8 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
       }
       if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
       // 校验通过，签发正式Token
-      const accessTokenJwt = require('../../auth/jwt.js').signAccessToken({ uid: user.id });
-      const { token: refreshTokenJwt } = await require('../../services/refreshTokenService.js').createRefreshToken(user.id, 'oauth-2fa', null);
+      const accessTokenJwt = signAccessToken({ uid: user.id });
+      const { token: refreshTokenJwt } = await createRefreshToken(user.id, 'oauth-2fa', null);
       res.cookie('accessToken', accessTokenJwt, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
