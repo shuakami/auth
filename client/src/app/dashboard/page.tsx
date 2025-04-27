@@ -476,12 +476,12 @@ function DashboardContent() {
   );
 
   const handleBindGithub = useCallback(() => {
-    const popup = window.open('/auth/github', 'github_oauth', 'width=1000,height=700');
+    const popup = window.open('/api/github', 'github_oauth', 'width=1000,height=700');
     monitorPopup(popup);
   }, [monitorPopup]);
 
   const handleBindGoogle = useCallback(() => {
-    const popup = window.open('/auth/google', 'google_oauth', 'width=1000,height=700');
+    const popup = window.open('/api/google', 'google_oauth', 'width=1000,height=700');
     monitorPopup(popup);
   }, [monitorPopup]);
 
