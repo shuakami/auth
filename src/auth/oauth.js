@@ -16,7 +16,7 @@ const router = express.Router();
 // GitHub OAuth2
 router.get('/github', (req, res) => {
   const state = uuidv4();
-  const redirectUri = `${PUBLIC_BASE_URL}/auth/github/callback`;
+  const redirectUri = `${PUBLIC_BASE_URL}/api/github/callback`;
   const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${state}`;
   res.redirect(url);
 });
@@ -30,7 +30,7 @@ router.get('/github/callback', async (req, res) => {
       client_id: GITHUB_CLIENT_ID,
       client_secret: GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: `${PUBLIC_BASE_URL}/auth/github/callback`
+      redirect_uri: `${PUBLIC_BASE_URL}/api/github/callback`
     }, { headers: { Accept: 'application/json' } });
     const accessToken = tokenRes.data.access_token;
     if (!accessToken) return res.status(400).send('GitHub授权失败');
@@ -94,7 +94,7 @@ router.get('/github/callback', async (req, res) => {
 // Google OAuth2
 router.get('/google', (req, res) => {
   const state = uuidv4();
-  const redirectUri = `${PUBLIC_BASE_URL}/auth/google/callback`;
+  const redirectUri = `${PUBLIC_BASE_URL}/api/google/callback`;
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=profile%20email&state=${state}`;
   res.redirect(url);
 });
@@ -109,7 +109,7 @@ router.get('/google/callback', async (req, res) => {
       client_secret: GOOGLE_CLIENT_SECRET,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: `${PUBLIC_BASE_URL}/auth/google/callback`
+      redirect_uri: `${PUBLIC_BASE_URL}/api/google/callback`
     });
     const accessToken = tokenRes.data.access_token;
     if (!accessToken) return res.status(400).send('Google授权失败');
