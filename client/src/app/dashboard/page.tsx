@@ -772,7 +772,6 @@ function DashboardContent() {
     showUserId,
     handleGenBackupCodes,
     handleSetup2FA,
-    handleDisable2FASubmit,
     handleBindGithub,
     handleBindGoogle,
     handleDeleteAccountClick,

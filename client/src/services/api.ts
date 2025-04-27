@@ -23,7 +23,7 @@ async function silentRefreshIfNeeded() {
       if (res.data && res.data.exp) {
         accessTokenExp = res.data.exp;
       }
-    } catch (err) {
+    } catch {
       // 刷新失败，交由拦截器处理
     }
   }
