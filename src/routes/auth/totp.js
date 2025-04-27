@@ -79,43 +79,46 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
     const { token, totp, backupCode } = req.body;
     // 优先支持OAuth临时token
     if (token) {
-      const realPayload = verifyAccessToken(token);
-      if (!realPayload || !realPayload.uid || realPayload.type !== '2fa_challenge') {
-        return res.status(401).json({ error: '无效或过期的2FA临时Token' });
+      let realPayload = null;
+      try {
+        realPayload = verifyAccessToken(token);
+      } catch (e) { /* token无效，自动fallback */ }
+      if (realPayload && realPayload.uid && realPayload.type === '2fa_challenge') {
+        const user = await User.findById(realPayload.uid);
+        if (!user || !user.totp_enabled) {
+          return res.status(401).json({ error: '用户未开启2FA' });
+        }
+        // 校验TOTP或备份码
+        let ok = false;
+        if (totp) {
+          const encryptedSecret = user.totp_secret;
+          if (!encryptedSecret) return res.status(400).json({ error: '2FA密钥缺失' });
+          const decryptedSecret = decrypt(encryptedSecret);
+          if (!decryptedSecret) return res.status(500).json({ error: '2FA密钥解密失败' });
+          ok = verifyTotp(decryptedSecret, totp);
+        } else if (backupCode) {
+          const { verifyBackupCode } = await import('../../auth/backupCodes.js');
+          ok = await verifyBackupCode(user.id, backupCode);
+        }
+        if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
+        // 校验通过，签发正式Token
+        const accessTokenJwt = signAccessToken({ uid: user.id });
+        const { token: refreshTokenJwt } = await createRefreshToken(user.id, 'oauth-2fa', null);
+        res.cookie('accessToken', accessTokenJwt, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 10 * 60 * 1000
+        });
+        res.cookie('refreshToken', refreshTokenJwt, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+        return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
       }
-      const user = await User.findById(realPayload.uid);
-      if (!user || !user.totp_enabled) {
-        return res.status(401).json({ error: '用户未开启2FA' });
-      }
-      // 校验TOTP或备份码
-      let ok = false;
-      if (totp) {
-        const encryptedSecret = user.totp_secret;
-        if (!encryptedSecret) return res.status(400).json({ error: '2FA密钥缺失' });
-        const decryptedSecret = decrypt(encryptedSecret);
-        if (!decryptedSecret) return res.status(500).json({ error: '2FA密钥解密失败' });
-        ok = verifyTotp(decryptedSecret, totp);
-      } else if (backupCode) {
-        const { verifyBackupCode } = await import('../../auth/backupCodes.js');
-        ok = await verifyBackupCode(user.id, backupCode);
-      }
-      if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
-      // 校验通过，签发正式Token
-      const accessTokenJwt = signAccessToken({ uid: user.id });
-      const { token: refreshTokenJwt } = await createRefreshToken(user.id, 'oauth-2fa', null);
-      res.cookie('accessToken', accessTokenJwt, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 10 * 60 * 1000
-      });
-      res.cookie('refreshToken', refreshTokenJwt, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000
-      });
-      return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+      // token校验失败，自动fallback到accessToken分支
     }
     // 否则走原有AccessToken流程
     if (!req.user || !req.user.id) return res.status(401).json({ error: '未授权，缺少Access Token' });
