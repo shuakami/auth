@@ -119,8 +119,8 @@ export const setup2FA = async (password: string) => {
   return apiClient.post('/2fa/setup', { password });
 };
 
-export const verify2FA = async (token: string) => {
-  return apiClient.post('/2fa/verify', { token });
+export const verify2FA = async (data: { token: string; totp?: string; backupCode?: string }) => {
+  return apiClient.post('/2fa/verify', data);
 };
 
 export const generateBackupCodes = async (password?: string) => {

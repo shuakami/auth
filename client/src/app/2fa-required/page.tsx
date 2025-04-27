@@ -1,6 +1,6 @@
 "use client";
 import { useState, type ReactNode, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { verify2FA } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
 import Image from 'next/image';
@@ -56,13 +56,15 @@ export default function TwoFARequiredPage() {
   const [totpLoading, setTotpLoading] = useState(false);
   const router = useRouter();
   const { checkAuth } = useAuth();
+  const searchParams = useSearchParams();
+  const urlToken = searchParams.get('token') || '';
 
   const handle2fa = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setTotpLoading(true);
     setTotpMsg("");
     try {
-      await verify2FA(totp);
+      await verify2FA({ token: urlToken, totp });
       setTotpMsg("验证成功，正在跳转...");
       setTimeout(async () => {
         await checkAuth();
