@@ -17,21 +17,10 @@ export function sessionMiddleware() {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 1000 * 60 * 30,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
       domain: COOKIE_DOMAIN || undefined
     }
   };
-
-  console.log('[SessionInit] Initializing session middleware with options:', {
-    name: sessionOptions.name,
-    rolling: sessionOptions.rolling,
-    cookie: {
-      secure: sessionOptions.cookie.secure,
-      maxAge: sessionOptions.cookie.maxAge,
-      domain: sessionOptions.cookie.domain,
-      sameSite: sessionOptions.cookie.sameSite
-    }
-  });
 
   return session(sessionOptions);
 }

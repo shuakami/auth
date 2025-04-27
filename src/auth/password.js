@@ -167,28 +167,18 @@ export async function login(req, res, next) {
         const backupOk = await verifyBackupCode(user.id, backupCode);
         if (backupOk) {
           // 备份码验证成功，继续登录流程
-          const oldSessionID = req.sessionID;
-          console.log(`[RegenerateAttempt] Backup code success. Regenerating session. Old SessionID: ${oldSessionID}`);
           return req.session.regenerate((regenErr) => {
             if (regenErr) {
-              console.error(`[RegenerateError] Error during session regeneration after backup code login. Old SessionID: ${oldSessionID}`, regenErr);
               return next(regenErr);
             }
-            const newSessionID = req.sessionID;
-            console.log(`[RegenerateSuccess] Session regenerated after backup code login. Old SessionID: ${oldSessionID}, New SessionID: ${newSessionID}`);
             req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
               if (loginErr) {
-                console.error(`[LoginError] Error during req.login after session regeneration (backup code). New SessionID: ${newSessionID}`, loginErr);
                 return next(loginErr);
               }
-              // 显式保存 session 以确保 cookie 更新
-              console.log(`[SaveAttempt] Saving session after backup code login. SessionID: ${newSessionID}`);
               req.session.save((saveErr) => {
                 if (saveErr) {
-                  console.error(`[SaveError] Error saving session after backup code login. SessionID: ${newSessionID}`, saveErr);
                   return next(saveErr);
                 }
-                console.log(`[SaveSuccess] Session saved after backup code login. SessionID: ${newSessionID}`);
                 res.json({ ok: true });
               });
             });
@@ -215,28 +205,18 @@ export async function login(req, res, next) {
       if (!ok) return res.status(401).json({ error: 'invalid token' });
     }
 
-    const oldSessionID = req.sessionID;
-    console.log(`[RegenerateAttempt] Standard login or TOTP success. Regenerating session. Old SessionID: ${oldSessionID}`);
     req.session.regenerate((regenErr) => {
       if (regenErr) {
-        console.error(`[RegenerateError] Error during session regeneration (standard/TOTP). Old SessionID: ${oldSessionID}`, regenErr);
         return next(regenErr);
       }
-      const newSessionID = req.sessionID;
-      console.log(`[RegenerateSuccess] Session regenerated (standard/TOTP). Old SessionID: ${oldSessionID}, New SessionID: ${newSessionID}`);
       req.login({ id: user.id, email: user.email, username: user.username }, (loginErr) => {
         if (loginErr) {
-          console.error(`[LoginError] Error during req.login after session regeneration (standard/TOTP). New SessionID: ${newSessionID}`, loginErr);
           return next(loginErr);
         }
-        // 显式保存 session 以确保 cookie 更新
-        console.log(`[SaveAttempt] Saving session after standard/TOTP login. SessionID: ${newSessionID}`);
         req.session.save((saveErr) => {
           if (saveErr) {
-            console.error(`[SaveError] Error saving session after standard/TOTP login. SessionID: ${newSessionID}`, saveErr);
             return next(saveErr);
           }
-          console.log(`[SaveSuccess] Session saved after standard/TOTP login. SessionID: ${newSessionID}`);
           res.json({ ok: true });
         });
       });

@@ -109,36 +109,26 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
     // 验证成功，开启2FA
     await User.enableTotp(userId);
     // 验证成功，重新生成 session 并登录
-    const oldSessionID = req.sessionID;
-    console.log(`[RegenerateAttempt] 2FA verify success. Regenerating session. Old SessionID: ${oldSessionID}, UserID: ${userId}`);
     req.session.regenerate(async (regenErr) => {
       if (regenErr) {
-        console.error(`[RegenerateError] Error during session regeneration after 2FA verify. Old SessionID: ${oldSessionID}, UserID: ${userId}`, regenErr);
         return next(regenErr);
       }
-      const newSessionID = req.sessionID;
-      console.log(`[RegenerateSuccess] Session regenerated after 2FA verify. Old SessionID: ${oldSessionID}, New SessionID: ${newSessionID}, UserID: ${userId}`);
       // 2FA场景下自动登录
       const user = await User.findById(userId);
       if (!user) {
-        console.error(`[LoginError] User not found (${userId}) after 2FA verify session regeneration. New SessionID: ${newSessionID}`);
         return next(new Error('User not found after 2FA verification'));
       }
       req.login(user, (loginErr) => {
         if (loginErr) {
-          console.error(`[LoginError] Error during req.login after 2FA verify session regeneration. New SessionID: ${newSessionID}, UserID: ${userId}`, loginErr);
           return next(loginErr);
         }
         // 清理pending2fa相关session字段
         delete req.session.pending2fa;
         delete req.session.pending2faUserId;
-        console.log(`[SaveAttempt] Saving session after 2FA verify login. SessionID: ${newSessionID}`);
         req.session.save((saveErr) => {
           if (saveErr) {
-            console.error(`[SaveError] Error saving session after 2FA verify login. SessionID: ${newSessionID}`, saveErr);
             return next(saveErr);
           }
-          console.log(`[SaveSuccess] Session saved after 2FA verify login. SessionID: ${newSessionID}`);
           res.json({ ok: true });
         });
       });
