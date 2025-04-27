@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode, type FormEvent } from "react";
+import { useState, type ReactNode, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verify2FA } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
@@ -50,7 +50,7 @@ const LoadingSpinner = () => (
   </svg>
 );
 
-export default function TwoFARequiredPage() {
+function TwoFARequiredContent() {
   const [totp, setTotp] = useState("");
   const [totpMsg, setTotpMsg] = useState("");
   const [totpLoading, setTotpLoading] = useState(false);
@@ -172,5 +172,13 @@ export default function TwoFARequiredPage() {
         </div>
       }
     />
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <TwoFARequiredContent />
+    </Suspense>
   );
 }
