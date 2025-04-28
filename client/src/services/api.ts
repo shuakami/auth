@@ -1,5 +1,18 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
+// @ts-ignore
+declare global {
+  interface Window {
+    __SESSION_EXPIRED_SHOWN__?: boolean;
+  }
+}
+
+// @ts-ignore
+if (typeof window !== 'undefined' && window.__SESSION_EXPIRED_SHOWN__ === undefined) {
+  // @ts-ignore
+  window.__SESSION_EXPIRED_SHOWN__ = false;
+}
+
 // 后端 API 的基础 URL (相对于前端)
 const API_BASE_URL = '/api';
 
@@ -84,13 +97,11 @@ apiClient.interceptors.response.use(
             await apiClient.post('/logout');
           } catch {}
           if (code === 'refresh_token_compromised') {
-            alert('检测到账号异常，已强制下线，请重新登录！');
-            window.location.href = '/account/force-logout';
-          } else {
-             alert('会话已失效或过期，请重新登录。');
-             window.location.href = '/account/session-expired';
+            if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+              window.__SESSION_EXPIRED_SHOWN__ = true;
+            }
+            return Promise.reject(error); 
           }
-          return Promise.reject(error); 
         }
         return Promise.reject(error);
     }
@@ -125,8 +136,9 @@ apiClient.interceptors.response.use(
               // Refresh 失败，执行登出
               apiClient.post('/logout'); 
             } catch {}
-            alert('您的会话已过期，请重新登录。');
-            window.location.href = '/account/session-expired';
+            if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+              window.__SESSION_EXPIRED_SHOWN__ = true;
+            }
             reject(refreshError);
           })
           .finally(() => {
@@ -135,17 +147,19 @@ apiClient.interceptors.response.use(
       });
     }
     
-    // 处理其他特定错误（例如 Refresh Token 本身的问题，如果不是在 /refresh 接口返回的）
+    // 处理其他特定错误
     if (status === 403 && code === 'refresh_token_compromised') {
         try { await apiClient.post('/logout'); } catch {} 
-        alert('检测到账号异常，已强制下线，请重新登录！');
-        window.location.href = '/account/force-logout';
+        if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+          window.__SESSION_EXPIRED_SHOWN__ = true;
+        }
         return Promise.reject(error);
     }
      if (status === 403 && code === 'refresh_token_expired') {
         try { await apiClient.post('/logout'); } catch {} 
-        alert('登录已超最大时长，请重新登录。');
-        window.location.href = '/account/session-expired';
+        if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+          window.__SESSION_EXPIRED_SHOWN__ = true;
+        }
         return Promise.reject(error);
     }
 
