@@ -109,7 +109,7 @@ export const GeneralSection = ({
             <p className="mt-1 text-sm text-neutral-600 dark:text-zinc-400">
               {user?.has_password ? '已设置密码' : '未设置密码'}
             </p>
-          </div>
+          </div> 
           <Button
             variant="ghost"
             size="sm"
