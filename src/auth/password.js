@@ -158,7 +158,8 @@ export async function login(req, res, next) {
         emailSent: emailSent
       });
     }
-    if (user.totp_enabled) {
+    // 只要用户有totp_secret就强制2FA校验
+    if (user.totp_secret) {
       // 如果用户提供了备份码，优先尝试验证备份码
       if (backupCode) {
         const backupOk = await verifyBackupCode(user.id, backupCode);
