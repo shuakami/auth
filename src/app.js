@@ -1,6 +1,5 @@
 import express, { json, static as expressStatic } from 'express';
 import cookieParser from 'cookie-parser';
-import cors from 'cors';
 import authRouter from './routes/auth.js';
 import { setupDocs } from './middlewares/docs.js';
 
@@ -12,12 +11,6 @@ app.set('trust proxy', 1);
 /* 全局中间件 */
 app.use(cookieParser());
 app.use(json());
-
-// 配置 CORS 中间件
-app.use(cors({
-  origin: 'http://localhost:3001', // 允许的前端来源，根据你的实际情况修改
-  credentials: true // 允许携带 Cookie
-}));
 
 /* 静态文件 */
 app.use(expressStatic('public'));

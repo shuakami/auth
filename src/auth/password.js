@@ -166,7 +166,7 @@ export async function login(req, res, next) {
           // 备份码验证成功，继续登录流程
           // 生成Token
           const accessToken = signAccessToken({ uid: user.id });
-          const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+          const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
           // 使用httpOnly Cookie下发Token，防止XSS窃取
           res.cookie('accessToken', accessToken, {
             httpOnly: true, // 仅允许服务端访问
@@ -210,7 +210,7 @@ export async function login(req, res, next) {
       }
       // TOTP验证通过，下发Token
       const accessToken = signAccessToken({ uid: user.id });
-      const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+      const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -227,7 +227,7 @@ export async function login(req, res, next) {
     }
     // 未开启2FA，直接下发Token
     const accessToken = signAccessToken({ uid: user.id });
-    const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));
+    const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

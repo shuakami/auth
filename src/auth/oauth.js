@@ -73,7 +73,7 @@ router.get('/github/callback', async (req, res) => {
     }
     // 未开启2FA，直接签发正式Token
     const accessTokenJwt = signAccessToken({ uid: user.id });
-    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, 'github-oauth', null);
+    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, req.headers['user-agent'], null);
     // 用httpOnly Cookie下发Token
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
@@ -147,7 +147,7 @@ router.get('/google/callback', async (req, res) => {
       return res.redirect(`${PUBLIC_BASE_URL}/2fa-required?token=${temp2FAToken}`);
     }
     const accessTokenJwt = signAccessToken({ uid: user.id });
-    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, 'google-oauth', null);
+    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, req.headers['user-agent'], null);
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -197,7 +197,7 @@ router.post('/2fa/verify', async (req, res) => {
     if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
     // 校验通过，签发正式Token
     const accessTokenJwt = signAccessToken({ uid: user.id });
-    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, 'oauth-2fa', null);
+    const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, req.headers['user-agent'], null);
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

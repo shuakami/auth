@@ -118,7 +118,7 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
         if (!ok) return res.status(401).json({ error: '2FA验证码或备份码无效' });
         // 校验通过，签发正式Token
         const accessTokenJwt = signAccessToken({ uid: user.id });
-        const { token: refreshTokenJwt } = await createRefreshToken(user.id, 'oauth-2fa', null);
+        const { token: refreshTokenJwt } = await createRefreshToken(user.id, req.headers['user-agent'], null);
         res.cookie('accessToken', accessTokenJwt, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
