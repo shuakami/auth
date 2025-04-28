@@ -303,7 +303,7 @@ export async function login(req, res, next) {
         await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, {
           loginTime: new Date().toLocaleString('zh-CN', { hour12: false }),
           device: deviceDesc,
-          ip: ip,
+          ip: maskIp(ip),
           location: locationStr
         }));
       }
@@ -315,4 +315,28 @@ export async function login(req, res, next) {
     console.error("Error during login:", err);
     next(err);
   }
+}
+
+function maskIp(ip) {
+  if (!ip) return '';
+  // IPv4
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
+    const parts = ip.split('.');
+    let last = parts[3];
+    if (last.length > 2) {
+      last = last.slice(0, -2) + '**';
+    } else if (last.length === 2) {
+      last = '*'+last.slice(1);
+    } else {
+      last = '*';
+    }
+    return parts.slice(0, 3).join('.') + '.' + last;
+  }
+  // IPv6
+  if (ip.includes(':')) {
+    const segs = ip.split(':');
+    return segs.slice(0, 3).join(':') + ':****:****';
+  }
+  // 其他情况
+  return ip;
 }
