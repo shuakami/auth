@@ -43,7 +43,7 @@ const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ss
 
 function getErrMsg(err: unknown, fallback = '操作失败'): string {
   if (typeof err === 'object' && err && 'response' in err) {
-    const res: any = (err as any).response;
+    const res = (err as { response?: { data?: { error?: string } } }).response;
     if (res?.data?.error && typeof res.data.error === 'string') return res.data.error;
   }
   return fallback;
@@ -434,6 +434,9 @@ export default function DashboardContent() {
     form.backupCount,
     form.backupMsg,
     renderEmailStatus,
+    handleBindGithub,
+    handleBindGoogle,
+    handleGenBackupCodes,
   ]);
 
   /* --------------------------- render 页面 ------------------------------- */

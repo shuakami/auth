@@ -59,9 +59,9 @@ export const GeneralSection = ({
                 </button>
               </div>
               <div className="mt-1 space-y-1">
-                <p className="text-sm text-neutral-600 dark:text-zinc-400">{user?.username || '未设置用户名'}</p>
+                <p className="text-sm text-neutral-600 dark:text-zinc-400">{String(user?.username) || '未设置用户名'}</p>
                 {showUserId && (
-                  <p className="font-mono text-xs text-neutral-400 dark:text-zinc-500">ID: {user?.id}</p>
+                  <p className="font-mono text-xs text-neutral-400 dark:text-zinc-500">ID: {String(user?.id)}</p>
                 )}
               </div>
             </div>
@@ -82,7 +82,7 @@ export const GeneralSection = ({
             <div>
               <h3 className="text-sm font-medium text-neutral-900 dark:text-zinc-100">邮箱地址</h3>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-sm text-neutral-600 dark:text-zinc-400">{user?.email}</p>
+                <p className="text-sm text-neutral-600 dark:text-zinc-400">{String(user?.email)}</p>
                 {renderEmailStatus()}
               </div>
             </div>
@@ -162,8 +162,8 @@ export const SecuritySection = ({
               >
                 {user?.totp_enabled ? '已启用两步验证' : '未启用两步验证'}
               </p>
-              {user?.totp_enabled && backupCount !== null && (
-                <p className="text-sm text-neutral-500 dark:text-zinc-400">剩余备份码：{backupCount} 个</p>
+              {user && user.totp_enabled && backupCount !== null && (
+                <p className="text-sm text-neutral-500 dark:text-zinc-400">剩余备份码：{String(backupCount)} 个</p>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -243,12 +243,12 @@ export const ConnectionsSection = ({
           <div>
             <h3 className="font-medium text-neutral-900 dark:text-zinc-100">GitHub</h3>
             <p className="text-sm text-neutral-500 dark:text-zinc-400">
-              {user?.github_id ? `ID: ${user.github_id}` : '未绑定'}
+              {user && user.github_id ? `ID: ${String(user.github_id)}` : '未绑定'}
             </p>
           </div>
         </div>
         <div className="flex items-center justify-end px-6 py-4">
-          {user?.github_id ? (
+          {user && user.github_id ? (
             <span className="text-sm text-green-600 dark:text-green-400">已绑定</span>
           ) : (
             <Button onClick={handleBindGithub} variant="secondary" size="sm">
@@ -290,12 +290,12 @@ export const ConnectionsSection = ({
           <div>
             <h3 className="font-medium text-neutral-900 dark:text-zinc-100">Google</h3>
             <p className="text-sm text-neutral-500 dark:text-zinc-400">
-              {user?.google_id ? `ID: ${user.google_id}` : '未绑定'}
+              {user && user.google_id ? `ID: ${String(user.google_id)}` : '未绑定'}
             </p>
           </div>
         </div>
         <div className="flex items-center justify-end px-6 py-4">
-          {user?.google_id ? (
+          {user && user.google_id ? (
             <span className="text-sm text-green-600 dark:text-green-400">已绑定</span>
           ) : (
             <Button onClick={handleBindGoogle} variant="secondary" size="sm">
