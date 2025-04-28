@@ -141,6 +141,7 @@ export async function login(req, res, next) {
   try {
     const { email, password, token, backupCode } = req.body;
     const user = await User.findByEmail(email);
+    console.log('[LOGIN] 查询到用户信息:', user);
     if (!user) return res.status(401).json({ error: '账号或密码错误' });
     if (!user.password_hash) {
       return res.status(400).json({ error: '请用第三方账号登录' });
