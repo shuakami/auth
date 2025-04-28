@@ -234,24 +234,83 @@ export async function login(req, res, next) {
         sameSite: 'strict',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
-      return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+    } else {
+      // 未开启2FA，直接下发Token
+      const accessToken = signAccessToken({ uid: user.id });
+      const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 10 * 60 * 1000
+      });
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      });
     }
-    // 未开启2FA，直接下发Token
-    const accessToken = signAccessToken({ uid: user.id });
-    const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 10 * 60 * 1000
-    });
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000
-    });
-    res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+    // 新设备/新IP检测与邮件提醒
+    try {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
+      const userAgent = req.headers['user-agent'] || '';
+      const deviceInfo = req.body.deviceInfo || userAgent;
+      const fingerprint = req.body.fingerprint;
+      const location = await import('../utils/geoip.js').then(m => m.getGeoInfo(ip));
+      const history = await import('../services/loginHistoryService.js').then(m => m.getLoginHistory(user.id, 20));
+      let deviceKey = deviceInfo || fingerprint || userAgent;
+      let isNewDevice = false;
+      if (deviceKey) {
+        isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+      }
+      let isLocationChanged = false;
+      if (!isNewDevice && deviceKey) {
+        const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+        if (lastSameDevice && lastSameDevice.location && location) {
+          try {
+            const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
+            if (
+              (lastLoc.country && location.country && lastLoc.country !== location.country) ||
+              (lastLoc.region && location.region && lastLoc.region !== location.region) ||
+              (lastLoc.city && location.city && lastLoc.city !== location.city)
+            ) {
+              isLocationChanged = true;
+            }
+          } catch {}
+        }
+      }
+      if (isNewDevice || isLocationChanged) {
+        let deviceDesc = userAgent;
+        try {
+          if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome';
+          else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox';
+          else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari';
+          else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge';
+          else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE';
+          else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera';
+          if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）';
+          else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）';
+          else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）';
+          else if (/Android/i.test(userAgent)) deviceDesc += '（Android）';
+          else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）';
+        } catch {}
+        let locationStr = '未知';
+        if (location) {
+          locationStr = [location.country, location.region, location.city].filter(Boolean).join(' ');
+          if (!locationStr) locationStr = '未知';
+        }
+        await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, {
+          loginTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+          device: deviceDesc,
+          ip: ip,
+          location: locationStr
+        }));
+      }
+    } catch (e) {
+      console.error('[LOGIN] 新设备/新IP检测或邮件提醒失败:', e);
+    }
+    return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
   } catch (err) {
     console.error("Error during login:", err);
     next(err);
