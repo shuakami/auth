@@ -33,6 +33,11 @@ const nextConfig = {
           destination: 'http://localhost:3000/api/google',
           permanent: false,
         },
+        {
+          source: '/api/session/list',
+          destination: 'http://localhost:3000/api/session/list',
+          permanent: false,
+        },
       ];
     }
     return [];

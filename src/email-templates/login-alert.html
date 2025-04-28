@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
-<title>验证您的邮箱</title>
+<title>账户登录提醒</title>
 <style>
-  /* Copied styles from reset-password.html for consistency */
   :root {
     color-scheme: light dark;
     supported-color-schemes: light dark;
@@ -16,8 +15,8 @@
     margin: 0;
     padding: 0;
     width: 100% !important;
-    background-color: #f9fafb; /* Light mode: softer white background */
-    color: #374151; /* Light mode: softer black text */
+    background-color: #f9fafb;
+    color: #374151;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -61,36 +60,21 @@
     font-size: 13px;
     color: #6b7280;
   }
-  a {
-    color: #0582FF;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .button-wrapper {
-    text-align: center;
-    margin: 35px 0;
-  }
-  .button {
-    display: inline-block;
-    padding: 12px 28px;
-    background-color: #0582FF;
-    color: #ffffff !important;
+  .info-table {
+    width: 100%;
+    margin: 18px 0 24px 0;
+    border-collapse: collapse;
     font-size: 15px;
-    font-weight: 600;
-    text-align: center;
-    text-decoration: none;
-    border-radius: 8px;
-    -webkit-border-radius: 8px;
-    -moz-border-radius: 8px;
-    transition: background-color 0.2s ease-in-out;
   }
-  .button:hover {
-    background-color: #006ADF !important;
+  .info-table th, .info-table td {
+    padding: 8px 0;
+    text-align: left;
+    color: #374151;
   }
-  .link-wrapper {
-    margin-top: 10px; /* Adjusted from reset password */
-    text-align: center;
-    word-break: break-all;
+  .info-table th {
+    width: 90px;
+    color: #6b7280;
+    font-weight: 500;
   }
   .footer {
     margin-top: 40px;
@@ -100,8 +84,6 @@
     font-size: 12px;
     color: #9ca3af;
   }
-
-  /* Dark Mode Styles */
   @media (prefers-color-scheme: dark) {
     body {
       background-color: #111827 !important;
@@ -126,8 +108,11 @@
     p.small {
       color: #9ca3af !important;
     }
-    a:not(.button) {
-      color: #60a5fa !important;
+    .info-table th, .info-table td {
+      color: #d1d5db !important;
+    }
+    .info-table th {
+      color: #9ca3af !important;
     }
     .footer {
       border-top-color: #374151 !important;
@@ -146,22 +131,30 @@
             <img src="https://auth.sdjz.wiki/assets/images/logo/logo-text-white.png" alt="Logo" class="logo light-mode-logo" style="display: block; margin: 0 auto 30px; height: 28px; width: auto;">
             <img src="https://auth.sdjz.wiki/assets/images/logo/logo-text-black.png" alt="Logo" class="logo dark-mode-logo" style="display: none; margin: 0 auto 30px; height: 28px; width: auto;">
 
-            <h2 style="color: #111827; margin-top: 0; margin-bottom: 24px; font-size: 22px; font-weight: 600; text-align: center;">验证您的邮箱地址</h2>
-            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">您好,</p>
-            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">感谢您的注册！请点击下面的按钮来验证您的邮箱地址。</p>
+            <h2 style="color: #111827; margin-top: 0; margin-bottom: 24px; font-size: 22px; font-weight: 600; text-align: center;">账户登录提醒</h2>
+            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">您好，</p>
+            <p style="color: #4b5563; font-size: 15px; margin-bottom: 18px; text-align: left;">我们检测到您的账户在新的设备或IP地址上登录。请确认此次操作为您本人所为。</p>
 
-            <!-- Button -->
-            <div class="button-wrapper" style="text-align: center; margin: 35px 0;">
-              <a href="{{link}}" target="_blank" class="button" style="display: inline-block; padding: 12px 28px; background-color: #0582FF; color: #ffffff; font-size: 15px; font-weight: 600; text-align: center; text-decoration: none; border-radius: 8px;">验证邮箱</a>
-            </div>
+            <table class="info-table" style="width: 100%; margin: 18px 0 24px 0; border-collapse: collapse; font-size: 15px;">
+              <tr>
+                <th>登录时间</th>
+                <td>{{loginTime}}</td>
+              </tr>
+              <tr>
+                <th>设备</th>
+                <td>{{device}}</td>
+              </tr>
+              <tr>
+                <th>IP 地址</th>
+                <td>{{ip}}</td>
+              </tr>
+              <tr>
+                <th>地理位置</th>
+                <td>{{location}}</td>
+              </tr>
+            </table>
 
-            <!-- Fallback Link -->
-            <p class="small centered" style="font-size: 13px; color: #6b7280; text-align: center;">如果按钮无法点击，请复制并粘贴以下链接到您的浏览器地址栏：</p>
-            <div class="link-wrapper" style="margin-top: 10px; text-align: center; word-break: break-all;">
-              <a href="{{link}}" target="_blank" style="color: #0582FF; text-decoration: none; font-weight: 500; font-size: 13px;">{{link}}</a>
-            </div>
-
-            <p class="small centered" style="margin-top: 30px; font-size: 13px; color: #6b7280; text-align: center;">如果您没有请求此验证，请忽略此邮件。</p>
+            <p class="small" style="font-size: 13px; color: #6b7280;">如果此次登录不是您本人操作，建议您立即修改密码，并检查账户安全。</p>
 
             <!-- Footer -->
             <div class="footer" style="margin-top: 40px; padding-top: 25px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af;">

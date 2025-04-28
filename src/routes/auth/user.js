@@ -5,6 +5,7 @@ import bcrypt                 from 'bcryptjs';
 import { verifyTotp }         from '../../auth/totp.js';
 import { verifyBackupCode }   from '../../auth/backupCodes.js';
 import { decrypt }            from '../../auth/cryptoUtils.js';
+import { getLoginHistory }    from '../../services/loginHistoryService.js';
 
 const router = express.Router();
 

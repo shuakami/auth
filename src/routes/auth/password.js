@@ -5,6 +5,10 @@ import * as PasswordReset                from '../../services/passwordResetServi
 import bcrypt                            from 'bcryptjs';
 import { signAccessToken } from '../../auth/jwt.js';
 import * as RefreshTokenService from '../../services/refreshTokenService.js';
+import { recordLoginLog } from '../../auth/recordLoginLog.js';
+import { getGeoInfo } from '../../utils/geoip.js';
+import { sendLoginAlertEmail } from '../../mail/resend.js';
+import * as loginHistoryService from '../../services/loginHistoryService.js';
 
 const router = express.Router();
 
@@ -59,7 +63,7 @@ router.get('/verify', verifyEmail);
  * POST /login
  * @tags 认证
  * @summary 用户登录
- * @param {LoginRequestBody} request.body - 登录请求体
+ * @param {LoginRequestBody} request.body - 登录请求体（支持deviceInfo和fingerprint字段）
  * @return {LoginSuccessResponse} 200 - 登录成功 - application/json
  * @return {ErrorResponse} 400 - 请求参数错误（如邮箱格式错误、密码不符合要求） - application/json
  * @return {ErrorResponse} 401 - 账号或密码错误 - application/json
@@ -69,15 +73,27 @@ router.get('/verify', verifyEmail);
  */
 router.post('/login', authLimiter, async (req, res, next) => {
   try {
-    const { email, password, token, backupCode, deviceInfo } = req.body;
+    const { email, password, token, backupCode, deviceInfo, fingerprint } = req.body;
     const user = await (await import('../../services/userService.js')).findByEmail(email);
-    if (!user) return res.status(401).json({ error: '账号或密码错误' });
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    let location = null;
+    location = await getGeoInfo(ip);
+    if (!user) {
+      await recordLoginLog({ req, user: null, success: false, reason: '账号或密码错误', location, fingerprint });
+      return res.status(401).json({ error: '账号或密码错误' });
+    }
     if (!user.password_hash) {
+      await recordLoginLog({ req, user, success: false, reason: '请用第三方账号登录', location, fingerprint });
       return res.status(400).json({ error: '请用第三方账号登录' });
     }
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: '账号或密码错误' });
+    if (!valid) {
+      await recordLoginLog({ req, user, success: false, reason: '账号或密码错误', location, fingerprint });
+      return res.status(401).json({ error: '账号或密码错误' });
+    }
     if (!user.verified) {
+      await recordLoginLog({ req, user, success: false, reason: '邮箱未验证', location, fingerprint });
       // 重新发送验证邮件
       const { signEmailToken } = await import('../../auth/jwt.js');
       const { sendVerifyEmail } = await import('../../mail/resend.js');
@@ -92,7 +108,7 @@ router.post('/login', authLimiter, async (req, res, next) => {
     }
     // 登录成功，生成Access Token和Refresh Token
     const accessToken = signAccessToken({ uid: user.id });
-    const { token: refreshToken } = await RefreshTokenService.createRefreshToken(user.id, deviceInfo || req.headers['user-agent'] || '', null);
+    const { token: refreshToken } = await RefreshTokenService.createRefreshToken(user.id, deviceInfo || userAgent, null);
     // 用httpOnly Cookie下发Token，防止XSS
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
@@ -106,6 +122,65 @@ router.post('/login', authLimiter, async (req, res, next) => {
       sameSite: 'strict',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30天
     });
+    await recordLoginLog({ req, user, success: true, location, fingerprint });
+
+    // 新设备/新IP检测与邮件提醒
+    if (user && user.id) {
+      // 查询最近20条登录历史
+      const history = await loginHistoryService.getLoginHistory(user.id, 20);
+      // 1. 新设备判定（优先deviceInfo，其次fingerprint，再次userAgent）
+      let deviceKey = deviceInfo || fingerprint || userAgent;
+      let isNewDevice = false;
+      if (deviceKey) {
+        isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+      }
+      // 2. 地理位置变化判定（同设备下，城市/省/国家变更才提醒）
+      let isLocationChanged = false;
+      if (!isNewDevice && deviceKey) {
+        // 找到同设备的最近一次登录
+        const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+        if (lastSameDevice && lastSameDevice.location && location) {
+          try {
+            const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
+            if (
+              (lastLoc.country && location.country && lastLoc.country !== location.country) ||
+              (lastLoc.region && location.region && lastLoc.region !== location.region) ||
+              (lastLoc.city && location.city && lastLoc.city !== location.city)
+            ) {
+              isLocationChanged = true;
+            }
+          } catch {}
+        }
+      }
+      if (isNewDevice || isLocationChanged) {
+        // 解析设备描述
+        let deviceDesc = userAgent;
+        try {
+          if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome';
+          else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox';
+          else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari';
+          else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge';
+          else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE';
+          else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera';
+          if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）';
+          else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）';
+          else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）';
+          else if (/Android/i.test(userAgent)) deviceDesc += '（Android）';
+          else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）';
+        } catch {}
+        let locationStr = '未知';
+        if (location) {
+          locationStr = [location.country, location.region, location.city].filter(Boolean).join(' ');
+          if (!locationStr) locationStr = '未知';
+        }
+        await sendLoginAlertEmail(user.email, {
+          loginTime: new Date().toLocaleString('zh-CN', { hour12: false }),
+          device: deviceDesc,
+          ip: ip,
+          location: locationStr
+        });
+      }
+    }
     // 响应体不再返回Token字段
     res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
   } catch (err) {

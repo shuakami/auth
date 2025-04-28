@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // 后端 API 的基础 URL (相对于前端)
 const API_BASE_URL = '/api';
@@ -11,6 +11,21 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // 确保跨域请求
 });
+
+// --- Refresh Token Retry Logic State ---
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Silent Refresh逻辑
 async function silentRefreshIfNeeded() {
@@ -35,41 +50,107 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// 响应拦截器：处理401/403和exp维护
+// 添加一个自定义接口来扩展 AxiosRequestConfig
+interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+// 响应拦截器：处理401/403和exp维护，并实现 Refresh Token Retry
 apiClient.interceptors.response.use(
   res => {
-    // 登录/刷新等接口下发exp时，维护全局exp
     if (res.data && typeof res.data.exp === 'number') {
       accessTokenExp = res.data.exp;
     }
     return res;
   },
-  async err => {
-    const status = err.response?.status;
-    const code = err.response?.data?.code;
-    // 401: Token失效，尝试刷新，跳转会话过期页
-    if (status === 401 && code === 'refresh_token_invalid') {
-      try {
-        await apiClient.post('/logout');
-      } catch {}
-      window.location.href = '/account/session-expired';
-      return;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as CustomInternalAxiosRequestConfig | undefined;
+
+    // 检查是否有响应、响应状态和请求配置
+    if (!error.response || !originalRequest) {
+      return Promise.reject(error);
     }
-    // 403: Refresh被盗/异常，跳转强制下线页
+
+    const status = error.response.status;
+    const code = (error.response.data as any)?.code;
+    const url = originalRequest.url;
+
+    // 如果是刷新接口本身失败，或已重试过，则直接拒绝或处理特定错误
+    if (url === '/refresh' || originalRequest._retry) {
+        if ((status === 401 && code === 'refresh_token_invalid') ||
+            (status === 403 && code === 'refresh_token_compromised') ||
+            (status === 403 && code === 'refresh_token_expired')) {
+          try {
+            await apiClient.post('/logout');
+          } catch {}
+          if (code === 'refresh_token_compromised') {
+            alert('检测到账号异常，已强制下线，请重新登录！');
+            window.location.href = '/account/force-logout';
+          } else {
+             alert('会话已失效或过期，请重新登录。');
+             window.location.href = '/account/session-expired';
+          }
+          return Promise.reject(error); 
+        }
+        return Promise.reject(error);
+    }
+
+    // 处理 Access Token 过期 (普通 401)
+    if (status === 401) {
+      if (isRefreshing) {
+        // 如果正在刷新，将请求加入队列
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+        .then(() => apiClient(originalRequest)) // 刷新成功后重试
+        .catch(err => Promise.reject(err)); // 刷新失败
+      }
+
+      // 标记正在刷新，并设置重试标志
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      return new Promise((resolve, reject) => {
+        apiClient.post('/refresh')
+          .then(res => {
+            if (res.data && res.data.exp) {
+              accessTokenExp = res.data.exp; // 更新过期时间
+            }
+            processQueue(null, 'token_refreshed'); // 处理队列
+            resolve(apiClient(originalRequest)); // 重试原始请求
+          })
+          .catch((refreshError) => {
+            processQueue(refreshError, null); // 拒绝队列中的请求
+            try {
+              // Refresh 失败，执行登出
+              apiClient.post('/logout'); 
+            } catch {}
+            alert('您的会话已过期，请重新登录。');
+            window.location.href = '/account/session-expired';
+            reject(refreshError);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
+    }
+    
+    // 处理其他特定错误（例如 Refresh Token 本身的问题，如果不是在 /refresh 接口返回的）
     if (status === 403 && code === 'refresh_token_compromised') {
-      alert('检测到账号异常，已强制下线，请重新登录！');
-      await apiClient.post('/logout');
-      window.location.href = '/account/force-logout';
-      return;
+        try { await apiClient.post('/logout'); } catch {} 
+        alert('检测到账号异常，已强制下线，请重新登录！');
+        window.location.href = '/account/force-logout';
+        return Promise.reject(error);
     }
-    // 403: Refresh超期，跳转会话过期页
-    if (status === 403 && code === 'refresh_token_expired') {
-      alert('登录已超最大时长，请重新登录。');
-      await apiClient.post('/logout');
-      window.location.href = '/account/session-expired';
-      return;
+     if (status === 403 && code === 'refresh_token_expired') {
+        try { await apiClient.post('/logout'); } catch {} 
+        alert('登录已超最大时长，请重新登录。');
+        window.location.href = '/account/session-expired';
+        return Promise.reject(error);
     }
-    return Promise.reject(err);
+
+    // 其他所有错误直接拒绝
+    return Promise.reject(error);
   }
 );
 
@@ -178,6 +259,15 @@ export const updateUsername = async (username: string) => {
 
 export const updateEmail = async (data: { newEmail: string; password: string }) => {
   return apiClient.patch('/me/email', data);
+};
+
+
+export const getSessions = async () => {
+  return apiClient.get('/session/list');
+};
+
+export const revokeSession = async (sessionId: string) => {
+  return apiClient.delete(`/session/${sessionId}`);
 };
 
 export default apiClient;

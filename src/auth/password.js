@@ -10,6 +10,7 @@ import { validatePassword } from '../utils/passwordPolicy.js';
 import { validateUsername } from '../utils/usernamePolicy.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
 import { signAccessToken } from './jwt.js';
+import { recordLoginLog } from './recordLoginLog.js';
 
 export async function register(req, res, next) {
   try {
@@ -183,23 +184,30 @@ export async function login(req, res, next) {
           return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
         }
         // 备份码验证失败
+        await recordLoginLog({ req, user, success: false, reason: '2FA备份码错误' });
         return res.status(401).json({ error: 'invalid backup code' });
       }
       // 如果没有提供备份码，检查 TOTP 令牌
-      if (!token) return res.status(206).json({ error: 'TOTP_REQUIRED' });
+      if (!token) {
+        await recordLoginLog({ req, user, success: false, reason: '2FA未输入验证码' });
+        return res.status(206).json({ error: 'TOTP_REQUIRED' });
+      }
       const encryptedSecret = user.totp_secret;
       if (!encryptedSecret) {
-        console.error(`User ${user.id} has totp_enabled but no totp_secret found.`);
+        await recordLoginLog({ req, user, success: false, reason: '2FA密钥缺失' });
         return res.status(500).json({ error: 'Internal server error during 2FA setup.' });
       }
       const decryptedSecret = decrypt(encryptedSecret);
       if (!decryptedSecret) {
-        console.error(`Failed to decrypt TOTP secret for user ${user.id} during login.`);
+        await recordLoginLog({ req, user, success: false, reason: '2FA密钥解密失败' });
         return res.status(500).json({ error: 'Internal server error during 2FA verification.' });
       }
       const { verifyTotp } = await import('./totp.js');
       const ok = verifyTotp(decryptedSecret, token);
-      if (!ok) return res.status(401).json({ error: 'invalid token' });
+      if (!ok) {
+        await recordLoginLog({ req, user, success: false, reason: '2FA验证码错误' });
+        return res.status(401).json({ error: 'invalid token' });
+      }
       // TOTP验证通过，下发Token
       const accessToken = signAccessToken({ uid: user.id });
       const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, 'password-login', null));

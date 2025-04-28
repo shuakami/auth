@@ -194,3 +194,43 @@
  * @property {string} message.required - 操作结果说明
  * @property {string} error.optional - 错误信息
  */
+
+/**
+ * 登录历史项
+ * @typedef {object} LoginHistoryItem
+ * @property {string} id.required - 记录ID
+ * @property {string} loginAt.required - 登录时间
+ * @property {string} ip.required - 脱敏/加密后的IP
+ * @property {string} fingerprint.optional - 脱敏/加密后的指纹
+ * @property {string} userAgent.required - 浏览器UA
+ * @property {object} location.optional - 地理位置对象
+ * @property {boolean} success.required - 是否登录成功
+ * @property {string} failReason.optional - 失败原因
+ */
+
+/**
+ * 登录历史查询响应体
+ * @typedef {object} LoginHistoryResponse
+ * @property {LoginHistoryItem[]} history.required - 登录历史数组
+ */
+
+/**
+ * 会话对象（包含聚合信息）
+ * @typedef {object} SessionItem
+ * @property {string} id.required - 会话ID
+ * @property {string} device_info.required - 设备信息
+ * @property {string} created_at.required - 创建时间
+ * @property {string} last_used_at.optional - 最后使用时间
+ * @property {string} expires_at.required - 过期时间
+ * @property {string} firstLoginAt.optional - 首次登录时间
+ * @property {string} lastLoginAt.optional - 最近登录时间
+ * @property {object} lastLocation.optional - 最近地理位置
+ * @property {string} lastIp.optional - 脱敏后的最近IP
+ * @property {string} lastUserAgent.optional - 最近UA
+ */
+
+/**
+ * 会话列表响应体
+ * @typedef {object} SessionListResponse
+ * @property {SessionItem[]} sessions.required - 会话列表
+ */

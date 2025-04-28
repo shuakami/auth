@@ -103,6 +103,20 @@ export async function init() {
     CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_user_id" ON refresh_tokens (user_id);
     CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_token" ON refresh_tokens (token);
     CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_parent_id" ON refresh_tokens (parent_id);
+
+    CREATE TABLE IF NOT EXISTS login_history (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      login_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      ip_enc TEXT NOT NULL,
+      fingerprint_enc TEXT,
+      user_agent TEXT,
+      location JSONB,
+      success BOOLEAN,
+      fail_reason TEXT
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_login_history_user_id" ON login_history (user_id);
+    CREATE INDEX IF NOT EXISTS "IDX_login_history_login_at" ON login_history (login_at);
   `);
 
   console.log('数据库初始化检查完成。');

@@ -108,3 +108,13 @@ export async function sendVerifyEmail(to, link) {
 export async function sendResetPasswordEmail(to, link) {
   return sendEmail(to, '重置您的密码', 'reset-password', { link });
 }
+
+/**
+ * 发送新设备/新IP登录提醒邮件
+ * @param {string} to 收件人
+ * @param {object} data { loginTime, device, ip, location }
+ * @returns {Promise<boolean>} 发送是否成功
+ */
+export async function sendLoginAlertEmail(to, data) {
+  return sendEmail(to, '账户登录提醒', 'login-alert', data);
+}

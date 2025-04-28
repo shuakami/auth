@@ -82,7 +82,6 @@ export async function rotateRefreshToken(oldToken, deviceInfo) {
  */
 export async function revokeRefreshTokenById(id, reason = '') {
   await pool.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1`, [id]);
-  // 可扩展：记录吊销日志、原因等
 }
 
 /**
@@ -105,4 +104,67 @@ export async function detectTokenReuse(parentId) {
  */
 export async function revokeAllRefreshTokensForUser(userId) {
   await pool.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1`, [userId]);
+}
+
+/**
+ * 获取用户所有活跃会话（未吊销且未过期）
+ * @param {string} userId
+ * @returns {Promise<Array>} 会话数组
+ */
+export async function getActiveSessionsForUser(userId) {
+  const now = new Date();
+  const { rows } = await pool.query(
+    `SELECT id, device_info, created_at, last_used_at, expires_at, revoked
+     FROM refresh_tokens
+     WHERE user_id = $1 AND revoked = FALSE AND expires_at > $2
+     ORDER BY created_at DESC`,
+    [userId, now]
+  );
+  return rows;
+}
+
+/**
+ * 获取用户所有活跃会话及其聚合登录历史
+ * @param {string} userId
+ * @returns {Promise<Array>} 设备+历史复合信息
+ */
+export async function getSessionAggregatedInfoForUser(userId) {
+  const now = new Date();
+  // 1. 获取所有活跃会话
+  const { rows: sessions } = await pool.query(
+    `SELECT id, device_info, created_at, last_used_at, expires_at, revoked
+     FROM refresh_tokens
+     WHERE user_id = $1 AND revoked = FALSE AND expires_at > $2
+     ORDER BY created_at DESC`,
+    [userId, now]
+  );
+  // 2. 对每个会话聚合登录历史
+  const result = [];
+  for (const session of sessions) {
+    // 以 device_info 作为设备标识
+    const { rows: history } = await pool.query(
+      `SELECT login_at, ip_enc, fingerprint_enc, user_agent, location
+       FROM login_history
+       WHERE user_id = $1 AND success = TRUE AND user_agent = $2
+       ORDER BY login_at DESC`,
+      [userId, session.device_info]
+    );
+    let firstLoginAt = null, lastLoginAt = null, lastLocation = null, lastIp = null, lastUserAgent = null;
+    if (history.length > 0) {
+      lastLoginAt = history[0].login_at;
+      lastLocation = history[0].location;
+      lastIp = history[0].ip_enc ? decrypt(history[0].ip_enc) : null;
+      lastUserAgent = history[0].user_agent;
+      firstLoginAt = history[history.length - 1].login_at;
+    }
+    result.push({
+      ...session,
+      firstLoginAt,
+      lastLoginAt,
+      lastLocation,
+      lastIp,
+      lastUserAgent
+    });
+  }
+  return result;
 } 

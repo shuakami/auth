@@ -1,5 +1,7 @@
 import express from 'express';
 import * as RefreshTokenService from '../../services/refreshTokenService.js';
+import { ensureAuth } from '../../middlewares/authenticated.js';
+import { pool } from '../../db/index.js'; // 直接导入 pool
 
 const router = express.Router();
 
@@ -100,6 +102,89 @@ router.post('/refresh', async (req, res) => {
     res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600, exp });
   } catch (err) {
     res.status(500).json({ error: '服务器内部错误', detail: err?.message });
+  }
+});
+
+/**
+ * GET /session/list
+ * @tags 认证
+ * @summary 获取当前用户所有活跃会话及聚合登录历史
+ * @security bearerAuth
+ * @return {SessionListResponse} 200 - 会话列表
+ * @return {ErrorResponse} 401 - 未授权
+ */
+router.get('/session/list', ensureAuth, async (req, res) => {
+  const userId = req.user.id;
+  const currentRefreshToken = req.cookies.refreshToken; // 获取当前请求的 Refresh Token
+  let currentSessionId = null;
+
+  // 尝试验证当前 Refresh Token 并获取其 ID
+  if (currentRefreshToken) {
+    try {
+      const { valid, dbToken } = await RefreshTokenService.validateRefreshToken(currentRefreshToken);
+      if (valid) {
+        currentSessionId = dbToken.id;
+      }
+    } catch (validationError) {
+      // 验证失败（例如过期、吊销等），忽略错误，不标记任何会话为当前
+      console.warn('Failed to validate current refresh token during session list:', validationError.message);
+    }
+  }
+
+  try {
+    const sessions = await RefreshTokenService.getSessionAggregatedInfoForUser(userId);
+    // 为每个会话添加 isCurrent 标志，并脱敏处理
+    const safeSessions = sessions.map(item => {
+      const isCurrent = item.id === currentSessionId;
+      return {
+        ...item,
+        isCurrent, // 添加 isCurrent 字段
+        lastIp: item.lastIp ? item.lastIp.replace(/^(\d+\.\d+)\.(\d+)\.(\d+)$/, '$1.*.*') : '',
+      }
+    });
+    res.json({ sessions: safeSessions });
+  } catch (e) {
+    // 添加详细错误日志
+    console.error(`[ERROR] Failed to get sessions for user ${userId}:`, e);
+    res.status(500).json({ error: '查询会话列表失败' });
+  }
+});
+
+/**
+ * DELETE /session/:id
+ * @tags 认证
+ * @summary 吊销指定会话（登出指定设备）
+ * @security bearerAuth
+ * @param {string} id.path.required - 要吊销的 Refresh Token ID
+ * @return {SimpleSuccessResponse} 200 - 吊销成功
+ * @return {ErrorResponse} 401 - 未授权
+ * @return {ErrorResponse} 403 - 无权限操作该会话
+ * @return {ErrorResponse} 404 - 会话不存在
+ */
+router.delete('/session/:id', ensureAuth, async (req, res) => {
+  const userId = req.user.id;
+  const sessionId = req.params.id;
+  try {
+    // 检查该会话是否存在且属于当前用户
+    // 使用直接导入的 pool
+    const { rows } = await pool.query(
+      `SELECT user_id FROM refresh_tokens WHERE id = $1`,
+      [sessionId]
+    );
+    const session = rows[0];
+    if (!session) {
+      return res.status(404).json({ error: '会话不存在' });
+    }
+    if (session.user_id !== userId) {
+      return res.status(403).json({ error: '无权限操作该会话' });
+    }
+    // 调用 Service 函数吊销，这里仍然使用 Service
+    await RefreshTokenService.revokeRefreshTokenById(sessionId, '用户远程登出');
+    res.json({ ok: true, message: '会话已吊销' });
+  } catch (e) {
+    // 添加详细错误日志
+    console.error(`[ERROR] Failed to revoke session ${sessionId} for user ${userId}:`, e);
+    res.status(500).json({ error: '吊销会话失败' });
   }
 });
 
