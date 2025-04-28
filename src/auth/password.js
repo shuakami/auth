@@ -197,7 +197,7 @@ export async function login(req, res, next) {
       if (!token) {
         console.warn(`[2FA] 用户 ${user.id} 未输入2FA验证码，拒绝登录`);
         await recordLoginLog({ req, user, success: false, reason: '2FA未输入验证码' });
-        return res.status(401).json({ error: 'TOTP_REQUIRED' });
+        return res.status(206).json({ error: 'TOTP_REQUIRED' });
       }
       const encryptedSecret = user.totp_secret;
       if (!encryptedSecret) {
