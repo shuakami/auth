@@ -160,10 +160,13 @@ export async function login(req, res, next) {
     }
     // 只要用户有totp_secret就强制2FA校验
     if (user.totp_secret) {
+      console.log(`[2FA] 用户 ${user.id} 检测到 totp_secret，强制要求2FA校验`);
       // 如果用户提供了备份码，优先尝试验证备份码
       if (backupCode) {
+        console.log(`[2FA] 用户 ${user.id} 尝试用备份码登录`);
         const backupOk = await verifyBackupCode(user.id, backupCode);
         if (backupOk) {
+          console.log(`[2FA] 用户 ${user.id} 备份码校验通过，允许登录`);
           // 备份码验证成功，继续登录流程
           // 生成Token
           const accessToken = signAccessToken({ uid: user.id });
@@ -185,31 +188,37 @@ export async function login(req, res, next) {
           return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
         }
         // 备份码验证失败
+        console.warn(`[2FA] 用户 ${user.id} 备份码校验失败`);
         await recordLoginLog({ req, user, success: false, reason: '2FA备份码错误' });
         return res.status(401).json({ error: 'invalid backup code' });
       }
       // 如果没有提供备份码，检查 TOTP 令牌
       if (!token) {
+        console.warn(`[2FA] 用户 ${user.id} 未输入2FA验证码，拒绝登录`);
         await recordLoginLog({ req, user, success: false, reason: '2FA未输入验证码' });
         return res.status(401).json({ error: 'TOTP_REQUIRED' });
       }
       const encryptedSecret = user.totp_secret;
       if (!encryptedSecret) {
+        console.error(`[2FA] 用户 ${user.id} 2FA密钥缺失`);
         await recordLoginLog({ req, user, success: false, reason: '2FA密钥缺失' });
         return res.status(500).json({ error: 'Internal server error during 2FA setup.' });
       }
       const decryptedSecret = decrypt(encryptedSecret);
       if (!decryptedSecret) {
+        console.error(`[2FA] 用户 ${user.id} 2FA密钥解密失败`);
         await recordLoginLog({ req, user, success: false, reason: '2FA密钥解密失败' });
         return res.status(500).json({ error: 'Internal server error during 2FA verification.' });
       }
       const { verifyTotp } = await import('./totp.js');
       const ok = verifyTotp(decryptedSecret, token);
       if (!ok) {
+        console.warn(`[2FA] 用户 ${user.id} 2FA验证码错误`);
         await recordLoginLog({ req, user, success: false, reason: '2FA验证码错误' });
         return res.status(401).json({ error: 'invalid token' });
       }
       // TOTP验证通过，下发Token
+      console.log(`[2FA] 用户 ${user.id} 2FA校验通过，允许登录`);
       const accessToken = signAccessToken({ uid: user.id });
       const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
       res.cookie('accessToken', accessToken, {
