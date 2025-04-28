@@ -190,7 +190,7 @@ export async function login(req, res, next) {
       // 如果没有提供备份码，检查 TOTP 令牌
       if (!token) {
         await recordLoginLog({ req, user, success: false, reason: '2FA未输入验证码' });
-        return res.status(206).json({ error: 'TOTP_REQUIRED' });
+        return res.status(401).json({ error: 'TOTP_REQUIRED' });
       }
       const encryptedSecret = user.totp_secret;
       if (!encryptedSecret) {
