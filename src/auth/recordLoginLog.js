@@ -11,16 +11,15 @@ import * as loginHistoryService from '../services/loginHistoryService.js';
  * @param {string} [params.fingerprint] - 指纹（可选，优先req.body.fingerprint）
  */
 function getClientIp(req) {
-  // 优先 x-forwarded-for，过滤内网/本地回环
-  let ip = '';
+  // 优先 x-forwarded-for
   if (req.headers['x-forwarded-for']) {
     const ips = req.headers['x-forwarded-for'].split(',').map(s => s.trim());
-    ip = ips.find(ip => ip && !/^127\.|^::1|^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip));
+    if (ips.length > 0 && ips[0]) return ips[0];
   }
-  if (!ip && req.headers['x-real-ip']) ip = req.headers['x-real-ip'];
-  if (!ip && req.ip) ip = req.ip;
-  if (!ip && req.connection?.remoteAddress) ip = req.connection.remoteAddress;
-  return ip || '';
+  if (req.headers['x-real-ip']) return req.headers['x-real-ip'];
+  if (req.ip) return req.ip;
+  if (req.connection?.remoteAddress) return req.connection.remoteAddress;
+  return '';
 }
 
 export async function recordLoginLog({ req, user, success, reason, location, fingerprint }) {

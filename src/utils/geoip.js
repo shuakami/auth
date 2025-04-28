@@ -10,7 +10,7 @@ const CACHE_TTL = 60 * 60 * 1000; // 1小时
  * @returns {Promise<Object|null>} geo信息对象或null
  */
 export async function getGeoInfo(ip) {
-  if (!ip) return null;
+  if (!ip || ip === '::1' || ip === '127.0.0.1') return null;
   const now = Date.now();
   const cached = cache.get(ip);
   if (cached && cached.expires > now) {
