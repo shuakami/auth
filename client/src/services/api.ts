@@ -14,7 +14,7 @@ const apiClient = axios.create({
 
 // --- Refresh Token Retry Logic State ---
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void }> = [];
+let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
 
 const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach(prom => {
@@ -72,7 +72,7 @@ apiClient.interceptors.response.use(
     }
 
     const status = error.response.status;
-    const code = (error.response.data as any)?.code;
+    const code = (error.response.data as unknown as { code?: string })?.code;
     const url = originalRequest.url;
 
     // 如果是刷新接口本身失败，或已重试过，则直接拒绝或处理特定错误

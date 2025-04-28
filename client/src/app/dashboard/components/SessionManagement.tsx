@@ -22,7 +22,6 @@ import {
   TbBrandWindows,
   TbDeviceLaptop
 } from 'react-icons/tb';
-import { HiComputerDesktop } from 'react-icons/hi2';
 // 动态导入 ConfirmModal
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 

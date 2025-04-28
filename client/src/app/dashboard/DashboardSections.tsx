@@ -1,7 +1,6 @@
 'use client';
 
 import { Section, Button } from './DashboardUI';
-import Image from 'next/image';
 import type { ReactNode } from 'react';
 import SessionManagement from './components/SessionManagement';
 
@@ -10,7 +9,7 @@ import SessionManagement from './components/SessionManagement';
 /* -------------------------------------------------------------------------- */
 
 interface GeneralProps {
-  user: any | null;
+  user: Record<string, any> | null;
   showUserId: boolean;
   toggleShowUserId: () => void;
   openUsernameModal: () => void;
@@ -131,7 +130,7 @@ GeneralSection.displayName = 'GeneralSection';
 /* -------------------------------------------------------------------------- */
 
 interface SecurityProps {
-  user: any | null;
+  user: Record<string, any> | null;
   backupCount: number | null;
   backupMsg: string;
   handleGenBackupCodes: () => void;
@@ -219,7 +218,7 @@ SecuritySection.displayName = 'SecuritySection';
 /* -------------------------------------------------------------------------- */
 
 interface ConnectionsProps {
-  user: any | null;
+  user: Record<string, any> | null;
   handleBindGithub: () => void;
   handleBindGoogle: () => void;
 }

@@ -34,7 +34,6 @@ import {
   SecuritySection,
   ConnectionsSection,
 } from './DashboardSections';
-import SessionManagement from './components/SessionManagement';
 
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
@@ -71,13 +70,47 @@ function modalReducer(state: ModalState, action: { type: 'open' | 'close'; key: 
 /* 组件                                                                       */
 /* -------------------------------------------------------------------------- */
 
+interface FormState {
+  oldPwd: string;
+  newPwd: string;
+  pwdMsg: string;
+  pwdLoading: boolean;
+  setup2faPwd: string;
+  setup2faPwdMsg: string;
+  qr: string;
+  secret: string;
+  backupCodes: string[];
+  totpToken: string;
+  totpMsg: string;
+  totpLoading: boolean;
+  backupCount: number | null;
+  backupMsg: string;
+  genBackupPwd: string;
+  genBackupPwdMsg: string;
+  disableBackupCode: string;
+  disable2faLoading: boolean;
+  disable2faMsg: string;
+  newUsername: string;
+  usernameMsg: string;
+  usernameLoading: boolean;
+  newEmail: string;
+  emailPwd: string;
+  emailMsg: string;
+  emailLoading: boolean;
+  deletePwd: string;
+  deleteCode: string;
+  deleteLoading: boolean;
+  deleteMsg: string;
+  showUserId: boolean;
+}
+
 export default function DashboardContent() {
   const { user, logout, checkAuth } = useAuth();
   const popupCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   /* --------------------------- 视口 / 分区切换 ---------------------------- */
   const [activeSection, setActiveSection] = useReducer(
-    (_: any, next: 'general' | 'security' | 'connections') => next,
+    (_: 'general' | 'security' | 'connections', next: 'general' | 'security' | 'connections') => next,
     'general',
   );
   const [isMobile, setIsMobile] = useReducer(() => window.matchMedia('(max-width: 1023px)').matches, false);
@@ -106,52 +139,38 @@ export default function DashboardContent() {
   const closeModal = (key: ModalKey) => setModalOpen({ type: 'close', key });
 
   const [form, setForm] = useReducer(
-    (s: any, p: any) => ({ ...s, ...p }),
+    (s: FormState, p: Partial<FormState>) => ({ ...s, ...p }),
     {
-      /* pwd */
       oldPwd: '',
       newPwd: '',
       pwdMsg: '',
       pwdLoading: false,
-
-      /* 2FA */
       setup2faPwd: '',
       setup2faPwdMsg: '',
       qr: '',
       secret: '',
-      backupCodes: [] as string[],
+      backupCodes: [],
       totpToken: '',
       totpMsg: '',
       totpLoading: false,
-
-      backupCount: null as number | null,
+      backupCount: null,
       backupMsg: '',
-
       genBackupPwd: '',
       genBackupPwdMsg: '',
-
       disableBackupCode: '',
       disable2faLoading: false,
       disable2faMsg: '',
-
-      /* username */
       newUsername: '',
       usernameMsg: '',
       usernameLoading: false,
-
-      /* email */
       newEmail: '',
       emailPwd: '',
       emailMsg: '',
       emailLoading: false,
-
-      /* delete */
       deletePwd: '',
       deleteCode: '',
       deleteLoading: false,
       deleteMsg: '',
-
-      /* misc */
       showUserId: false,
     },
   );
