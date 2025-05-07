@@ -77,14 +77,14 @@ router.get('/github/callback', async (req, res) => {
     // 用httpOnly Cookie下发Token
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 60 * 1000
     });
     res.cookie('refreshToken', refreshTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 重定向到前端成功页，不带Token
@@ -150,14 +150,14 @@ router.get('/google/callback', async (req, res) => {
     const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, req.headers['user-agent'], null);
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 60 * 1000
     });
     res.cookie('refreshToken', refreshTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     return res.redirect(`${PUBLIC_BASE_URL}/login/google-callback`);
@@ -200,14 +200,14 @@ router.post('/2fa/verify', async (req, res) => {
     const { token: refreshTokenJwt } = await RefreshTokenService.createRefreshToken(user.id, req.headers['user-agent'], null);
     res.cookie('accessToken', accessTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 60 * 1000
     });
     res.cookie('refreshToken', refreshTokenJwt, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 响应体不再返回Token字段

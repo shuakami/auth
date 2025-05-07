@@ -88,14 +88,14 @@ router.post('/refresh', async (req, res) => {
     // 用httpOnly Cookie下发新Token
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 60 * 1000
     });
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 响应体返回exp，便于前端Silent Refresh

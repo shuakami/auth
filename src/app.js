@@ -1,5 +1,6 @@
 import express, { json, static as expressStatic } from 'express';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import authRouter from './routes/auth.js';
 import { setupDocs } from './middlewares/docs.js';
 
@@ -11,6 +12,10 @@ app.set('trust proxy', 1);
 /* 全局中间件 */
 app.use(cookieParser());
 app.use(json());
+app.use(cors({
+  origin: /^https:\/\/[a-zA-Z0-9.-]+\.sdjz\.wiki$/,
+  credentials: true
+}));
 
 /* 静态文件 */
 app.use(expressStatic('public'));

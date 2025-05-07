@@ -121,14 +121,14 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
         const { token: refreshTokenJwt } = await createRefreshToken(user.id, req.headers['user-agent'], null);
         res.cookie('accessToken', accessTokenJwt, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: true,
+          sameSite: 'none',
           maxAge: 10 * 60 * 1000
         });
         res.cookie('refreshToken', refreshTokenJwt, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: true,
+          sameSite: 'none',
           maxAge: 30 * 24 * 60 * 60 * 1000
         });
         return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });

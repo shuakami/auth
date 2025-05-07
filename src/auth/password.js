@@ -176,13 +176,13 @@ export async function login(req, res, next) {
           res.cookie('accessToken', accessToken, {
             httpOnly: true, // 仅允许服务端访问
             secure: process.env.NODE_ENV === 'production', // 生产环境强制HTTPS
-            sameSite: 'strict', // 防止CSRF
+            sameSite: 'none',
             maxAge: 10 * 60 * 1000 // 10分钟
           });
           res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'none',
             maxAge: 30 * 24 * 60 * 60 * 1000 // 30天
           });
           // 响应体不再返回Token，仅返回登录状态
@@ -225,13 +225,13 @@ export async function login(req, res, next) {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 10 * 60 * 1000
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
     } else {
@@ -241,13 +241,13 @@ export async function login(req, res, next) {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 10 * 60 * 1000
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
     }
