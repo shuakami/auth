@@ -172,21 +172,63 @@ export async function login(req, res, next) {
           // 生成Token
           const accessToken = signAccessToken({ uid: user.id });
           const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
-          // 使用httpOnly Cookie下发Token，防止XSS窃取
+          // 使用httpOnly Cookie下发Token
           res.cookie('accessToken', accessToken, {
-            httpOnly: true, // 仅允许服务端访问
-            secure: process.env.NODE_ENV === 'production', // 生产环境强制HTTPS
+            httpOnly: true,
+            secure: true, // 强制 secure for SameSite=None
             sameSite: 'none',
-            maxAge: 10 * 60 * 1000 // 10分钟
+            maxAge: 10 * 60 * 1000 
           });
           res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: true, // 强制 secure for SameSite=None
             sameSite: 'none',
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30天
+            maxAge: 30 * 24 * 60 * 60 * 1000
           });
-          // 响应体不再返回Token，仅返回登录状态
-          return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+          // 立即发送响应
+          res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 }); 
+          
+          // 异步执行后续任务
+          (async () => {
+            try {
+              console.log(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Starting post-login background tasks...`);
+              const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
+              const userAgent = req.headers['user-agent'] || '';
+              const deviceInfo = req.body.deviceInfo || userAgent;
+              const fingerprint = req.body.fingerprint;
+              console.time(`[LOGIN_ASYNC] User ${user.id} (Backup Code): GeoIP Lookup`);
+              const location = await import('../utils/geoip.js').then(m => m.getGeoInfo(ip));
+              console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (Backup Code): GeoIP Lookup`);
+              console.time(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Login History Query`);
+              const history = await import('../services/loginHistoryService.js').then(m => m.getLoginHistory(user.id, 20));
+              console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Login History Query`);
+              let deviceKey = deviceInfo || fingerprint || userAgent;
+              let isNewDevice = false;
+              if (deviceKey) { isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo)); }
+              let isLocationChanged = false;
+              if (!isNewDevice && deviceKey) {
+                const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+                if (lastSameDevice && lastSameDevice.location && location) {
+                  try {
+                    const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
+                    if ((lastLoc.country && location.country && lastLoc.country !== location.country) || (lastLoc.region && location.region && lastLoc.region !== location.region) || (lastLoc.city && location.city && lastLoc.city !== location.city)) { isLocationChanged = true; }
+                  } catch {}
+                }
+              }
+              if (isNewDevice || isLocationChanged) {
+                console.log(`[LOGIN_ASYNC] User ${user.id} (Backup Code): New device/location detected. Sending alert email...`);
+                let deviceDesc = userAgent; try { if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome'; else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox'; else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari'; else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge'; else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE'; else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera'; if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）'; else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）'; else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）'; else if (/Android/i.test(userAgent)) deviceDesc += '（Android）'; else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）'; } catch {}
+                let locationStr = '未知'; if (location) { locationStr = [location.country, location.region, location.city].filter(Boolean).join(' '); if (!locationStr) locationStr = '未知'; }
+                console.time(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Send Login Alert Email`);
+                await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
+                console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Send Login Alert Email`);
+              }
+              console.log(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Post-login background tasks completed.`);
+            } catch (e) {
+              console.error('[LOGIN_ASYNC] Post-login background task failed (Backup Code):', e);
+            }
+          })();
+          return;
         }
         // 备份码验证失败
         console.warn(`[2FA] 用户 ${user.id} 备份码校验失败`);
@@ -224,93 +266,121 @@ export async function login(req, res, next) {
       const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'none',
         maxAge: 10 * 60 * 1000
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
+      // 立即发送响应
+      res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 }); 
+      
+      // 异步执行后续任务
+      (async () => {
+        try {
+          console.log(`[LOGIN_ASYNC] User ${user.id} (TOTP): Starting post-login background tasks...`);
+          const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
+          const userAgent = req.headers['user-agent'] || '';
+          const deviceInfo = req.body.deviceInfo || userAgent;
+          const fingerprint = req.body.fingerprint;
+          console.time(`[LOGIN_ASYNC] User ${user.id} (TOTP): GeoIP Lookup`);
+          const location = await import('../utils/geoip.js').then(m => m.getGeoInfo(ip));
+          console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (TOTP): GeoIP Lookup`);
+          console.time(`[LOGIN_ASYNC] User ${user.id} (TOTP): Login History Query`);
+          const history = await import('../services/loginHistoryService.js').then(m => m.getLoginHistory(user.id, 20));
+          console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (TOTP): Login History Query`);
+          let deviceKey = deviceInfo || fingerprint || userAgent;
+          let isNewDevice = false;
+          if (deviceKey) { isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo)); }
+          let isLocationChanged = false;
+          if (!isNewDevice && deviceKey) {
+            const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+            if (lastSameDevice && lastSameDevice.location && location) {
+              try {
+                const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
+                if ((lastLoc.country && location.country && lastLoc.country !== location.country) || (lastLoc.region && location.region && lastLoc.region !== location.region) || (lastLoc.city && location.city && lastLoc.city !== location.city)) { isLocationChanged = true; }
+              } catch {}
+            }
+          }
+          if (isNewDevice || isLocationChanged) {
+            console.log(`[LOGIN_ASYNC] User ${user.id} (TOTP): New device/location detected. Sending alert email...`);
+            let deviceDesc = userAgent; try { if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome'; else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox'; else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari'; else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge'; else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE'; else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera'; if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）'; else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）'; else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）'; else if (/Android/i.test(userAgent)) deviceDesc += '（Android）'; else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）'; } catch {}
+            let locationStr = '未知'; if (location) { locationStr = [location.country, location.region, location.city].filter(Boolean).join(' '); if (!locationStr) locationStr = '未知'; }
+            console.time(`[LOGIN_ASYNC] User ${user.id} (TOTP): Send Login Alert Email`);
+            await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
+            console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (TOTP): Send Login Alert Email`);
+          }
+          console.log(`[LOGIN_ASYNC] User ${user.id} (TOTP): Post-login background tasks completed.`);
+        } catch (e) {
+          console.error('[LOGIN_ASYNC] Post-login background task failed (TOTP):', e);
+        }
+      })();
+      return; // ★★★ 确保响应发送后不再执行同步代码 ★★★
     } else {
       // 未开启2FA，直接下发Token
       const accessToken = signAccessToken({ uid: user.id });
       const { token: refreshToken } = await import('../services/refreshTokenService.js').then(m => m.createRefreshToken(user.id, req.headers['user-agent'], null));
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'none',
         maxAge: 10 * 60 * 1000
       });
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
-    }
-    // 新设备/新IP检测与邮件提醒
-    try {
-      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
-      const userAgent = req.headers['user-agent'] || '';
-      const deviceInfo = req.body.deviceInfo || userAgent;
-      const fingerprint = req.body.fingerprint;
-      const location = await import('../utils/geoip.js').then(m => m.getGeoInfo(ip));
-      const history = await import('../services/loginHistoryService.js').then(m => m.getLoginHistory(user.id, 20));
-      let deviceKey = deviceInfo || fingerprint || userAgent;
-      let isNewDevice = false;
-      if (deviceKey) {
-        isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
-      }
-      let isLocationChanged = false;
-      if (!isNewDevice && deviceKey) {
-        const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
-        if (lastSameDevice && lastSameDevice.location && location) {
-          try {
-            const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
-            if (
-              (lastLoc.country && location.country && lastLoc.country !== location.country) ||
-              (lastLoc.region && location.region && lastLoc.region !== location.region) ||
-              (lastLoc.city && location.city && lastLoc.city !== location.city)
-            ) {
-              isLocationChanged = true;
-            }
-          } catch {}
-        }
-      }
-      if (isNewDevice || isLocationChanged) {
-        let deviceDesc = userAgent;
+       // 立即发送响应
+      res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 }); 
+      
+      // 异步执行后续任务
+      (async () => {
         try {
-          if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome';
-          else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox';
-          else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari';
-          else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge';
-          else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE';
-          else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera';
-          if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）';
-          else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）';
-          else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）';
-          else if (/Android/i.test(userAgent)) deviceDesc += '（Android）';
-          else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）';
-        } catch {}
-        let locationStr = '未知';
-        if (location) {
-          locationStr = [location.country, location.region, location.city].filter(Boolean).join(' ');
-          if (!locationStr) locationStr = '未知';
+          console.log(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Starting post-login background tasks...`);
+          const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || '';
+          const userAgent = req.headers['user-agent'] || '';
+          const deviceInfo = req.body.deviceInfo || userAgent;
+          const fingerprint = req.body.fingerprint;
+          console.time(`[LOGIN_ASYNC] User ${user.id} (No 2FA): GeoIP Lookup`);
+          const location = await import('../utils/geoip.js').then(m => m.getGeoInfo(ip));
+          console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (No 2FA): GeoIP Lookup`);
+          console.time(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Login History Query`);
+          const history = await import('../services/loginHistoryService.js').then(m => m.getLoginHistory(user.id, 20));
+          console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Login History Query`);
+          let deviceKey = deviceInfo || fingerprint || userAgent;
+          let isNewDevice = false;
+          if (deviceKey) { isNewDevice = !history.some(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo)); }
+          let isLocationChanged = false;
+          if (!isNewDevice && deviceKey) {
+            const lastSameDevice = history.find(h => (h.fingerprint === fingerprint && fingerprint) || (h.userAgent === userAgent && !fingerprint && !deviceInfo));
+            if (lastSameDevice && lastSameDevice.location && location) {
+              try {
+                const lastLoc = typeof lastSameDevice.location === 'string' ? JSON.parse(lastSameDevice.location) : lastSameDevice.location;
+                if ((lastLoc.country && location.country && lastLoc.country !== location.country) || (lastLoc.region && location.region && lastLoc.region !== location.region) || (lastLoc.city && location.city && lastLoc.city !== location.city)) { isLocationChanged = true; }
+              } catch {}
+            }
+          }
+          if (isNewDevice || isLocationChanged) {
+            console.log(`[LOGIN_ASYNC] User ${user.id} (No 2FA): New device/location detected. Sending alert email...`);
+            let deviceDesc = userAgent; try { if (/Chrome/i.test(userAgent)) deviceDesc = 'Chrome'; else if (/Firefox/i.test(userAgent)) deviceDesc = 'Firefox'; else if (/Safari/i.test(userAgent)) deviceDesc = 'Safari'; else if (/Edge/i.test(userAgent)) deviceDesc = 'Edge'; else if (/MSIE|Trident/i.test(userAgent)) deviceDesc = 'IE'; else if (/Opera|OPR/i.test(userAgent)) deviceDesc = 'Opera'; if (/Windows/i.test(userAgent)) deviceDesc += '（Windows）'; else if (/Macintosh|Mac OS/i.test(userAgent)) deviceDesc += '（macOS）'; else if (/Linux/i.test(userAgent)) deviceDesc += '（Linux）'; else if (/Android/i.test(userAgent)) deviceDesc += '（Android）'; else if (/iPhone|iPad|iOS/i.test(userAgent)) deviceDesc += '（iOS）'; } catch {}
+            let locationStr = '未知'; if (location) { locationStr = [location.country, location.region, location.city].filter(Boolean).join(' '); if (!locationStr) locationStr = '未知'; }
+            console.time(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Send Login Alert Email`);
+            await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
+            console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Send Login Alert Email`);
+          }
+          console.log(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Post-login background tasks completed.`);
+        } catch (e) {
+          console.error('[LOGIN_ASYNC] Post-login background task failed (No 2FA):', e);
         }
-        await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, {
-          loginTime: new Date().toLocaleString('zh-CN', { hour12: false }),
-          device: deviceDesc,
-          ip: maskIp(ip),
-          location: locationStr
-        }));
-      }
-    } catch (e) {
-      console.error('[LOGIN] 新设备/新IP检测或邮件提醒失败:', e);
+      })();
+      return;
     }
-    return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
   } catch (err) {
     console.error("Error during login:", err);
     next(err);
