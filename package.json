@@ -1,0 +1,46 @@
+{
+  "name": "auth",
+  "version": "1.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "build:client": "cd client && pnpm build",
+    "build": "pnpm run build:client",
+    "dev:server": "nodemon src/index.js",
+    "dev:client": "cd client && pnpm dev",
+    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\""
+  },
+  "dependencies": {
+    "@scalar/api-reference": "^1.28.23",
+    "axios": "^1.9.0",
+    "bcryptjs": "^2.4.3",
+    "connect-pg-simple": "^8.0.0",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "express-jsdoc-swagger": "^1.8.0",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "framer-motion": "^12.9.0",
+    "handlebars": "^4.7.8",
+    "jsonwebtoken": "^9.0.2",
+    "next-themes": "^0.4.6",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.14.1",
+    "qrcode": "^1.5.4",
+    "react-icons": "^5.5.0",
+    "resend": "^4.4.0",
+    "speakeasy": "^2.0.0",
+    "uuid": "^9.0.1",
+    "zxcvbn": "^4.4.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.10",
+    "swagger-jsdoc": "^6.2.8"
+  }
+}
