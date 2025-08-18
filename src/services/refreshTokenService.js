@@ -152,11 +152,20 @@ export async function getSessionAggregatedInfoForUser(userId) {
     let firstLoginAt = null, lastLoginAt = null, lastLocation = null, lastIp = null, lastUserAgent = null;
     if (history.length > 0) {
       lastLoginAt = history[0].login_at;
-      // 解析JSON字符串格式的location数据
+      // 解析location数据（可能是JSON字符串或已解析的对象）
       try {
-        lastLocation = history[0].location ? JSON.parse(history[0].location) : null;
+        if (history[0].location) {
+          // 如果已经是对象，直接使用；如果是字符串，则解析
+          if (typeof history[0].location === 'string') {
+            lastLocation = JSON.parse(history[0].location);
+          } else {
+            lastLocation = history[0].location;
+          }
+        } else {
+          lastLocation = null;
+        }
       } catch (e) {
-        console.warn('Failed to parse location JSON:', history[0].location);
+        console.warn('Failed to parse location data:', history[0].location, 'Error:', e.message);
         lastLocation = null;
       }
       lastIp = history[0].ip_enc ? decrypt(history[0].ip_enc) : null;
