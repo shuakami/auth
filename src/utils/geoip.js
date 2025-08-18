@@ -27,10 +27,12 @@ export async function getGeoInfo(ip) {
     });
     
     if (res.data && res.data.code === 200) {
+      // 解析完整的地理位置字符串，格式：国家 省份/州 城市
+      const regionParts = res.data.region?.split(' ') || [];
       const geo = {
-        country: res.data.region?.split(' ')[0] || '',
-        region: res.data.region?.split(' ')[1] || '',
-        city: res.data.region?.split(' ')[2] || '',
+        country: regionParts[0] || '',
+        region: regionParts[1] || '',
+        city: regionParts[2] || regionParts[1] || '', // 如果没有第3部分，使用第2部分
         lat: res.data.latitude,
         lon: res.data.longitude,
         isp: res.data.isp || res.data.llc
@@ -49,10 +51,12 @@ export async function getGeoInfo(ip) {
       });
       
       if (res.data && res.data.code === 200) {
+        // 解析完整的地理位置字符串，格式：国家 省份/州 城市
+        const regionParts = res.data.region?.split(' ') || [];
         const geo = {
-          country: res.data.region?.split(' ')[0] || '',
-          region: res.data.region?.split(' ')[1] || '',
-          city: res.data.region?.split(' ')[2] || '',
+          country: regionParts[0] || '',
+          region: regionParts[1] || '',
+          city: regionParts[2] || regionParts[1] || '', // 如果没有第3部分，使用第2部分
           lat: res.data.latitude,
           lon: res.data.longitude,
           isp: res.data.isp || res.data.llc

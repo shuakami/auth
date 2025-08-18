@@ -270,9 +270,15 @@ export default function SessionManagement() {
                       session.lastLocation.country, 
                       session.lastLocation.region, 
                       session.lastLocation.city
-                    ].filter(Boolean);
+                    ]
+                    .filter(Boolean)
+                    .filter((item, index, arr) => 
+                      // 去重：如果当前项与前一项相同，则过滤掉
+                      index === 0 || item !== arr[index - 1]
+                    );
+                    
                     if (locationParts.length > 0) {
-                      location = locationParts.join(', ');
+                      location = locationParts.join(' ');
                     }
                   }
                   // 优化设备描述
