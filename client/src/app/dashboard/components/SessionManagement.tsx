@@ -152,6 +152,10 @@ export default function SessionManagement() {
   const [sessionToRevoke, setSessionToRevoke] = useState<string | null>(null); // 要吊销的 Session ID
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null); // 操作结果消息
   const [revokeLoading, setRevokeLoading] = useState(false); // 登出操作 loading 状态
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const sessionsPerPage = 5; // 每页显示5个会话
 
   const fetchSessions = useCallback(async () => {
     if (!user) return;
@@ -163,6 +167,7 @@ export default function SessionManagement() {
       const fetchedSessions: Session[] = response.data.sessions || [];
       // 直接使用后端返回的 isCurrent 字段
       setSessions(fetchedSessions); // fetchedSessions 现在直接包含了 isCurrent
+      setCurrentPage(1); // 重置到第一页
     } catch (err) {
       setError('无法加载设备列表，请稍后重试');
       console.error('Error fetching sessions:', err);
@@ -286,6 +291,89 @@ export default function SessionManagement() {
     </div>
   );
 
+  // 分页计算
+  const totalPages = Math.ceil(sessions.length / sessionsPerPage);
+  const startIndex = (currentPage - 1) * sessionsPerPage;
+  const endIndex = startIndex + sessionsPerPage;
+  const currentSessions = sessions.slice(startIndex, endIndex);
+
+  // 分页组件
+  const Pagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between border-t border-neutral-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            上一页
+          </button>
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="relative ml-3 inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            下一页
+          </button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-neutral-700 dark:text-zinc-300">
+              显示 <span className="font-medium">{startIndex + 1}</span> 到{' '}
+              <span className="font-medium">{Math.min(endIndex, sessions.length)}</span> 项，
+              共 <span className="font-medium">{sessions.length}</span> 项
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="分页">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-neutral-400 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed dark:ring-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <span className="sr-only">上一页</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {pageNumbers.map((number) => (
+                <button
+                  key={number}
+                  onClick={() => setCurrentPage(number)}
+                  className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                    currentPage === number
+                      ? 'z-10 bg-[#0582FF] text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0582FF]'
+                      : 'text-neutral-900 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 focus:z-20 focus:outline-offset-0 dark:text-zinc-100 dark:ring-zinc-600 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  {number}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-neutral-400 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed dark:ring-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <span className="sr-only">下一页</span>
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -322,14 +410,14 @@ export default function SessionManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700">
-              {sessions.length === 0 ? (
+              {currentSessions.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-sm text-neutral-500 dark:text-zinc-400">
                     没有找到已登录的设备。
                   </td>
                 </tr>
               ) : (
-                sessions.map((session) => {
+                currentSessions.map((session) => {
                   const { browser, os } = parseUserAgent(session.device_info);
                   // 构建地理位置显示字符串
                   let location = '未知';
