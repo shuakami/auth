@@ -263,9 +263,18 @@ export default function SessionManagement() {
               ) : (
                 sessions.map((session) => {
                   const { browser, os } = parseUserAgent(session.device_info);
-                  const location = [session.lastLocation?.country, session.lastLocation?.region, session.lastLocation?.city]
-                    .filter(Boolean)
-                    .join(', ');
+                  // 构建地理位置显示字符串
+                  let location = '未知';
+                  if (session.lastLocation) {
+                    const locationParts = [
+                      session.lastLocation.country, 
+                      session.lastLocation.region, 
+                      session.lastLocation.city
+                    ].filter(Boolean);
+                    if (locationParts.length > 0) {
+                      location = locationParts.join(', ');
+                    }
+                  }
                   // 优化设备描述
                   const deviceDesc = `${browser}${os !== '未知' ? `（${os}）` : ''}`;
                   // 最近活动时间
@@ -320,7 +329,12 @@ export default function SessionManagement() {
                         {session.firstLoginAt ? formatDistanceToNow(new Date(session.firstLoginAt), { addSuffix: true, locale: zhCN }) : '未知'}
                       </td>
                       <td className="px-6 py-4 text-sm text-neutral-600 dark:text-zinc-400">
-                        {location || '未知'} {session.lastIp ? `(${session.lastIp})` : '(N/A)'}
+                        <div className="flex flex-col">
+                          <span>{location}</span>
+                          <span className="text-xs text-neutral-400 dark:text-zinc-500">
+                            {session.lastIp ? `IP: ${session.lastIp}` : 'IP: 未知'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         {!session.isCurrent && (
