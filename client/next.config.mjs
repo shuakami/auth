@@ -45,6 +45,22 @@ const nextConfig = {
 
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  
+  // 优化构建配置
+  webpack: (config, { dev, isServer }) => {
+    // 优化react-icons的处理
+    config.module.rules.push({
+      test: /react-icons.*\.mjs$/,
+      type: 'javascript/auto',
+    });
+    
+    return config;
+  },
+  
+  // 优化构建性能
+  experimental: {
+    optimizePackageImports: ['react-icons']
+  },
 };
 
 export default nextConfig; 
