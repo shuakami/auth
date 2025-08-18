@@ -233,12 +233,8 @@ export default function SessionManagement() {
         <div className="h-4 w-20 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
       </td>
       <td className="px-6 py-4">
-        <div className="flex flex-col space-y-1">
-          {/* 地理位置骨架 */}
-          <div className="h-4 w-28 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-          {/* IP地址骨架 */}
-          <div className="h-3 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-        </div>
+        {/* 地理位置骨架 */}
+        <div className="h-4 w-28 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
       </td>
       <td className="px-6 py-4 text-right">
         {/* 登出按钮骨架 */}
@@ -407,12 +403,7 @@ export default function SessionManagement() {
                         {session.firstLoginAt ? formatDistanceToNow(new Date(session.firstLoginAt), { addSuffix: true, locale: zhCN }) : '未知'}
                       </td>
                       <td className="px-6 py-4 text-sm text-neutral-600 dark:text-zinc-400">
-                        <div className="flex flex-col">
-                          <span>{location}</span>
-                          <span className="text-xs text-neutral-400 dark:text-zinc-500">
-                            {session.lastIp ? `IP: ${session.lastIp}` : 'IP: 未知'}
-                          </span>
-                        </div>
+                        {location}
                       </td>
                       <td className="px-6 py-4 text-right">
                         {!session.isCurrent && (
