@@ -254,6 +254,12 @@ export async function login(req, res, next) {
                 await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
                 console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Send Login Alert Email`);
               }
+              
+              // 记录成功登录历史
+              console.time(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Record Login History`);
+              await import('./recordLoginLog.js').then(m => m.recordLoginLog({ req, user, success: true, location, fingerprint }));
+              console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Record Login History`);
+              
               console.log(`[LOGIN_ASYNC] User ${user.id} (Backup Code): Post-login background tasks completed.`);
             } catch (e) {
               console.error('[LOGIN_ASYNC] Post-login background task failed (Backup Code):', e);
@@ -375,12 +381,18 @@ export async function login(req, res, next) {
             console.time(`[LOGIN_ASYNC] User ${user.id} (TOTP): Send Login Alert Email`);
             await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
             console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (TOTP): Send Login Alert Email`);
-          }
-          console.log(`[LOGIN_ASYNC] User ${user.id} (TOTP): Post-login background tasks completed.`);
-        } catch (e) {
-          console.error('[LOGIN_ASYNC] Post-login background task failed (TOTP):', e);
-        }
-      })();
+                        }
+              
+              // 记录成功登录历史
+              console.time(`[LOGIN_ASYNC] User ${user.id} (TOTP): Record Login History`);
+              await import('./recordLoginLog.js').then(m => m.recordLoginLog({ req, user, success: true, location, fingerprint }));
+              console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (TOTP): Record Login History`);
+              
+              console.log(`[LOGIN_ASYNC] User ${user.id} (TOTP): Post-login background tasks completed.`);
+            } catch (e) {
+              console.error('[LOGIN_ASYNC] Post-login background task failed (TOTP):', e);
+            }
+          })();
       return; // ★★★ 确保响应发送后不再执行同步代码 ★★★
     } else {
       // 未开启2FA，直接下发Token
@@ -466,6 +478,12 @@ export async function login(req, res, next) {
             await import('../mail/resend.js').then(m => m.sendLoginAlertEmail(user.email, { loginTime: new Date().toLocaleString('zh-CN', { hour12: false }), device: deviceDesc, ip: maskIp(ip), location: locationStr }));
             console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Send Login Alert Email`);
           }
+          
+          // 记录成功登录历史
+          console.time(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Record Login History`);
+          await import('./recordLoginLog.js').then(m => m.recordLoginLog({ req, user, success: true, location, fingerprint }));
+          console.timeEnd(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Record Login History`);
+          
           console.log(`[LOGIN_ASYNC] User ${user.id} (No 2FA): Post-login background tasks completed.`);
         } catch (e) {
           console.error('[LOGIN_ASYNC] Post-login background task failed (No 2FA):', e);
