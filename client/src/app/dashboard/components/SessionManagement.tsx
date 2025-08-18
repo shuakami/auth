@@ -262,7 +262,7 @@ export default function SessionManagement() {
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">设备</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">最近活动</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">首次登录</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">地理位置 (IP)</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">地理位置</th>
                 <th scope="col" className="relative px-6 py-4">
                   <span className="sr-only">操作</span>
                 </th>
@@ -315,7 +315,7 @@ export default function SessionManagement() {
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">设备</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">最近活动</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">首次登录</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">地理位置 (IP)</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">地理位置</th>
                 <th scope="col" className="relative px-6 py-4">
                   <span className="sr-only">操作</span>
                 </th>
