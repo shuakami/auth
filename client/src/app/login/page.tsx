@@ -29,7 +29,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'totp' | 'backup'>('totp');
   const [code, setCode] = useState('');
   const [totpMsg, setTotpMsg] = useState(''); // 2FA specific message
-  const [totpMsgType, setTotpMsgType] = useState<'error' | 'success'>('error'); // 消息类型
+  const [totpMsgType, setTotpMsgType] = useState<'error' | 'info'>('error'); // 消息类型
   const [totpLoading, setTotpLoading] = useState(false); // 2FA specific loading
   const router = useRouter();
   const { checkAuth } = useAuth();
@@ -122,7 +122,7 @@ export default function LoginPage() {
       if (resp.status === 200) {
         // 2FA 验证通过，登录成功
         setTotpMsg('验证成功，正在登录...');
-        setTotpMsgType('success'); // 设置为成功消息
+        setTotpMsgType('info'); // 设置为信息提示
         setShow2fa(false); // 可以隐藏 2FA 表单了
         const loggedInUser = await checkAuth();
         if (loggedInUser) {
@@ -376,8 +376,8 @@ export default function LoginPage() {
             {/* 2FA 消息信息 */}
             {totpMsg && (
               <p className={`text-sm ${
-                totpMsgType === 'success' 
-                  ? 'text-green-600 dark:text-green-400' 
+                totpMsgType === 'info' 
+                  ? 'text-neutral-600 dark:text-neutral-400' 
                   : 'text-red-600 dark:text-red-400'
               }`}>
                 {totpMsg}
