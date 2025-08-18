@@ -206,9 +206,81 @@ export default function SessionManagement() {
     }
   };
 
+  // 骨架屏组件
+  const SkeletonRow = () => (
+    <tr className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50 transition-colors">
+      <td className="px-6 py-4">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            {/* 浏览器和OS图标骨架 */}
+            <div className="w-6 h-6 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            <div className="w-5 h-5 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+          </div>
+          <div className="space-y-2">
+            {/* 设备描述骨架 */}
+            <div className="h-4 w-32 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+            {/* 当前设备标签骨架 */}
+            <div className="h-6 w-16 bg-neutral-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        {/* 最近活动时间骨架 */}
+        <div className="h-4 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+      </td>
+      <td className="px-6 py-4">
+        {/* 首次登录时间骨架 */}
+        <div className="h-4 w-20 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex flex-col space-y-1">
+          {/* 地理位置骨架 */}
+          <div className="h-4 w-28 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+          {/* IP地址骨架 */}
+          <div className="h-3 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+        </div>
+      </td>
+      <td className="px-6 py-4 text-right">
+        {/* 登出按钮骨架 */}
+        <div className="h-8 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse ml-auto"></div>
+      </td>
+    </tr>
+  );
+
   if (loading) return (
-    <div className="flex items-center justify-center p-8">
-      <p className="text-sm text-neutral-500 dark:text-zinc-400">正在加载设备列表...</p>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+          已登录设备
+        </h3>
+        <p className="text-sm text-neutral-600 dark:text-zinc-400">
+          管理您当前已登录的设备会话。如果您发现任何可疑活动，可以登出相关设备。
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700">
+            <thead className="bg-neutral-50 dark:bg-zinc-800">
+              <tr>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">设备</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">最近活动</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">首次登录</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">地理位置 (IP)</th>
+                <th scope="col" className="relative px-6 py-4">
+                  <span className="sr-only">操作</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700">
+              {/* 渲染3个骨架屏行，模拟典型的会话数量 */}
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
   
