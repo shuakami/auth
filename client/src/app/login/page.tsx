@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'totp' | 'backup'>('totp');
   const [code, setCode] = useState('');
   const [totpMsg, setTotpMsg] = useState(''); // 2FA specific message
+  const [totpMsgType, setTotpMsgType] = useState<'error' | 'success'>('error'); // 消息类型
   const [totpLoading, setTotpLoading] = useState(false); // 2FA specific loading
   const router = useRouter();
   const { checkAuth } = useAuth();
@@ -111,6 +112,7 @@ export default function LoginPage() {
   const handle2faSubmit = async () => {
     setTotpLoading(true);
     setTotpMsg('');
+    setTotpMsgType('error');
 
     try {
       const credentials = mode === 'totp' ? { token: code } : { backupCode: code };
@@ -120,6 +122,7 @@ export default function LoginPage() {
       if (resp.status === 200) {
         // 2FA 验证通过，登录成功
         setTotpMsg('验证成功，正在登录...');
+        setTotpMsgType('success'); // 设置为成功消息
         setShow2fa(false); // 可以隐藏 2FA 表单了
         const loggedInUser = await checkAuth();
         if (loggedInUser) {
@@ -370,9 +373,15 @@ export default function LoginPage() {
                />
             </div>
 
-            {/* 2FA 错误信息 */}
+            {/* 2FA 消息信息 */}
             {totpMsg && (
-              <p className="text-sm text-red-600 dark:text-red-400">{totpMsg}</p>
+              <p className={`text-sm ${
+                totpMsgType === 'success' 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {totpMsg}
+              </p>
             )}
 
             {/* 模式切换按钮 */}
@@ -383,6 +392,7 @@ export default function LoginPage() {
                   setMode(mode === 'totp' ? 'backup' : 'totp');
                   setCode('');
                   setTotpMsg('');
+                  setTotpMsgType('error');
                 }}
                 className="text-sm font-medium text-[#0582FF] hover:underline dark:text-[#3898FF] dark:hover:underline focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-white"
               >
