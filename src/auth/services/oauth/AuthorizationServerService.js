@@ -63,7 +63,9 @@ export class AuthorizationServerService {
       error: null, 
       errorDescription: null,
       client,
-      validatedScope: validScopes.join(' ')
+      validatedScope: validScopes.join(' '),
+      validatedRedirectUri: redirect_uri,
+      validatedResponseType: response_type
     };
   }
 

@@ -39,6 +39,10 @@ function AuthorizePageContent() {
         code_challenge_method: searchParams.get('code_challenge_method'),
     };
     
+    // 调试日志：查看实际接收到的参数
+    console.log('[OAuth前端] 接收到的URL参数:', params);
+    console.log('[OAuth前端] 当前URL:', window.location.href);
+    
     // 检查是否有任何关键参数缺失
     const isParamsMissing = !params.client_id || !params.client_name || !params.redirect_uri || !params.scope;
 
