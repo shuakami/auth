@@ -1,1144 +1,419 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  Code, 
-  Shield, 
-  Users, 
-  Globe,
-  Key,
-  Server,
-  Smartphone,
-  Monitor,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  BookOpen,
-  Zap,
-  Lock,
-  RefreshCw,
-  Settings,
-  Eye,
-  Clock,
-  Database,
-  Network,
-  Layers,
-  FileText,
-  Terminal,
-  GitBranch,
-  Package
+  Copy, Check, ExternalLink, Code, Shield, Users, Globe, Key, Server, Smartphone, Monitor,
+  Zap, Lock, RefreshCw, GitBranch, Package, CheckCircle, Settings, Terminal, Layers, Network, Database
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-export default function OAuthIntegrationGuide() {
-  const [copiedCode, setCopiedCode] = useState<string>('');
-  const [activeSection, setActiveSection] = useState<string>('overview');
+// =======================================================================================
+// 主文档内容 (Markdown 格式)
+// =======================================================================================
+const markdownContent = `
+# 统一身份认证 (OAuth 2.0 / OIDC) 集成指南
 
-  const copyToClipboard = async (text: string, id: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedCode(id);
-      setTimeout(() => setCopiedCode(''), 2000);
-    } catch (error) {
-      console.error('复制失败:', error);
-    }
-  };
+我们的统一身份认证服务 (Auth) 是一个实现了 OAuth 2.0 和 OpenID Connect (OIDC) 核心规范的企业级身份解决方案。它旨在为您的应用提供安全、可靠且可扩展的单点登录 (SSO) 和 API 授权能力。本指南将帮助您深入理解其工作原理，并快速将其集成到您的业务中。
 
-  const CodeBlock = ({ 
-    children, 
-    language = 'javascript', 
-    id,
-    title,
-    showLineNumbers = false
-  }: { 
-    children: string; 
-    language?: string;
-    id: string;
-    title?: string;
-    showLineNumbers?: boolean;
-  }) => (
-    <div className="relative mb-6">
-      {title && (
-        <div className="flex items-center justify-between bg-neutral-100 dark:bg-zinc-800 px-4 py-2 rounded-t-lg border-b border-neutral-200 dark:border-zinc-700">
-          <div className="flex items-center gap-2">
-            <Code className="w-4 h-4 text-neutral-600 dark:text-zinc-400" />
-            <span className="text-sm font-medium text-neutral-700 dark:text-zinc-300">{title}</span>
-          </div>
-          <span className="text-xs text-neutral-500 dark:text-zinc-400 bg-neutral-200 dark:bg-zinc-700 px-2 py-1 rounded">
-            {language}
-          </span>
-        </div>
-      )}
-      <div className={`relative bg-neutral-50 dark:bg-zinc-900 ${title ? 'rounded-b-lg' : 'rounded-lg'} border border-neutral-200 dark:border-zinc-700`}>
-        <button
-          onClick={() => copyToClipboard(children, id)}
-          className="absolute top-3 right-3 p-2 rounded-md bg-white dark:bg-zinc-800 border border-neutral-200 dark:border-zinc-700 hover:bg-neutral-50 dark:hover:bg-zinc-700 transition-colors shadow-sm z-10"
-          title="复制代码"
-        >
-          {copiedCode === id ? (
-            <Check className="w-4 h-4 text-green-600" />
-          ) : (
-            <Copy className="w-4 h-4 text-neutral-600 dark:text-zinc-400" />
-          )}
-        </button>
-        <pre className="p-4 text-sm overflow-x-auto" style={{ paddingRight: '50px' }}>
-          <code className="text-neutral-800 dark:text-zinc-200 font-mono">
-            {showLineNumbers ? 
-              children.split('\n').map((line, index) => 
-                <div key={index} className="table-row">
-                  <span className="table-cell text-neutral-400 dark:text-zinc-600 select-none pr-4 text-right w-8">
-                    {index + 1}
-                  </span>
-                  <span className="table-cell">{line}</span>
-                </div>
-              ) : 
-              children
-            }
-          </code>
-        </pre>
-      </div>
-    </div>
-  );
+---
 
-  const InfoBox = ({ 
-    type = 'info', 
-    title, 
-    children 
-  }: { 
-    type?: 'info' | 'warning' | 'error' | 'success' | 'tip';
-    title: string;
-    children: React.ReactNode;
-  }) => {
-    const styles = {
-      info: {
-        bg: 'bg-blue-50 dark:bg-blue-900/20',
-        border: 'border-blue-200 dark:border-blue-800',
-        icon: <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
-        titleColor: 'text-blue-900 dark:text-blue-200',
-        textColor: 'text-blue-800 dark:text-blue-300'
-      },
-      warning: {
-        bg: 'bg-amber-50 dark:bg-amber-900/20',
-        border: 'border-amber-200 dark:border-amber-800',
-        icon: <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
-        titleColor: 'text-amber-900 dark:text-amber-200',
-        textColor: 'text-amber-800 dark:text-amber-300'
-      },
-      error: {
-        bg: 'bg-red-50 dark:bg-red-900/20',
-        border: 'border-red-200 dark:border-red-800',
-        icon: <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
-        titleColor: 'text-red-900 dark:text-red-200',
-        textColor: 'text-red-800 dark:text-red-300'
-      },
-      success: {
-        bg: 'bg-green-50 dark:bg-green-900/20',
-        border: 'border-green-200 dark:border-green-800',
-        icon: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />,
-        titleColor: 'text-green-900 dark:text-green-200',
-        textColor: 'text-green-800 dark:text-green-300'
-      },
-      tip: {
-        bg: 'bg-purple-50 dark:bg-purple-900/20',
-        border: 'border-purple-200 dark:border-purple-800',
-        icon: <Zap className="w-5 h-5 text-purple-600 dark:text-purple-400" />,
-        titleColor: 'text-purple-900 dark:text-purple-200',
-        textColor: 'text-purple-800 dark:text-purple-300'
-      }
-    };
+## 快速开始
 
-    const style = styles[type];
+在 30 分钟内，您可以完成从注册应用到获取第一个 Access Token 的全过程。
 
-    return (
-      <div className={`rounded-lg p-4 mb-6 ${style.bg} ${style.border} border`}>
-        <div className="flex items-start gap-3">
-          {style.icon}
-          <div className="flex-1">
-            <h4 className={`font-semibold ${style.titleColor} mb-2`}>{title}</h4>
-            <div className={`text-sm ${style.textColor}`}>
-              {children}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+### 步骤 1: 注册您的应用
 
-  const sections = [
-    { id: 'overview', label: '系统概述', icon: Globe },
-    { id: 'architecture', label: '架构设计', icon: Layers },
-    { id: 'getting-started', label: '快速开始', icon: Zap },
-    { id: 'oauth-flow', label: 'OAuth2 流程', icon: GitBranch },
-    { id: 'endpoints', label: 'API 端点', icon: Network },
-    { id: 'security', label: '安全特性', icon: Lock },
-    { id: 'tokens', label: '令牌管理', icon: Key },
-    { id: 'scopes', label: '权限范围', icon: Shield },
-    { id: 'examples', label: '代码示例', icon: Code },
-    { id: 'sdk', label: 'SDK 集成', icon: Package },
-    { id: 'best-practices', label: '最佳实践', icon: CheckCircle },
-    { id: 'troubleshooting', label: '故障排除', icon: Settings },
-    { id: 'advanced', label: '高级功能', icon: Terminal }
-  ];
+在开始之前，您需要在控制台的 [OAuth 应用管理](/dashboard) 页面注册您的应用。
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 text-neutral-900 dark:text-zinc-100">
-      {/* 顶部导航 */}
-      <nav className="border-b border-neutral-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Shield className="w-8 h-8 text-indigo-600" />
-              <div>
-                <h1 className="text-lg font-semibold">OAuth2/OIDC 完整集成指南</h1>
-                <p className="text-sm text-neutral-500 dark:text-zinc-400">企业级单点登录解决方案</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/dashboard" 
-                className="text-sm text-neutral-600 dark:text-zinc-400 hover:text-neutral-900 dark:hover:text-zinc-100 flex items-center gap-2 transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" />
-                返回控制台
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+- **应用名称**: 用户在授权页面看到的名称 (例如: “Acme 公司”)。
+- **应用类型**:
+    - **Web 应用**: 运行在服务器端的传统 Web 应用 (例如: Node.js, Python, Java)。
+    - **单页应用 (SPA)**: 运行在浏览器端的 JavaScript 应用 (例如: React, Vue, Angular)。
+    - **移动/桌面应用**: 原生移动或桌面客户端。
+- **重定向 URI**: 用户授权后，我们将把用户重定向到此 URL。**这是安全流程中最关键的配置之一**，请确保使用 HTTPS 协议，并且域名尽可能精确。
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid gap-8 lg:grid-cols-5">
-          {/* 侧边导航 */}
-          <nav className="lg:col-span-1 space-y-1">
-            <div className="sticky top-24">
-              {sections.map((section) => {
-                const Icon = section.icon;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                      activeSection === section.id
-                        ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                        : 'text-neutral-600 dark:text-zinc-400 hover:bg-neutral-100 dark:hover:bg-zinc-800 hover:text-neutral-900 dark:hover:text-zinc-100'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {section.label}
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
+注册成功后，您将获得一个 **Client ID** 和一个 **Client Secret**。
 
-          {/* 主要内容 */}
-          <div className="lg:col-span-4 space-y-12">
-            {/* 系统概述 */}
-            {activeSection === 'overview' && (
-              <section id="overview">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-4 flex items-center gap-3">
-                      <Globe className="w-8 h-8 text-indigo-600" />
-                      企业级OAuth2/OIDC认证系统
-                    </h2>
-                    <p className="text-lg text-neutral-600 dark:text-zinc-400 leading-relaxed">
-                      我们的统一身份认证系统是一个完整的OAuth2.0和OpenID Connect (OIDC)实现，
-                      为企业级应用提供安全、可扩展的单点登录(SSO)解决方案。
-                    </p>
-                  </div>
+> **安全警告**
+> \`Client Secret\` 是极其敏感的凭证，**绝对不能**暴露在任何前端代码或不安全的环境中。对于 SPA 或移动应用，请始终使用 PKCE 流程，该流程不需要 \`Client Secret\`。
 
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                      <h3 className="text-xl font-semibold text-neutral-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                        <Shield className="w-6 h-6 text-blue-600" />
-                        核心特性
-                      </h3>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>完整的OAuth2.0和OIDC支持</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>高级刷新令牌轮换机制</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>PKCE扩展安全支持</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>多因子认证(2FA)集成</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>设备指纹和会话管理</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>企业级安全监控</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-                      <h3 className="text-xl font-semibold text-neutral-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                        <Users className="w-6 h-6 text-green-600" />
-                        支持场景
-                      </h3>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-blue-600" />
-                          <span>Web应用单点登录</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-green-600" />
-                          <span>移动应用认证</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Monitor className="w-4 h-4 text-purple-600" />
-                          <span>桌面应用集成</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Server className="w-4 h-4 text-orange-600" />
-                          <span>服务间认证</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Network className="w-4 h-4 text-indigo-600" />
-                          <span>API网关集成</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Database className="w-4 h-4 text-red-600" />
-                          <span>微服务架构</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+### 步骤 2: 发起授权请求
 
-                  <InfoBox type="info" title="为什么选择我们的解决方案？">
-                    <p className="mb-3">
-                      与市面上其他OAuth解决方案相比，我们的系统在安全性、性能和可扩展性方面都有显著优势：
-                    </p>
-                    <ul className="space-y-1">
-                      <li>• <strong>安全优先</strong>：实现了所有OWASP推荐的安全最佳实践</li>
-                      <li>• <strong>高性能</strong>：优化的令牌验证和缓存机制，支持高并发</li>
-                      <li>• <strong>可扩展</strong>：模块化架构，支持自定义扩展和集成</li>
-                      <li>• <strong>合规性</strong>：满足GDPR、SOC2等合规要求</li>
-                      <li>• <strong>监控友好</strong>：完整的审计日志和监控指标</li>
-                    </ul>
-                  </InfoBox>
+您的应用需要引导用户跳转到我们的授权端点。
 
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-6 text-white">
-                    <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                      <Zap className="w-6 h-6" />
-                      准备开始？
-                    </h3>
-                    <p className="mb-4">
-                      我们提供完整的文档、代码示例和技术支持，帮助您快速集成。
-                    </p>
-                    <button
-                      onClick={() => setActiveSection('getting-started')}
-                      className="bg-white text-indigo-600 px-4 py-2 rounded-md font-medium hover:bg-neutral-100 transition-colors flex items-center gap-2"
-                    >
-                      立即开始
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </section>
-            )}
+\`\`\`http
+GET /api/oauth/authorize?
+  response_type=code&
+  client_id=YOUR_CLIENT_ID&
+  redirect_uri=YOUR_REDIRECT_URI&
+  scope=openid profile email&
+  state=RANDOM_STRING&
+  code_challenge=PKCE_CODE_CHALLENGE&
+  code_challenge_method=S256
+\`\`\`
 
-            {/* 架构设计 */}
-            {activeSection === 'architecture' && (
-              <section id="architecture">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-4 flex items-center gap-3">
-                      <Layers className="w-8 h-8 text-indigo-600" />
-                      系统架构设计
-                    </h2>
-                    <p className="text-lg text-neutral-600 dark:text-zinc-400 leading-relaxed">
-                      深入了解我们OAuth2/OIDC系统的架构设计和核心组件。
-                    </p>
-                  </div>
+### 步骤 3: 交换授权码获取令牌
 
-                  <div className="grid gap-6">
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <Network className="w-6 h-6 text-blue-600" />
-                        系统架构图
-                      </h3>
-                      <div className="bg-neutral-50 dark:bg-zinc-900 rounded-lg p-6 border border-neutral-200 dark:border-zinc-700">
-                        <pre className="text-sm text-neutral-600 dark:text-zinc-400 overflow-x-auto font-mono">
-{`
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   客户端应用     │    │   认证服务器     │    │   资源服务器     │
-│                │    │                │    │                │
-│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
-│  │    Web    │  │    │  │  OAuth2   │  │    │  │    API    │  │
-│  │   应用    │◄─┼────┼─►│  端点     │  │    │  │   服务    │  │
-│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
-│                │    │  ┌───────────┐  │    │  ┌───────────┐  │
-│  ┌───────────┐  │    │  │  Token    │  │    │  │   用户    │  │
-│  │   移动    │  │    │  │  管理     │◄─┼────┼─►│   数据    │  │
-│  │   应用    │◄─┼────┼─►│           │  │    │  └───────────┘  │
-│  └───────────┘  │    │  └───────────┘  │    │                │
-│                │    │  ┌───────────┐  │    │                │
-│  ┌───────────┐  │    │  │   2FA     │  │    │                │
-│  │   桌面    │  │    │  │  验证     │  │    │                │
-│  │   应用    │◄─┼────┼─►│           │  │    │                │
-│  └───────────┘  │    │  └───────────┘  │    │                │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                       │                       │
-        └───────────────────────┼───────────────────────┘
-                               │
-                    ┌─────────────────┐
-                    │   数据库层      │
-                    │                │
-                    │  ┌───────────┐  │
-                    │  │  用户表   │  │
-                    │  └───────────┘  │
-                    │  ┌───────────┐  │
-                    │  │ OAuth应用 │  │
-                    │  └───────────┘  │
-                    │  ┌───────────┐  │
-                    │  │ 令牌管理  │  │
-                    │  └───────────┘  │
-                    │  ┌───────────┐  │
-                    │  │ 会话记录  │  │
-                    │  └───────────┘  │
-                    └─────────────────┘
-`}
-                        </pre>
-                      </div>
-                    </div>
+用户授权后，我们会携带 \`code\` 和 \`state\` 参数重定向回您的 \`redirect_uri\`。您的后端服务需要用此 \`code\` 向令牌端点发起请求。
 
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <Server className="w-5 h-5 text-green-600" />
-                          核心服务组件
-                        </h3>
-                        <div className="space-y-3 text-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">OAuth控制器</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">处理授权请求和令牌交换</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-green-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">令牌服务</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">管理访问令牌和刷新令牌</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-purple-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">用户绑定服务</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">处理用户账号关联和创建</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-orange-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">2FA集成服务</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">多因子认证流程管理</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+\`\`\`bash
+curl --request POST 'https://your-auth-server.com/api/oauth/token' \\
+--header 'Content-Type: application/x-www-form-urlencoded' \\
+--data-urlencode 'grant_type=authorization_code' \\
+--data-urlencode 'code=CODE_FROM_CALLBACK' \\
+--data-urlencode 'redirect_uri=YOUR_REDIRECT_URI' \\
+--data-urlencode 'client_id=YOUR_CLIENT_ID' \\
+--data-urlencode 'client_secret=YOUR_CLIENT_SECRET' \\
+--data-urlencode 'code_verifier=PKCE_CODE_VERIFIER'
+\`\`\`
 
-                      <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700">
-                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                          <Database className="w-5 h-5 text-indigo-600" />
-                          数据模型
-                        </h3>
-                        <div className="space-y-3 text-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-red-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">oauth_applications</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">第三方应用注册信息</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-yellow-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">oauth_authorization_codes</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">授权码临时存储</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-cyan-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">oauth_access_tokens</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">访问令牌管理</div>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-pink-600 rounded-full mt-2"></div>
-                            <div>
-                              <div className="font-medium">refresh_tokens</div>
-                              <div className="text-neutral-600 dark:text-zinc-400">刷新令牌轮换链</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+成功后，您将收到包含 \`access_token\` 和 \`refresh_token\` 的 JSON 响应。
 
-                    <InfoBox type="tip" title="架构优势">
-                      <p className="mb-2">我们的架构设计具有以下优势：</p>
-                      <ul className="space-y-1">
-                        <li>• <strong>模块化设计</strong>：各组件职责清晰，易于维护和扩展</li>
-                        <li>• <strong>安全隔离</strong>：令牌生成、验证和存储分离，降低安全风险</li>
-                        <li>• <strong>高可用</strong>：支持集群部署和负载均衡</li>
-                        <li>• <strong>监控友好</strong>：每个组件都有详细的日志和指标</li>
-                      </ul>
-                    </InfoBox>
-                  </div>
-                </div>
-              </section>
-            )}
+---
 
-            {/* 快速开始 */}
-            {activeSection === 'getting-started' && (
-              <section id="getting-started">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-4 flex items-center gap-3">
-                      <Zap className="w-8 h-8 text-indigo-600" />
-                      快速开始指南
-                    </h2>
-                    <p className="text-lg text-neutral-600 dark:text-zinc-400 leading-relaxed">
-                      30分钟内完成OAuth2/OIDC集成，让您的应用支持企业级单点登录。
-                    </p>
-                  </div>
+## 核心架构
 
-                  <div className="grid gap-6">
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <Settings className="w-6 h-6 text-blue-600" />
-                        步骤1：注册OAuth应用
-                      </h3>
-                      <div className="space-y-4">
-                        <p className="text-neutral-700 dark:text-zinc-300">
-                          首先在管理控制台中注册您的应用，获取必要的客户端凭证。
-                        </p>
-                        
-                        <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 border border-neutral-200 dark:border-zinc-700">
-                          <h4 className="font-medium mb-3 flex items-center gap-2">
-                            <Key className="w-4 h-4 text-green-600" />
-                            必填信息
-                          </h4>
-                          <div className="grid gap-3 text-sm">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span><strong>应用名称</strong>：您应用的显示名称</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span><strong>应用类型</strong>：Web、移动、桌面或服务端</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span><strong>重定向URI</strong>：授权后的回调地址</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span><strong>权限范围</strong>：需要访问的用户数据</span>
-                            </div>
-                          </div>
-                        </div>
+我们的认证系统基于模块化和分层设计，确保高可用、高安全和易于扩展。
 
-                        <InfoBox type="warning" title="重定向URI安全须知">
-                          <ul className="space-y-1">
-                            <li>• 必须使用HTTPS协议（生产环境）</li>
-                            <li>• 避免使用通配符或过于宽泛的域名</li>
-                            <li>• 每个环境（开发、测试、生产）使用不同的URI</li>
-                            <li>• 定期审核和更新重定向URI列表</li>
-                          </ul>
-                        </InfoBox>
-                      </div>
-                    </div>
+![架构图](https://your-image-url/architecture.png "我们的系统由客户端、认证服务器、资源服务器和数据库层组成。")
 
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <Code className="w-6 h-6 text-green-600" />
-                        步骤2：集成认证流程
-                      </h3>
-                      <div className="space-y-4">
-                        <p className="text-neutral-700 dark:text-zinc-300">
-                          获取客户端凭证后，在您的应用中实现OAuth2授权流程。
-                        </p>
+- **认证服务器**: 系统的核心，处理用户认证、授权请求、令牌签发与验证。
+- **令牌服务**: 负责 Access Token 和 Refresh Token 的生命周期管理，包括生成、轮换和吊销。
+- **用户服务**: 管理用户身份信息和第三方账号绑定。
+- **安全服务**: 提供 2FA、设备指纹、会话监控等高级安全功能。
 
-                        <div className="space-y-4">
-                          <div>
-                            <h4 className="font-medium mb-2">环境配置</h4>
-                            <CodeBlock 
-                              id="env-config" 
-                              title=".env" 
-                              language="bash"
-                            >
-{`# OAuth2/OIDC 配置
-OAUTH_CLIENT_ID=your_client_id_here
-OAUTH_CLIENT_SECRET=your_client_secret_here
-OAUTH_REDIRECT_URI=https://your-app.com/auth/callback
-OAUTH_BASE_URL=https://auth.your-domain.com
+---
 
-# 可选：PKCE支持（推荐用于移动和SPA应用）
-OAUTH_USE_PKCE=true`}
-                            </CodeBlock>
-                          </div>
+## 授权码 + PKCE 流程
 
-                          <div>
-                            <h4 className="font-medium mb-2">基础集成示例</h4>
-                            <CodeBlock 
-                              id="basic-integration" 
-                              title="oauth-client.js" 
-                              language="javascript"
-                              showLineNumbers={true}
-                            >
-{`import crypto from 'crypto';
+为了达到最高的安全性，我们强烈推荐所有类型的应用（特别是 SPA 和移动应用）使用 **带 PKCE (Proof Key for Code Exchange) 的授权码流程**。
 
-class OAuthClient {
-  constructor(config) {
-    this.clientId = config.clientId;
-    this.clientSecret = config.clientSecret;
-    this.redirectUri = config.redirectUri;
-    this.baseUrl = config.baseUrl;
-    this.usePKCE = config.usePKCE || false;
-  }
+### 流程详解
 
-  // 生成授权URL
-  getAuthorizationUrl(scopes = ['openid', 'profile', 'email'], state = null) {
-    const params = new URLSearchParams();
-    params.set('response_type', 'code');
-    params.set('client_id', this.clientId);
-    params.set('redirect_uri', this.redirectUri);
-    params.set('scope', scopes.join(' '));
-    params.set('state', state || this.generateState());
+1.  **客户端**: 生成一个高熵随机字符串 \`code_verifier\`。
+2.  **客户端**: 使用 SHA-256 哈希 \`code_verifier\`，然后进行 Base64Url 编码，生成 \`code_challenge\`。
+3.  **客户端**: 在发起授权请求时，带上 \`code_challenge\` 和 \`code_challenge_method=S256\` 参数。
+4.  **认证服务器**: 存储 \`code_challenge\`，并将用户重定向回客户端，并附上 \`authorization_code\`。
+5.  **客户端**: 向令牌端点发起请求，除了 \`authorization_code\` 外，还需附上原始的 \`code_verifier\`。
+6.  **认证服务器**: 验证 \`code_verifier\`，方法是执行与客户端相同的哈希和编码操作，然后与之前存储的 \`code_challenge\` 进行比较。
+7.  **认证服务器**: 如果验证通过，则返回令牌；否则，拒绝请求。
 
-    // PKCE支持
-    if (this.usePKCE) {
-      const codeVerifier = this.generateCodeVerifier();
-      const codeChallenge = this.generateCodeChallenge(codeVerifier);
-      
-      // 存储code_verifier（实际应用中应该安全存储）
-      sessionStorage.setItem('oauth_code_verifier', codeVerifier);
-      
-      params.set('code_challenge', codeChallenge);
-      params.set('code_challenge_method', 'S256');
-    }
+这个流程确保了即使 \`authorization_code\` 在传输过程中被截获，攻击者没有原始的 \`code_verifier\`，也无法用它来交换令牌。
 
-    return \`\${this.baseUrl}/oauth/authorize?\${params.toString()}\`;
-  }
+### 代码实现 (JavaScript)
 
-  // 交换授权码获取令牌
-  async exchangeCodeForTokens(code, state = null) {
-    const tokenData = {
-      grant_type: 'authorization_code',
-      code: code,
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri
-    };
+\`\`\`javascript
+// 1. 生成 Verifier 和 Challenge
+async function generatePkce() {
+  const verifier = window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(32))));
+  
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  
+  const challenge = window.btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\\+/g, '-')
+    .replace(/\\//g, '_')
+    .replace(/=/g, '');
 
-    // 添加客户端认证
-    if (this.usePKCE) {
-      // PKCE流程：使用code_verifier
-      const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
-      if (!codeVerifier) {
-        throw new Error('缺少code_verifier');
-      }
-      tokenData.code_verifier = codeVerifier;
-      sessionStorage.removeItem('oauth_code_verifier');
-    } else {
-      // 标准流程：使用client_secret
-      tokenData.client_secret = this.clientSecret;
-    }
-
-    const response = await fetch(\`\${this.baseUrl}/oauth/token\`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: new URLSearchParams(tokenData)
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(\`令牌交换失败: \${error.error_description || error.error}\`);
-    }
-
-    return await response.json();
-  }
-
-  // 获取用户信息
-  async getUserInfo(accessToken) {
-    const response = await fetch(\`\${this.baseUrl}/oauth/userinfo\`, {
-      headers: {
-        'Authorization': \`Bearer \${accessToken}\`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('获取用户信息失败');
-    }
-
-    return await response.json();
-  }
-
-  // 刷新访问令牌
-  async refreshAccessToken(refreshToken) {
-    const response = await fetch(\`\${this.baseUrl}/oauth/token\`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: this.clientId,
-        client_secret: this.clientSecret
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(\`令牌刷新失败: \${error.error_description || error.error}\`);
-    }
-
-    return await response.json();
-  }
-
-  // 工具方法
-  generateState() {
-    return crypto.randomBytes(16).toString('hex');
-  }
-
-  generateCodeVerifier() {
-    return crypto.randomBytes(32).toString('base64url');
-  }
-
-  generateCodeChallenge(verifier) {
-    return crypto.createHash('sha256').update(verifier).digest('base64url');
-  }
-}`}
-                            </CodeBlock>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <CheckCircle className="w-6 h-6 text-purple-600" />
-                        步骤3：测试集成
-                      </h3>
-                      <div className="space-y-4">
-                        <p className="text-neutral-700 dark:text-zinc-300">
-                          完成基础集成后，测试完整的认证流程确保一切正常工作。
-                        </p>
-
-                        <CodeBlock 
-                          id="test-integration" 
-                          title="test-oauth.js" 
-                          language="javascript"
-                        >
-{`// 初始化OAuth客户端
-const oauthClient = new OAuthClient({
-  clientId: process.env.OAUTH_CLIENT_ID,
-  clientSecret: process.env.OAUTH_CLIENT_SECRET,
-  redirectUri: process.env.OAUTH_REDIRECT_URI,
-  baseUrl: process.env.OAUTH_BASE_URL,
-  usePKCE: true
-});
-
-// 测试流程
-async function testOAuthFlow() {
-  try {
-    // 1. 生成授权URL
-    const authUrl = oauthClient.getAuthorizationUrl(
-      ['openid', 'profile', 'email'],
-      'test-state-123'
-    );
-    console.log('授权URL:', authUrl);
-
-    // 2. 模拟用户授权后的回调（实际中由浏览器重定向触发）
-    // const code = 'authorization_code_from_callback';
-    
-    // 3. 交换令牌
-    // const tokens = await oauthClient.exchangeCodeForTokens(code, 'test-state-123');
-    // console.log('获取的令牌:', tokens);
-
-    // 4. 获取用户信息
-    // const userInfo = await oauthClient.getUserInfo(tokens.access_token);
-    // console.log('用户信息:', userInfo);
-
-    console.log('OAuth集成测试准备完成！');
-  } catch (error) {
-    console.error('测试失败:', error.message);
-  }
+  return { verifier, challenge };
 }
 
-testOAuthFlow();`}
-                        </CodeBlock>
+// 2. 在发起授权时使用
+const { verifier, challenge } = await generatePkce();
+sessionStorage.setItem('code_verifier', verifier);
 
-                        <InfoBox type="success" title="测试检查清单">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span>授权URL生成正确</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span>用户可以成功授权</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span>授权码能正确交换为令牌</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span>访问令牌可以获取用户信息</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span>刷新令牌工作正常</span>
-                            </div>
-                          </div>
-                        </InfoBox>
-                      </div>
-                    </div>
-                  </div>
+const authUrl = \`\${AUTH_SERVER}/authorize?...\&code_challenge=\${challenge}\&code_challenge_method=S256\`;
+window.location.assign(authUrl);
 
-                  <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-6 text-white">
-                    <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                      <Zap className="w-6 h-6" />
-                      下一步
-                    </h3>
-                    <p className="mb-4">
-                      基础集成完成后，建议您了解更多高级功能和安全最佳实践。
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => setActiveSection('oauth-flow')}
-                        className="bg-white text-green-600 px-4 py-2 rounded-md font-medium hover:bg-neutral-100 transition-colors text-sm"
-                      >
-                        了解OAuth流程
-                      </button>
-                      <button
-                        onClick={() => setActiveSection('security')}
-                        className="bg-white text-green-600 px-4 py-2 rounded-md font-medium hover:bg-neutral-100 transition-colors text-sm"
-                      >
-                        安全最佳实践
-                      </button>
-                      <button
-                        onClick={() => setActiveSection('examples')}
-                        className="bg-white text-green-600 px-4 py-2 rounded-md font-medium hover:bg-neutral-100 transition-colors text-sm"
-                      >
-                        更多代码示例
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
+// 3. 在令牌交换时使用
+const codeVerifier = sessionStorage.getItem('code_verifier');
+const response = await fetch(\`\${AUTH_SERVER}/token\`, {
+  method: 'POST',
+  body: new URLSearchParams({
+    // ...其他参数
+    code_verifier: codeVerifier,
+  })
+});
+\`\`\`
 
-            {/* OAuth流程详解 */}
-            {activeSection === 'oauth-flow' && (
-              <section id="oauth-flow">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-4 flex items-center gap-3">
-                      <GitBranch className="w-8 h-8 text-indigo-600" />
-                      OAuth2/OIDC 授权流程详解
-                    </h2>
-                    <p className="text-lg text-neutral-600 dark:text-zinc-400 leading-relaxed">
-                      深入理解OAuth2授权码流程的每个步骤，以及我们系统的具体实现细节。
-                    </p>
-                  </div>
+---
 
-                  <div className="grid gap-6">
-                    <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700">
-                      <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                        <Network className="w-6 h-6 text-blue-600" />
-                        完整流程时序图
-                      </h3>
-                      <div className="bg-neutral-50 dark:bg-zinc-900 rounded-lg p-6 border border-neutral-200 dark:border-zinc-700 overflow-x-auto">
-                        <pre className="text-sm text-neutral-600 dark:text-zinc-400 font-mono whitespace-pre">
-{`
-    客户端应用              认证服务器              资源服务器              用户
-        │                      │                      │                    │
-        │  1. 发起授权请求        │                      │                    │
-        │─────────────────────→  │                      │                    │
-        │                      │                      │                    │
-        │  2. 重定向到授权页面     │                      │                    │
-        │←─────────────────────  │                      │                    │
-        │                      │                      │                    │
-        │                      │  3. 显示授权页面       │                    │
-        │                      │─────────────────────────────────────────→  │
-        │                      │                      │                    │
-        │                      │  4. 用户登录并授权      │                    │
-        │                      │←─────────────────────────────────────────  │
-        │                      │                      │                    │
-        │                      │  5. 可选：2FA验证      │                    │
-        │                      │←────────────────────→  │                    │
-        │                      │                      │                    │
-        │  6. 返回授权码         │                      │                    │
-        │←─────────────────────  │                      │                    │
-        │                      │                      │                    │
-        │  7. 用授权码换取令牌    │                      │                    │
-        │─────────────────────→  │                      │                    │
-        │                      │                      │                    │
-        │  8. 返回访问令牌        │                      │                    │
-        │←─────────────────────  │                      │                    │
-        │                      │                      │                    │
-        │  9. 使用令牌访问API                            │                    │
-        │─────────────────────────────────────────────→  │                    │
-        │                      │                      │                    │
-        │  10. 验证令牌          │                      │                    │
-        │                      │←─────────────────────  │                    │
-        │                      │                      │                    │
-        │  11. 返回令牌信息       │                      │                    │
-        │                      │─────────────────────→  │                    │
-        │                      │                      │                    │
-        │  12. 返回用户数据                              │                    │
-        │←─────────────────────────────────────────────  │                    │
-        │                      │                      │                    │
-`}
-                        </pre>
-                      </div>
-                    </div>
+## API 端点参考
 
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div className="space-y-6">
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-blue-50 dark:bg-blue-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
-                            发起授权请求
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              客户端应用将用户重定向到认证服务器的授权端点。
-                            </p>
-                            <CodeBlock id="step1" title="授权请求URL" language="http">
-{`GET /oauth/authorize?
-  response_type=code&
-  client_id=your_client_id&
-  redirect_uri=https%3A//your-app.com/callback&
-  scope=openid%20profile%20email&
-  state=random_state_string&
-  code_challenge=challenge&
-  code_challenge_method=S256`}
-                            </CodeBlock>
-                            <div className="space-y-1">
-                              <div className="text-xs text-neutral-600 dark:text-zinc-400">
-                                <strong>关键参数：</strong>
-                              </div>
-                              <div className="text-xs space-y-1">
-                                <div>• <code>response_type=code</code> - 使用授权码流程</div>
-                                <div>• <code>state</code> - 防止CSRF攻击的随机字符串</div>
-                                <div>• <code>code_challenge</code> - PKCE扩展的挑战码</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+所有 API 端点都遵循 RESTful 设计原则和标准的 HTTP 响应码。
 
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-green-50 dark:bg-green-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
-                            用户授权
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              用户在认证服务器上登录并授权应用访问其数据。
-                            </p>
-                            <div className="bg-white dark:bg-zinc-800 rounded p-3 border border-neutral-200 dark:border-zinc-700">
-                              <div className="text-xs text-neutral-600 dark:text-zinc-400 mb-2">授权流程包括：</div>
-                              <div className="space-y-1 text-xs">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                                  <span>身份验证（用户名/密码）</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
-                                  <span>2FA验证（如果启用）</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                                  <span>权限范围确认</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                                  <span>生成授权码</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+### 授权端点
 
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-purple-50 dark:bg-purple-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</span>
-                            令牌交换
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              客户端使用授权码换取访问令牌和刷新令牌。
-                            </p>
-                            <CodeBlock id="step3" title="令牌请求" language="http">
-{`POST /oauth/token
-Content-Type: application/x-www-form-urlencoded
+\`GET /api/oauth/authorize\`
 
-grant_type=authorization_code&
-code=AUTHORIZATION_CODE&
-client_id=your_client_id&
-client_secret=your_client_secret&
-redirect_uri=https://your-app.com/callback&
-code_verifier=PKCE_CODE_VERIFIER`}
-                            </CodeBlock>
-                          </div>
-                        </div>
-                      </div>
+此端点用于启动 OAuth 2.0 流程，并将用户重定向到登录和授权页面。
 
-                      <div className="space-y-6">
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-orange-50 dark:bg-orange-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</span>
-                            令牌响应
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              认证服务器返回访问令牌、刷新令牌和ID令牌。
-                            </p>
-                            <CodeBlock id="step4" title="令牌响应" language="json">
-{`{
+| 参数 | 类型 | 描述 | 是否必需 |
+| :--- | :--- | :--- | :--- |
+| \`response_type\` | string | 必须为 \`code\`。 | **是** |
+| \`client_id\` | string | 您的应用 Client ID。 | **是** |
+| \`redirect_uri\` | string | 授权后的回调 URL。必须与您应用设置中注册的 URL 完全匹配。 | **是** |
+| \`scope\` | string | 以空格分隔的权限范围列表 (e.g., \`openid profile email\`)。 | **是** |
+| \`state\` | string | 用于防止 CSRF 攻击的随机字符串。认证服务器将原样返回此值。 | **推荐** |
+| \`code_challenge\`| string | PKCE 流程中的挑战码。 | **推荐** |
+| \`code_challenge_method\` | string | 必须为 \`S256\`。 | **推荐** |
+
+### 令牌端点
+
+\`POST /api/oauth/token\`
+
+此端点用于交换授权码获取令牌，或使用刷新令牌获取新的访问令牌。请求体必须为 \`application/x-www-form-urlencoded\` 格式。
+
+**授权码交换**
+
+| 参数 | 类型 | 描述 |
+| :--- | :--- | :--- |
+| \`grant_type\` | string | 必须为 \`authorization_code\`。 |
+| \`code\` | string | 从授权端点回调中获取的授权码。 |
+| \`redirect_uri\` | string | 必须与发起授权请求时使用的 \`redirect_uri\` 相同。 |
+| \`client_id\` | string | 您的应用 Client ID。 |
+| \`client_secret\` | string | 您的应用 Client Secret (仅用于 Web 服务器应用)。 |
+| \`code_verifier\` | string | PKCE 流程中的原始验证码。 |
+
+**刷新令牌**
+
+| 参数 | 类型 | 描述 |
+| :--- | :--- | :--- |
+| \`grant_type\` | string | 必须为 \`refresh_token\`。 |
+| \`refresh_token\` | string | 用于获取新访问令牌的刷新令牌。 |
+| \`client_id\` | string | 您的应用 Client ID。 |
+| \`client_secret\` | string | 您的应用 Client Secret (仅用于 Web 服务器应用)。 |
+
+
+**成功响应**
+
+\`\`\`json
+{
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
   "refresh_token": "def502005c0e1b...",
   "id_token": "eyJ0eXAiOiJKV1Qi...",
   "token_type": "Bearer",
-  "expires_in": 3600,
+  "expires_in": 600,
   "scope": "openid profile email"
-}`}
-                            </CodeBlock>
-                            <div className="space-y-1">
-                              <div className="text-xs text-neutral-600 dark:text-zinc-400">
-                                <strong>令牌说明：</strong>
-                              </div>
-                              <div className="text-xs space-y-1">
-                                <div>• <code>access_token</code> - 访问API的凭证</div>
-                                <div>• <code>refresh_token</code> - 刷新访问令牌</div>
-                                <div>• <code>id_token</code> - OIDC身份信息</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+}
+\`\`\`
 
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-cyan-50 dark:bg-cyan-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-cyan-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">5</span>
-                            访问资源
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              使用访问令牌调用受保护的API获取用户数据。
-                            </p>
-                            <CodeBlock id="step5" title="API调用" language="http">
-{`GET /oauth/userinfo
-Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
-Accept: application/json`}
-                            </CodeBlock>
-                            <CodeBlock id="step5-response" title="用户信息响应" language="json">
-{`{
-  "sub": "248289761001",
+### 用户信息端点
+
+\`GET /api/oauth/userinfo\`
+
+此端点使用 \`access_token\` 获取已授权用户的基本信息。
+
+**请求头**
+
+\`\`\`http
+Authorization: Bearer YOUR_ACCESS_TOKEN
+\`\`\`
+
+**成功响应**
+
+\`\`\`json
+{
+  "sub": "user_unique_identifier",
   "name": "张三",
+  "username": "zhangsan",
+  "picture": "https://example.com/avatar.jpg",
   "email": "zhangsan@example.com",
-  "email_verified": true,
-  "picture": "https://avatar.example.com/user123.jpg",
-  "locale": "zh-CN"
-}`}
-                            </CodeBlock>
-                          </div>
-                        </div>
+  "email_verified": true
+}
+\`\`\`
 
-                        <div className="p-6 rounded-lg border border-neutral-200 dark:border-zinc-700 bg-pink-50 dark:bg-pink-900/20">
-                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <span className="bg-pink-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">6</span>
-                            令牌刷新
-                          </h3>
-                          <div className="space-y-3 text-sm">
-                            <p className="text-neutral-700 dark:text-zinc-300">
-                              访问令牌过期时，使用刷新令牌获取新的访问令牌。
-                            </p>
-                            <CodeBlock id="step6" title="刷新令牌" language="http">
-{`POST /oauth/token
-Content-Type: application/x-www-form-urlencoded
+---
 
-grant_type=refresh_token&
-refresh_token=def502005c0e1b...&
-client_id=your_client_id&
-client_secret=your_client_secret`}
-                            </CodeBlock>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+## 令牌详解
 
-                    <InfoBox type="tip" title="流程优化建议">
-                      <div className="space-y-2">
-                        <p><strong>性能优化：</strong></p>
-                        <ul className="space-y-1 ml-4">
-                          <li>• 使用token缓存减少验证请求</li>
-                          <li>• 实现静默刷新避免用户感知</li>
-                          <li>• 合理设置令牌过期时间</li>
-                        </ul>
-                        <p className="mt-3"><strong>安全增强：</strong></p>
-                        <ul className="space-y-1 ml-4">
-                          <li>• 始终验证state参数</li>
-                          <li>• 使用PKCE扩展增强安全性</li>
-                          <li>• 实现令牌绑定到特定设备</li>
-                        </ul>
-                      </div>
-                    </InfoBox>
-                  </div>
-                </div>
-              </section>
-            )}
+我们的系统签发三种类型的令牌，每种都有其独特的用途和生命周期。
 
-            {/* 其他章节占位符 */}
-            {activeSection === 'endpoints' && (
-              <section id="endpoints">
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-4 flex items-center gap-3">
-                      <Network className="w-8 h-8 text-indigo-600" />
-                      API 端点参考
-                    </h2>
-                    <p className="text-lg text-neutral-600 dark:text-zinc-400 leading-relaxed">
-                      完整的OAuth2/OIDC API端点文档，包括请求参数、响应格式和错误代码。
-                    </p>
-                  </div>
-                  
-                  <InfoBox type="info" title="开发中">
-                    此章节正在完善中，将包含详细的API端点文档。
-                  </InfoBox>
-                </div>
-              </section>
-            )}
+### Access Token
 
-            
+- **格式**: JWT (JSON Web Token)，使用 RS256 算法签名。
+- **用途**: 作为访问受保护资源（例如 \`/userinfo\` API）的凭证。
+- **生命周期**: **短暂** (推荐 10-15 分钟)，以降低泄露风险。
+- **存储**: 应存储在客户端的内存中，避免使用 Local Storage。
+
+### Refresh Token
+
+- **格式**: 不透明的加密字符串。
+- **用途**: 在 Access Token 过期后，安全地获取新的 Access Token，而无需用户重新登录。
+- **生命周期**: **较长** (例如 30 天)，但每次使用都会进行**轮换**。
+- **安全特性**:
+    - **轮换 (Rotation)**: 每次使用后，旧的 Refresh Token 都会失效，并返回一个新的 Refresh Token。
+    - **盗用检测**: 如果一个已被使用的 Refresh Token 再次被使用，系统会判定为令牌泄露，并立即吊销该令牌及其所有后代令牌，强制用户下线。
+- **存储**: 必须安全存储。对于 Web 应用，应存储在服务端的 \`httpOnly\`, \`secure\`, \`sameSite=strict\` Cookie 中。
+
+### ID Token
+
+- **格式**: JWT (OIDC 规范)。
+- **用途**: 仅用于在客户端验证用户的身份信息，**不应用于** API 授权。
+- **内容**: 包含用户的唯一标识符(\`sub\`)、签发者(\`iss\`)、客户端ID(\`aud\`)以及用户的基本资料(\`name\`, \`email\`等)。
+
+`;
+
+// =======================================================================================
+// React 组件定义
+// =======================================================================================
+export default function OAuthIntegrationGuide() {
+  const [activeId, setActiveId] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const headings = useMemo(() => {
+    const matches = Array.from(markdownContent.matchAll(/^## (.*)$/gm));
+    return matches.map(match => ({
+      id: match[1].toLowerCase().replace(/\s/g, '-').replace(/[+]/g, 'plus'),
+      text: match[1]
+    }));
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 200;
+      let foundId = '';
+      headings.forEach(({ id }) => {
+        const element = document.getElementById(id);
+        if (element && element.offsetTop <= scrollPosition) {
+          foundId = id;
+        }
+      });
+      setActiveId(foundId);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [headings]);
+  
+  const CustomCodeBlock = ({ className, children, ...props }: any) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const lang = match ? match[1] : 'bash';
+    const code = String(children).replace(/\n$/, '');
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = () => {
+      navigator.clipboard.writeText(code);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    return (
+      <div className="relative my-6 rounded-xl border border-neutral-200/50 dark:border-white/10 shadow-md">
+        <div className="flex items-center justify-between bg-neutral-100/50 dark:bg-zinc-800/50 px-4 py-2 rounded-t-xl border-b border-neutral-200/50 dark:border-white/10">
+          <span className="text-xs font-mono text-neutral-500 dark:text-zinc-400">{lang}</span>
+          <button onClick={handleCopy} className="text-neutral-500 dark:text-zinc-400 hover:text-neutral-800 dark:hover:text-white transition-colors">
+            {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+        <SyntaxHighlighter
+          style={atomDark}
+          language={lang}
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            backgroundColor: '#1E1E1E', // Vercel-like dark background
+            borderBottomLeftRadius: '0.75rem',
+            borderBottomRightRadius: '0.75rem',
+            fontSize: '0.875rem'
+          }}
+          codeTagProps={{
+            style: {
+              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+            }
+          }}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
+    );
+  };
+  
+  const components = {
+    h1: ({ node, ...props }: any) => <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8 pb-4 border-b border-neutral-200 dark:border-zinc-800" {...props} />,
+    h2: ({ node, ...props }: any) => {
+      const id = String(props.children).toLowerCase().replace(/\s/g, '-').replace(/[+]/g, 'plus');
+      return <h2 id={id} className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white mt-12 mb-6 scroll-mt-24" {...props} />;
+    },
+    h3: ({ node, ...props }: any) => <h3 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mt-8 mb-4" {...props} />,
+    p: ({ node, ...props }: any) => <p className="leading-7 text-neutral-600 dark:text-zinc-400 my-4" {...props} />,
+    a: ({ node, ...props }: any) => <a className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline" {...props} />,
+    ul: ({ node, ...props }: any) => <ul className="list-disc pl-6 my-4 space-y-2 text-neutral-600 dark:text-zinc-400" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="list-decimal pl-6 my-4 space-y-2 text-neutral-600 dark:text-zinc-400" {...props} />,
+    li: ({ node, ...props }: any) => <li className="pl-2" {...props} />,
+    blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-indigo-500 pl-4 italic text-neutral-500 dark:text-zinc-500 my-6" {...props} />,
+    code: ({ node, className, children, ...props }: any) => {
+      if (className) {
+        return <CustomCodeBlock className={className} {...props}>{children}</CustomCodeBlock>;
+      }
+      return <code className="bg-neutral-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-sm px-1.5 py-1 rounded-md" {...props}>{children}</code>;
+    },
+    hr: ({ node, ...props }: any) => <hr className="my-12 border-neutral-200 dark:border-zinc-800" {...props} />,
+    table: ({ node, ...props }: any) => <div className="overflow-x-auto my-6"><table className="w-full text-sm border-collapse" {...props} /></div>,
+    thead: ({ node, ...props }: any) => <thead className="bg-neutral-50 dark:bg-zinc-800/50" {...props} />,
+    th: ({ node, ...props }: any) => <th className="px-4 py-2 border border-neutral-200 dark:border-zinc-700 font-semibold text-left" {...props} />,
+    td: ({ node, ...props }: any) => <td className="px-4 py-2 border border-neutral-200 dark:border-zinc-700" {...props} />,
+  };
+
+  return (
+    <div className="bg-white dark:bg-black">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-sm border-b border-neutral-200 dark:border-zinc-800">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <Shield className="w-7 h-7 text-indigo-600" />
+              <h1 className="text-md font-semibold text-zinc-800 dark:text-white">集成指南</h1>
+            </div>
+            <Link href="/dashboard" className="text-sm text-neutral-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2">
+              返回控制台 <ExternalLink className="w-4 h-4" />
+            </Link>
           </div>
+        </div>
+      </header>
+      
+      {/* Main Content */}
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-8">
+          
+          {/* Left Sidebar (placeholder for future main nav) */}
+          <div className="hidden lg:block lg:col-span-2"></div>
+          
+          {/* Center Content */}
+          <main ref={contentRef} className="lg:col-span-7 py-12">
+            <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
+              {markdownContent}
+            </ReactMarkdown>
+          </main>
+          
+          {/* Right Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="sticky top-28 py-12">
+              <h3 className="font-semibold text-sm mb-4 text-zinc-800 dark:text-white">On this page</h3>
+              <ul className="space-y-2 text-sm">
+                {headings.map(({ id, text }) => (
+                  <li key={id}>
+                    <a 
+                      href={`#${id}`}
+                      className={`block pl-4 border-l-2 transition-colors ${
+                        activeId === id 
+                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-semibold' 
+                        : 'border-neutral-200 dark:border-zinc-700 text-neutral-500 dark:text-zinc-400 hover:border-neutral-400 dark:hover:border-zinc-500 hover:text-neutral-800 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      {text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
