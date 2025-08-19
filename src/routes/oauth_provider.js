@@ -93,4 +93,127 @@ router.post('/consent', ensureAuth, async (req, res) => {
     res.json({ redirect_uri: finalRedirectUrl.toString() });
 });
 
+
+/**
+ * POST /oauth/token
+ * @description
+ * OAuth 2.0 令牌端点。
+ * 用于交换授权码获取访问令牌，或使用刷新令牌获取新的访问令牌。
+ */
+router.post('/token', async (req, res) => {
+  try {
+    const { 
+      grant_type, 
+      code, 
+      redirect_uri, 
+      client_id, 
+      client_secret, 
+      code_verifier,
+      refresh_token 
+    } = req.body;
+
+    if (!grant_type) {
+      return res.status(400).json({ 
+        error: 'invalid_request', 
+        error_description: 'Missing grant_type parameter' 
+      });
+    }
+
+    if (grant_type === 'authorization_code') {
+      // 授权码交换流程
+      if (!code || !client_id || !redirect_uri) {
+        return res.status(400).json({ 
+          error: 'invalid_request', 
+          error_description: 'Missing required parameters for authorization_code grant' 
+        });
+      }
+
+      const tokenResponse = await authService.exchangeAuthorizationCode(
+        code, client_id, client_secret, redirect_uri, code_verifier
+      );
+      
+      return res.json(tokenResponse);
+
+    } else if (grant_type === 'refresh_token') {
+      // 刷新令牌流程
+      if (!refresh_token || !client_id) {
+        return res.status(400).json({ 
+          error: 'invalid_request', 
+          error_description: 'Missing required parameters for refresh_token grant' 
+        });
+      }
+
+      // TODO: 实现refresh token逻辑
+      return res.status(501).json({ 
+        error: 'unsupported_grant_type', 
+        error_description: 'Refresh token grant not yet implemented' 
+      });
+
+    } else {
+      return res.status(400).json({ 
+        error: 'unsupported_grant_type', 
+        error_description: `Grant type ${grant_type} is not supported` 
+      });
+    }
+
+  } catch (error) {
+    console.error('[OAuth] Token exchange error:', error);
+    
+    // 处理特定的OAuth错误
+    if (error.message.startsWith('invalid_grant:') || 
+        error.message.startsWith('invalid_client:') || 
+        error.message.startsWith('invalid_request:')) {
+      const [errorType, errorDescription] = error.message.split(': ');
+      return res.status(400).json({ 
+        error: errorType, 
+        error_description: errorDescription 
+      });
+    }
+    
+    return res.status(500).json({ 
+      error: 'server_error', 
+      error_description: 'Internal server error' 
+    });
+  }
+});
+
+
+/**
+ * GET /oauth/userinfo
+ * @description
+ * OAuth 2.0 用户信息端点。
+ * 使用Bearer访问令牌获取用户信息。
+ */
+router.get('/userinfo', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        error: 'invalid_token', 
+        error_description: 'Missing or invalid Authorization header' 
+      });
+    }
+
+    const accessToken = authHeader.substring(7); // 移除 "Bearer " 前缀
+    const userInfo = await authService.getUserInfo(accessToken);
+    
+    return res.json(userInfo);
+
+  } catch (error) {
+    console.error('[OAuth] UserInfo error:', error);
+    
+    if (error.message.startsWith('invalid_token:')) {
+      return res.status(401).json({ 
+        error: 'invalid_token', 
+        error_description: error.message.substring(14) 
+      });
+    }
+    
+    return res.status(500).json({ 
+      error: 'server_error', 
+      error_description: 'Internal server error' 
+    });
+  }
+});
+
 export default router;

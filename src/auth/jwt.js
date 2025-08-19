@@ -32,8 +32,13 @@ export function verifyEmailToken(token) {
 }
 
 // 生成 Access Token（短生命周期，RS256）
-export function signAccessToken(payload) {
-  return jwt.sign(payload, privateKey, { expiresIn: '10m', algorithm: 'RS256' });
+export function signAccessToken(payload, expiresIn = '10m') {
+  return jwt.sign(payload, privateKey, { expiresIn, algorithm: 'RS256' });
+}
+
+// 生成 ID Token（OIDC 规范，RS256）
+export function signIdToken(payload, expiresIn = '1h') {
+  return jwt.sign(payload, privateKey, { expiresIn, algorithm: 'RS256' });
 }
 
 export function verifyAccessToken(token) {
