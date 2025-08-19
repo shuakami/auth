@@ -20,23 +20,23 @@ const LogoSection = memo(function LogoSection({
 }) {
   const logoWidth = isLargeScreen ? 150 : 120;
   const logoHeight = isLargeScreen ? 40 : 32;
-  
+
   return (
     <>
-      <Image
-        src="/assets/images/logo/logo-text-white.png"
-        alt="Logo"
+            <Image
+                src="/assets/images/logo/logo-text-white.png"
+                alt="Logo"
         width={logoWidth}
         height={logoHeight}
-        className="mx-auto lg:mx-0 mb-6 block dark:hidden"
+                className="mx-auto lg:mx-0 mb-6 block dark:hidden"
         priority
-      />
-      <Image
-        src="/assets/images/logo/logo-text-black.png"
-        alt="Logo"
+            />
+            <Image
+                src="/assets/images/logo/logo-text-black.png"
+                alt="Logo"
         width={logoWidth}
         height={logoHeight}
-        className="mx-auto lg:mx-0 mb-6 hidden dark:block"
+                className="mx-auto lg:mx-0 mb-6 hidden dark:block"
         priority
       />
     </>
@@ -53,22 +53,22 @@ const PageTitle = memo(function PageTitle({
 }) {
   if (isLargeScreen) {
     return (
-      <div className="hidden lg:block mb-6">
-        <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-          {show2fa ? '输入验证码' : '登录'}
-        </h2>
-        {!show2fa && (
-          <p className="mt-1 text-sm text-neutral-500">
-            还没有账户？{' '}
+              <div className="hidden lg:block mb-6">
+                 <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                   {show2fa ? '输入验证码' : '登录'}
+                 </h2>
+                 {!show2fa && (
+                    <p className="mt-1 text-sm text-neutral-500">
+                     还没有账户？{' '}
             <Link 
               href={AUTH_CONSTANTS.ROUTES.REGISTER} 
               className="font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF]"
             >
-              立即注册
-            </Link>
-          </p>
-        )}
-      </div>
+                       立即注册
+                     </Link>
+                   </p>
+                 )}
+              </div>
     );
   }
 
@@ -90,22 +90,22 @@ const WelcomeSection = memo(function WelcomeSection() {
       <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
         使用您的账户凭据或第三方服务继续。
       </p>
-    </div>
+                    </div>
   );
 });
 
 // 小屏幕注册链接组件
 const RegisterLink = memo(function RegisterLink() {
   return (
-    <p className="text-center text-sm text-neutral-500 lg:hidden">
-      还没有账户？{' '}
+                 <p className="text-center text-sm text-neutral-500 lg:hidden">
+                   还没有账户？{' '}
       <Link 
         href={AUTH_CONSTANTS.ROUTES.REGISTER} 
         className="font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF]"
       >
-        立即注册
-      </Link>
-    </p>
+                     立即注册
+                   </Link>
+                 </p>
   );
 });
 

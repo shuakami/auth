@@ -11,18 +11,20 @@ import {
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
-import { TbSearch } from 'react-icons/tb';
-import { TbFilter } from 'react-icons/tb';
-import { TbEdit } from 'react-icons/tb';
-import { TbTrash } from 'react-icons/tb';
-import { TbShield } from 'react-icons/tb';
-import { TbShieldCheck } from 'react-icons/tb';
-import { TbCrown } from 'react-icons/tb';
-import { TbUsers } from 'react-icons/tb';
-import { TbMail } from 'react-icons/tb';
-import { TbMailCheck } from 'react-icons/tb';
-import { TbBrandGithub } from 'react-icons/tb';
-import { TbBrandGoogle } from 'react-icons/tb';
+import { 
+  Search,
+  Filter,
+  Edit,
+  Trash2,
+  Shield,
+  ShieldCheck,
+  Crown,
+  Users,
+  Mail,
+  MailCheck,
+  Github,
+  Chrome
+} from 'lucide-react';
 import {
   getUsersList,
   updateUserRole,
@@ -267,17 +269,17 @@ export default function UserManagement() {
   const getRoleConfig = useCallback((role: UserRole) => {
     const configs = {
       user: {
-        icon: <TbUsers className="w-3 h-3" />,
+        icon: <Users className="w-3 h-3" />,
         style: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
         label: '用户',
       },
       admin: {
-        icon: <TbShield className="w-3 h-3" />,
+        icon: <Shield className="w-3 h-3" />,
         style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
         label: '管理员',
       },
       super_admin: {
-        icon: <TbCrown className="w-3 h-3" />,
+        icon: <Crown className="w-3 h-3" />,
         style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
         label: '超级管理员',
       },
@@ -350,7 +352,7 @@ export default function UserManagement() {
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 text-neutral-400 dark:text-zinc-500 mb-4">
-              <TbUsers className="w-full h-full" />
+              <Users className="w-full h-full" />
             </div>
             <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
           </div>
@@ -363,7 +365,7 @@ export default function UserManagement() {
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 text-neutral-400 dark:text-zinc-500 mb-4">
-              <TbUsers className="w-full h-full" />
+              <Users className="w-full h-full" />
             </div>
             <p className="text-sm text-neutral-500 dark:text-zinc-400">没有找到用户</p>
           </div>
@@ -408,8 +410,8 @@ export default function UserManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1 text-neutral-400 dark:text-zinc-500">
-                          {user.githubLinked && <TbBrandGithub className="w-4 h-4" />}
-                          {user.googleLinked && <TbBrandGoogle className="w-4 h-4" />}
+                          {user.githubLinked && <Github className="w-4 h-4" />}
+                          {user.googleLinked && <Chrome className="w-4 h-4" />}
                         </div>
                         <div>
                           <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
@@ -434,19 +436,19 @@ export default function UserManagement() {
                         }`}>
                           {user.verified ? (
                             <>
-                              <TbMailCheck className="w-3 h-3" />
+                              <MailCheck className="w-3 h-3" />
                               已验证
                             </>
                           ) : (
                             <>
-                              <TbMail className="w-3 h-3" />
+                              <Mail className="w-3 h-3" />
                               未验证
                             </>
                           )}
                         </span>
                         {user.totpEnabled && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            <TbShieldCheck className="w-3 h-3" />
+                            <ShieldCheck className="w-3 h-3" />
                             2FA
                           </span>
                         )}
@@ -463,7 +465,7 @@ export default function UserManagement() {
                           onClick={() => handleEditUser(user)}
                           className="h-8 px-3"
                         >
-                          <TbEdit className="w-4 h-4 mr-1" />
+                          <Edit className="w-4 h-4 mr-1" />
                           编辑
                         </Button>
                         <Button
@@ -472,7 +474,7 @@ export default function UserManagement() {
                           onClick={() => dispatch({ showDeleteConfirm: user.id })}
                           className="h-8 px-3"
                         >
-                          <TbTrash className="w-4 h-4 mr-1" />
+                          <Trash2 className="w-4 h-4 mr-1" />
                           删除
                         </Button>
                       </div>
@@ -550,7 +552,7 @@ export default function UserManagement() {
         <div className="p-6 space-y-4">
           <form onSubmit={handleSearch} className="flex gap-3">
             <div className="flex-1 relative">
-              <TbSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
               <input
                 type="text"
                 placeholder="搜索用户名或邮箱..."
@@ -565,14 +567,14 @@ export default function UserManagement() {
               size="sm"
               className="px-4"
             >
-              <TbSearch className="w-4 h-4 mr-2" />
+              <Search className="w-4 h-4 mr-2" />
               搜索
             </Button>
           </form>
 
           <div className="flex gap-3">
             <div className="relative">
-              <TbFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
               <select
                 value={state.roleFilter}
                 onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '' })}
@@ -613,7 +615,7 @@ export default function UserManagement() {
                   onClick={() => handleBatchOperation('verify')}
                   className="h-8"
                 >
-                  <TbMailCheck className="w-4 h-4 mr-1" />
+                  <MailCheck className="w-4 h-4 mr-1" />
                   批量验证
                 </Button>
                 <Button
@@ -622,7 +624,7 @@ export default function UserManagement() {
                   onClick={() => handleBatchOperation('unverify')}
                   className="h-8"
                 >
-                  <TbMail className="w-4 h-4 mr-1" />
+                  <Mail className="w-4 h-4 mr-1" />
                   取消验证
                 </Button>
                 <Button
@@ -631,7 +633,7 @@ export default function UserManagement() {
                   onClick={() => handleBatchOperation('delete')}
                   className="h-8"
                 >
-                  <TbTrash className="w-4 h-4 mr-1" />
+                  <Trash2 className="w-4 h-4 mr-1" />
                   批量删除
                 </Button>
               </div>
