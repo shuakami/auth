@@ -214,7 +214,7 @@ async function performInitialization() {
     await quickConnectTest();
     
     // 然后执行必要的DDL（只在真正需要时）
-    await init();
+    // await init(); // <--- 移除这行，避免在运行时执行DDL
     
     const totalDuration = Date.now() - initStartTime;
     dbLog('info', 'Database initialization performance metrics', { 
