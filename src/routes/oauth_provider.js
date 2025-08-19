@@ -4,9 +4,9 @@
  * 这个文件包含了 OAuth 2.0 服务器的核心端点，如 /authorize 和 /token。
  */
 import express from 'express';
-import { ensureAuth } from '../../../middlewares/authenticated.js';
-import { AuthorizationServerService } from '../../services/oauth/AuthorizationServerService.js';
-import { pool } from '../../../db/index.js';
+import { ensureAuth } from '../middlewares/authenticated.js';
+import { AuthorizationServerService } from '../auth/services/oauth/AuthorizationServerService.js';
+import { pool } from '../db/index.js';
 
 const router = express.Router();
 const authService = new AuthorizationServerService();
