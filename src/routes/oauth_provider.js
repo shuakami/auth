@@ -44,7 +44,7 @@ router.get('/authorize', async (req, res) => {
     // 用户未登录，重定向到登录页面，登录后自动回到授权页面
     const loginUrl = new URL('/login', PUBLIC_BASE_URL);
     // 将当前的授权请求参数编码并传递给登录页面
-    const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+    const returnUrl = `/api/oauth/authorize?${new URLSearchParams(query).toString()}`;
     loginUrl.searchParams.set('returnUrl', returnUrl);
     return res.redirect(loginUrl.toString());
   }
@@ -57,7 +57,7 @@ router.get('/authorize', async (req, res) => {
     if (!payload || !payload.uid) {
       // 令牌无效，重定向到登录页面
       const loginUrl = new URL('/login', PUBLIC_BASE_URL);
-      const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+      const returnUrl = `/api/oauth/authorize?${new URLSearchParams(query).toString()}`;
       loginUrl.searchParams.set('returnUrl', returnUrl);
       return res.redirect(loginUrl.toString());
     }
@@ -78,7 +78,7 @@ router.get('/authorize', async (req, res) => {
     console.error('[OAuth] Token verification failed:', error);
     // 令牌验证失败，重定向到登录页面
     const loginUrl = new URL('/login', PUBLIC_BASE_URL);
-    const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+    const returnUrl = `/api/oauth/authorize?${new URLSearchParams(query).toString()}`;
     loginUrl.searchParams.set('returnUrl', returnUrl);
     return res.redirect(loginUrl.toString());
   }
