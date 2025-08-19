@@ -172,7 +172,7 @@ export class SessionHistoryService {
     
     // 使用 IN 查询批量获取所有历史数据
     const { rows } = await pool.query(
-      `SELECT login_at, ip_enc, fingerprint_enc, user_agent, location, success, reason
+      `SELECT login_at, ip_enc, fingerprint_enc, user_agent, location, success, fail_reason
        FROM login_history
        WHERE user_id = $1 AND user_agent = ANY($2) AND success = TRUE
        ORDER BY user_agent, login_at DESC`,

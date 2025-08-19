@@ -54,6 +54,28 @@ export async function init() {
     }
   }
 
+  // 添加时间戳列
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`);
+    console.log("成功添加 'created_at' 列到 'users' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'created_at' 列已存在于 'users' 表。");
+    } else {
+      console.error("尝试添加 'created_at' 列时出错:", err);
+    }
+  }
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`);
+    console.log("成功添加 'updated_at' 列到 'users' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'updated_at' 列已存在于 'users' 表。");
+    } else {
+      console.error("尝试添加 'updated_at' 列时出错:", err);
+    }
+  }
+
   // 3. 继续创建其他表和索引
   await pool.query(`
     CREATE TABLE IF NOT EXISTS "session" (
@@ -118,6 +140,98 @@ export async function init() {
     CREATE INDEX IF NOT EXISTS "IDX_login_history_user_id" ON login_history (user_id);
     CREATE INDEX IF NOT EXISTS "IDX_login_history_login_at" ON login_history (login_at);
   `);
+
+  // 4. 添加新的列以支持重构后的服务
+  // 为 login_history 表添加缺失的列
+  try {
+    await pool.query(`ALTER TABLE login_history ADD COLUMN login_method TEXT DEFAULT 'password';`);
+    console.log("成功添加 'login_method' 列到 'login_history' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'login_method' 列已存在于 'login_history' 表。");
+    } else {
+      console.error("尝试添加 'login_method' 列时出错:", err);
+    }
+  }
+
+  try {
+    await pool.query(`ALTER TABLE login_history ADD COLUMN device_type TEXT DEFAULT 'unknown';`);
+    console.log("成功添加 'device_type' 列到 'login_history' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'device_type' 列已存在于 'login_history' 表。");
+    } else {
+      console.error("尝试添加 'device_type' 列时出错:", err);
+    }
+  }
+
+  // 为 refresh_tokens 表添加缺失的列
+  try {
+    await pool.query(`ALTER TABLE refresh_tokens ADD COLUMN reason TEXT;`);
+    console.log("成功添加 'reason' 列到 'refresh_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'reason' 列已存在于 'refresh_tokens' 表。");
+    } else {
+      console.error("尝试添加 'reason' 列时出错:", err);
+    }
+  }
+
+  // 为 password_reset_tokens 表添加缺失的列
+  try {
+    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN request_ip TEXT;`);
+    console.log("成功添加 'request_ip' 列到 'password_reset_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'request_ip' 列已存在于 'password_reset_tokens' 表。");
+    } else {
+      console.error("尝试添加 'request_ip' 列时出错:", err);
+    }
+  }
+
+  try {
+    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_at TIMESTAMP WITH TIME ZONE;`);
+    console.log("成功添加 'used_at' 列到 'password_reset_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'used_at' 列已存在于 'password_reset_tokens' 表。");
+    } else {
+      console.error("尝试添加 'used_at' 列时出错:", err);
+    }
+  }
+
+  try {
+    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_ip TEXT;`);
+    console.log("成功添加 'used_ip' 列到 'password_reset_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'used_ip' 列已存在于 'password_reset_tokens' 表。");
+    } else {
+      console.error("尝试添加 'used_ip' 列时出错:", err);
+    }
+  }
+
+  try {
+    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_user_agent TEXT;`);
+    console.log("成功添加 'used_user_agent' 列到 'password_reset_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'used_user_agent' 列已存在于 'password_reset_tokens' 表。");
+    } else {
+      console.error("尝试添加 'used_user_agent' 列时出错:", err);
+    }
+  }
+
+  try {
+    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN verification_count INTEGER DEFAULT 0;`);
+    console.log("成功添加 'verification_count' 列到 'password_reset_tokens' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'verification_count' 列已存在于 'password_reset_tokens' 表。");
+    } else {
+      console.error("尝试添加 'verification_count' 列时出错:", err);
+    }
+  }
 
   console.log('数据库初始化检查完成。');
 }
