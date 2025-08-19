@@ -21,8 +21,7 @@ const authService = new AuthorizationServerService();
 router.get('/authorize', async (req, res) => {
   const { query } = req;
   
-  console.log('[OAuth] 收到授权请求，原始query参数:', query);
-  console.log('[OAuth] 请求URL:', req.url);
+
 
   // 1. 验证授权请求的参数 (client_id, redirect_uri, etc.)
   const { isValid, error, errorDescription, client, validatedScope, validatedRedirectUri, validatedResponseType } = await authService.validateAuthorizationRequest(query);
@@ -66,9 +65,6 @@ router.get('/authorize', async (req, res) => {
     }
 
     // 4. 用户已登录且令牌有效，将验证过的请求参数传递给前端同意页面
-    console.log('[OAuth] 构建前端授权页面URL，原始query参数:', query);
-    console.log('[OAuth] client信息:', { id: client.client_id, name: client.name });
-    console.log('[OAuth] validatedScope:', validatedScope);
     
     const consentUrl = new URL('/oauth/authorize', PUBLIC_BASE_URL);
     consentUrl.searchParams.set('client_id', client.client_id);
@@ -83,7 +79,6 @@ router.get('/authorize', async (req, res) => {
     if (query.code_challenge && query.code_challenge !== 'undefined') consentUrl.searchParams.set('code_challenge', query.code_challenge);
     if (query.code_challenge_method && query.code_challenge_method !== 'undefined') consentUrl.searchParams.set('code_challenge_method', query.code_challenge_method);
     
-    console.log('[OAuth] 最终重定向URL:', consentUrl.toString());
     res.redirect(consentUrl.toString());
 
   } catch (error) {

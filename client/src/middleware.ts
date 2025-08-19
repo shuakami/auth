@@ -9,6 +9,12 @@ export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   console.log(`[Middleware] Request received for path: ${pathname}`);
 
+  // 跳过OAuth授权页面，让后端OAuth服务器处理redirect_uri验证
+  if (pathname === '/oauth/authorize') {
+    console.log('[Middleware] Skipping OAuth authorize page - letting backend handle redirect_uri validation');
+    return NextResponse.next();
+  }
+
   const redirectUriFromQuery = searchParams.get('redirect_uri');
 
   console.log('[Middleware] Initial state:', { pathname, redirectUriFromQuery });
