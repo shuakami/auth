@@ -1,357 +1,197 @@
 /**
- * Postgres 连接池
- * 使用 CommonJS pg 包，ESM 导入方式：
- *   import pkg from 'pg';
- *   const { Pool } = pkg;
+ * Vercel优化的Postgres连接池
+ * 专为无服务器环境设计 - 极简高效
  */
-
 import pkg from 'pg';
 const { Pool } = pkg;
 import { DATABASE_URL, DATABASE_SSL } from '../config/env.js';
 
-// 数据库连接配置
-const poolConfig = {
+// Vercel极简连接配置 - 追求速度优先
+export const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
-  // 连接池设置
-  max: 20, // 最大连接数
-  min: 2,  // 最小连接数
-  idle: 10000, // 空闲连接超时 (10秒)
-  // 连接超时设置
-  connectionTimeoutMillis: 10000, // 连接超时 (10秒)
-  idleTimeoutMillis: 30000, // 空闲超时 (30秒) 
-  query_timeout: 60000, // 查询超时 (60秒)
-  // 重试设置
-  acquireTimeoutMillis: 10000, // 获取连接超时 (10秒)
-};
-
-export const pool = new Pool(poolConfig);
-
-// 连接池错误处理
-pool.on('error', (err, client) => {
-  console.error('[DB] 连接池出现意外错误:', err);
+  max: 1, // 单连接
+  min: 0, // 最小0连接
+  idle: 500, // 0.5秒空闲
+  connectionTimeoutMillis: 3000, // 3秒连接超时
+  idleTimeoutMillis: 5000, // 5秒空闲超时
+  query_timeout: 15000, // 15秒查询超时
+  acquireTimeoutMillis: 3000, // 3秒获取连接超时
+  allowExitOnIdle: true,
 });
 
-pool.on('connect', (client) => {
-  console.log('[DB] 新数据库连接建立');
-});
-
-pool.on('acquire', (client) => {
-  console.log('[DB] 从连接池获取连接');
-});
-
-pool.on('remove', (client) => {
-  console.log('[DB] 连接从连接池中移除');
+// 极简错误处理
+pool.on('error', (err) => {
+  console.error('[DB]', err.code || err.message);
 });
 
 export async function init() {
-  // 1. 确保 users 表存在 (并且定义包含 username)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      username TEXT UNIQUE,
-      password_hash TEXT,
-      github_id TEXT,
-      google_id TEXT,
-      verified BOOLEAN DEFAULT FALSE,
-      totp_secret TEXT,
-      totp_enabled BOOLEAN DEFAULT FALSE
-    );
-  `);
-
-  // 2. 尝试添加 username、google_id 列，防止表结构过旧
+  console.log('[DB] Initializing database...');
+  
   try {
-    await pool.query(`ALTER TABLE users ADD COLUMN username TEXT UNIQUE;`);
-    console.log("成功添加 'username' 列到 'users' 表 (或已存在)。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'username' 列已存在于 'users' 表。");
-    } else {
-      console.error("尝试添加 'username' 列时出错:", err);
-      throw err;
-    }
+    // 单一事务执行所有DDL - 避免多次连接
+    await pool.query(`
+      BEGIN;
+      
+      -- 核心用户表
+      CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE,
+        password_hash TEXT,
+        github_id TEXT,
+        google_id TEXT,
+        verified BOOLEAN DEFAULT FALSE,
+        totp_secret TEXT,
+        totp_enabled BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin'))
+      );
+
+      -- 会话表
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+      -- 备份码表
+      CREATE TABLE IF NOT EXISTS backup_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code_hash TEXT NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        used_at TIMESTAMP WITH TIME ZONE
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_backup_codes_user_id" ON backup_codes (user_id);
+
+      -- 密码重置表
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        request_ip TEXT,
+        used_at TIMESTAMP WITH TIME ZONE,
+        used_ip TEXT,
+        used_user_agent TEXT,
+        verification_count INTEGER DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_user_id" ON password_reset_tokens (user_id);
+      CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_token" ON password_reset_tokens (token);
+
+      -- 刷新令牌表
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        device_info TEXT,
+        parent_id UUID,
+        revoked BOOLEAN DEFAULT FALSE,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP WITH TIME ZONE,
+        reason TEXT
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_user_id" ON refresh_tokens (user_id);
+      CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_token" ON refresh_tokens (token);
+
+      -- 登录历史表
+      CREATE TABLE IF NOT EXISTS login_history (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        login_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        ip_enc TEXT NOT NULL,
+        fingerprint_enc TEXT,
+        user_agent TEXT,
+        location JSONB,
+        success BOOLEAN,
+        fail_reason TEXT,
+        login_method TEXT DEFAULT 'password',
+        device_type TEXT DEFAULT 'unknown'
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_login_history_user_id" ON login_history (user_id);
+      CREATE INDEX IF NOT EXISTS "IDX_login_history_login_at" ON login_history (login_at);
+
+      -- OAuth应用表
+      CREATE TABLE IF NOT EXISTS oauth_applications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        client_id VARCHAR(255) NOT NULL UNIQUE,
+        client_secret VARCHAR(255) NOT NULL,
+        redirect_uris TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        app_type VARCHAR(50) NOT NULL CHECK (app_type IN ('web', 'mobile', 'desktop', 'server')),
+        is_active BOOLEAN DEFAULT TRUE,
+        usage_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_oauth_applications_client_id" ON oauth_applications (client_id);
+
+      -- OAuth授权码表
+      CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(255) NOT NULL UNIQUE,
+        client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redirect_uri TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_code" ON oauth_authorization_codes (code);
+
+      -- OAuth访问令牌表
+      CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        token_hash VARCHAR(255) NOT NULL UNIQUE,
+        client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scopes TEXT NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_oauth_access_tokens_token_hash" ON oauth_access_tokens (token_hash);
+
+      COMMIT;
+    `);
+
+    // 初始化超级管理员 - 独立快速查询
+    await initializeSuperAdmin();
+    
+    console.log('[DB] Database initialized successfully.');
+
+  } catch (error) {
+    console.error('[DB] Failed to initialize database:', error);
+    throw error;
   }
-  try {
-    await pool.query(`ALTER TABLE users ADD COLUMN google_id TEXT;`);
-    console.log("成功添加 'google_id' 列到 'users' 表 (或已存在)。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'google_id' 列已存在于 'users' 表。");
-    } else {
-      console.error("尝试添加 'google_id' 列时出错:", err);
-      throw err;
-    }
-  }
-
-  // 添加时间戳列
-  try {
-    await pool.query(`ALTER TABLE users ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`);
-    console.log("成功添加 'created_at' 列到 'users' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'created_at' 列已存在于 'users' 表。");
-    } else {
-      console.error("尝试添加 'created_at' 列时出错:", err);
-    }
-  }
-  try {
-    await pool.query(`ALTER TABLE users ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;`);
-    console.log("成功添加 'updated_at' 列到 'users' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'updated_at' 列已存在于 'users' 表。");
-    } else {
-      console.error("尝试添加 'updated_at' 列时出错:", err);
-    }
-  }
-
-  // 3. 继续创建其他表和索引
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "session" (
-      "sid" varchar NOT NULL COLLATE "default",
-      "sess" json NOT NULL,
-      "expire" timestamp(6) NOT NULL,
-      CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
-    )
-    WITH (OIDS=FALSE);
-
-    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-
-    CREATE TABLE IF NOT EXISTS backup_codes (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      code_hash TEXT NOT NULL,
-      used BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      used_at TIMESTAMP WITH TIME ZONE
-    );
-
-    CREATE INDEX IF NOT EXISTS "IDX_backup_codes_user_id" ON backup_codes (user_id);
-    CREATE INDEX IF NOT EXISTS "IDX_backup_codes_user_id_used" ON backup_codes (user_id, used);
-
-    CREATE TABLE IF NOT EXISTS password_reset_tokens (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token TEXT NOT NULL,
-      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-      used BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_user_id" ON password_reset_tokens (user_id);
-    CREATE INDEX IF NOT EXISTS "IDX_password_reset_tokens_token" ON password_reset_tokens (token);
-
-    CREATE TABLE IF NOT EXISTS refresh_tokens (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- 主键
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- 绑定用户
-      token TEXT NOT NULL, -- Refresh Token 串（可为JWT或高强度随机串）
-      device_info TEXT, -- 设备指纹或UA等信息
-      parent_id UUID, -- 父Token（用于Token Rotation链）
-      revoked BOOLEAN DEFAULT FALSE, -- 是否已失效/吊销
-      expires_at TIMESTAMP WITH TIME ZONE NOT NULL, -- 过期时间
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- 创建时间
-      last_used_at TIMESTAMP WITH TIME ZONE -- 最后一次使用时间
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_user_id" ON refresh_tokens (user_id);
-    CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_token" ON refresh_tokens (token);
-    CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_parent_id" ON refresh_tokens (parent_id);
-
-    CREATE TABLE IF NOT EXISTS login_history (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      login_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      ip_enc TEXT NOT NULL,
-      fingerprint_enc TEXT,
-      user_agent TEXT,
-      location JSONB,
-      success BOOLEAN,
-      fail_reason TEXT
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_login_history_user_id" ON login_history (user_id);
-    CREATE INDEX IF NOT EXISTS "IDX_login_history_login_at" ON login_history (login_at);
-
-    -- OAuth2/OIDC 相关表
-    CREATE TABLE IF NOT EXISTS oauth_applications (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      name VARCHAR(255) NOT NULL UNIQUE,
-      description TEXT,
-      client_id VARCHAR(255) NOT NULL UNIQUE,
-      client_secret VARCHAR(255) NOT NULL,
-      redirect_uris TEXT NOT NULL, -- JSON array
-      scopes TEXT NOT NULL, -- JSON array  
-      app_type VARCHAR(50) NOT NULL CHECK (app_type IN ('web', 'mobile', 'desktop', 'server')),
-      is_active BOOLEAN DEFAULT TRUE,
-      usage_count INTEGER DEFAULT 0,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_oauth_applications_client_id" ON oauth_applications (client_id);
-
-    CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      code VARCHAR(255) NOT NULL UNIQUE,
-      client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      redirect_uri TEXT NOT NULL,
-      scopes TEXT NOT NULL, -- JSON array
-      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-      used BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_code" ON oauth_authorization_codes (code);
-    CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_user_id" ON oauth_authorization_codes (user_id);
-
-    CREATE TABLE IF NOT EXISTS oauth_access_tokens (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      token_hash VARCHAR(255) NOT NULL UNIQUE,
-      client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      scopes TEXT NOT NULL, -- JSON array
-      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS "IDX_oauth_access_tokens_token_hash" ON oauth_access_tokens (token_hash);
-    CREATE INDEX IF NOT EXISTS "IDX_oauth_access_tokens_user_id" ON oauth_access_tokens (user_id);
-  `);
-
-  // 4. 添加新的列以支持重构后的服务
-  // 为 login_history 表添加缺失的列
-  try {
-    await pool.query(`ALTER TABLE login_history ADD COLUMN login_method TEXT DEFAULT 'password';`);
-    console.log("成功添加 'login_method' 列到 'login_history' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'login_method' 列已存在于 'login_history' 表。");
-    } else {
-      console.error("尝试添加 'login_method' 列时出错:", err);
-    }
-  }
-
-  try {
-    await pool.query(`ALTER TABLE login_history ADD COLUMN device_type TEXT DEFAULT 'unknown';`);
-    console.log("成功添加 'device_type' 列到 'login_history' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'device_type' 列已存在于 'login_history' 表。");
-    } else {
-      console.error("尝试添加 'device_type' 列时出错:", err);
-    }
-  }
-
-  // 为 refresh_tokens 表添加缺失的列
-  try {
-    await pool.query(`ALTER TABLE refresh_tokens ADD COLUMN reason TEXT;`);
-    console.log("成功添加 'reason' 列到 'refresh_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'reason' 列已存在于 'refresh_tokens' 表。");
-    } else {
-      console.error("尝试添加 'reason' 列时出错:", err);
-    }
-  }
-
-  // 为 password_reset_tokens 表添加缺失的列
-  try {
-    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN request_ip TEXT;`);
-    console.log("成功添加 'request_ip' 列到 'password_reset_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'request_ip' 列已存在于 'password_reset_tokens' 表。");
-    } else {
-      console.error("尝试添加 'request_ip' 列时出错:", err);
-    }
-  }
-
-  try {
-    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_at TIMESTAMP WITH TIME ZONE;`);
-    console.log("成功添加 'used_at' 列到 'password_reset_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'used_at' 列已存在于 'password_reset_tokens' 表。");
-    } else {
-      console.error("尝试添加 'used_at' 列时出错:", err);
-    }
-  }
-
-  try {
-    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_ip TEXT;`);
-    console.log("成功添加 'used_ip' 列到 'password_reset_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'used_ip' 列已存在于 'password_reset_tokens' 表。");
-    } else {
-      console.error("尝试添加 'used_ip' 列时出错:", err);
-    }
-  }
-
-  try {
-    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN used_user_agent TEXT;`);
-    console.log("成功添加 'used_user_agent' 列到 'password_reset_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'used_user_agent' 列已存在于 'password_reset_tokens' 表。");
-    } else {
-      console.error("尝试添加 'used_user_agent' 列时出错:", err);
-    }
-  }
-
-  try {
-    await pool.query(`ALTER TABLE password_reset_tokens ADD COLUMN verification_count INTEGER DEFAULT 0;`);
-    console.log("成功添加 'verification_count' 列到 'password_reset_tokens' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'verification_count' 列已存在于 'password_reset_tokens' 表。");
-    } else {
-      console.error("尝试添加 'verification_count' 列时出错:", err);
-    }
-  }
-
-  // 为 users 表添加角色列
-  try {
-    await pool.query(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin'));`);
-    console.log("成功添加 'role' 列到 'users' 表。");
-  } catch (err) {
-    if (err.code === '42701') {
-      console.log("'role' 列已存在于 'users' 表。");
-    } else {
-      console.error("尝试添加 'role' 列时出错:", err);
-    }
-  }
-
-  console.log('数据库初始化检查完成。');
-
-  // 初始化超级管理员权限
-  await initializeSuperAdmin();
 }
 
 /**
- * 初始化超级管理员
+ * 极简超级管理员初始化
  */
 async function initializeSuperAdmin() {
   try {
     const { SUPER_ADMIN_ID } = await import('../config/env.js');
-    
-    if (!SUPER_ADMIN_ID) {
-      console.log('[Permission] 未配置SUPER_ADMIN_ID，跳过超级管理员初始化');
-      return;
-    }
+    if (!SUPER_ADMIN_ID) return;
 
-    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [SUPER_ADMIN_ID]);
+    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1 LIMIT 1', [SUPER_ADMIN_ID]);
     
-    if (rows.length > 0) {
-      const currentRole = rows[0].role;
-      if (currentRole !== 'super_admin') {
-        // 更新为超级管理员
-        await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['super_admin', SUPER_ADMIN_ID]);
-        console.log(`[Permission] 已将用户 ${SUPER_ADMIN_ID} 设置为超级管理员`);
-      } else {
-        console.log(`[Permission] 超级管理员 ${SUPER_ADMIN_ID} 权限正常`);
-      }
-    } else {
-      console.warn(`[Permission] 超级管理员ID ${SUPER_ADMIN_ID} 对应的用户不存在，请先注册该账号`);
+    if (rows.length > 0 && rows[0].role !== 'super_admin') {
+      await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['super_admin', SUPER_ADMIN_ID]);
+      console.log(`[DB] Super admin ${SUPER_ADMIN_ID} initialized.`);
     }
-
   } catch (error) {
-    console.error('[Permission] 初始化超级管理员失败:', error);
+    // 静默处理超级管理员初始化失败
+    console.error('[DB] Super admin init failed:', error.message);
   }
 }
