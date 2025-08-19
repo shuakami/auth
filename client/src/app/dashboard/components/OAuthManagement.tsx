@@ -132,11 +132,11 @@ const AVAILABLE_SCOPES = [
 export default function OAuthManagement() {
   const [state, dispatch] = useReducer(stateReducer, initialState);
   const [form, setForm] = useState<CreateAppForm>(initialForm);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string; id?: string } | null>(null);
 
   // 显示消息
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
+  const showMessage = useCallback((type: 'success' | 'error', text: string, id?: string) => {
+    setMessage({ type, text, id });
     setTimeout(() => setMessage(null), 5000);
   }, []);
 
@@ -230,16 +230,9 @@ export default function OAuthManagement() {
   }, [showMessage, loadApps]);
 
   // 复制到剪贴板
-  const copyToClipboard = useCallback(async (text: string, appId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      dispatch({ type: 'COPY_SECRET', appId });
-      setTimeout(() => {
-        dispatch({ type: 'CLEAR_COPY', appId });
-      }, 2000);
-    } catch (error) {
-      showMessage('error', '复制失败');
-    }
+  const copyToClipboard = useCallback((text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    showMessage('success', `${id} 已复制到剪贴板`);
   }, [showMessage]);
 
   // 切换秘密可见性
@@ -249,18 +242,18 @@ export default function OAuthManagement() {
 
   // 应用类型图标
   const getTypeIcon = useCallback((type: string) => {
-    const iconClass = "w-4 h-4";
+    const iconProps = { className: "w-5 h-5 text-neutral-500 dark:text-zinc-400" };
     switch (type) {
       case 'web':
-        return <Globe className={iconClass} />;
+        return <Globe {...iconProps} />;
       case 'mobile':
-        return <Smartphone className={iconClass} />;
+        return <Smartphone {...iconProps} />;
       case 'desktop':
-        return <Monitor className={iconClass} />;
+        return <Monitor {...iconProps} />;
       case 'server':
-        return <Server className={iconClass} />;
+        return <Server {...iconProps} />;
       default:
-        return <Globe className={iconClass} />;
+        return <Globe {...iconProps} />;
     }
   }, []);
 
@@ -454,7 +447,7 @@ export default function OAuthManagement() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: app.id })}
+                      onClick={() => toggleSecretVisibility(app.id)}
                       className="h-7 w-7 p-0 shrink-0"
                     >
                       {state.visibleSecrets.has(app.id) ? (
@@ -487,7 +480,7 @@ export default function OAuthManagement() {
         ))}
       </div>
     );
-  }, [state.apps, state.loading, state.error, state.visibleSecrets, state.copiedSecrets, getTypeIcon, getTypeLabel, copyToClipboard]);
+  }, [state.apps, state.loading, state.error, state.visibleSecrets, state.copiedSecrets, getTypeIcon, getTypeLabel, copyToClipboard, toggleSecretVisibility]);
 
   return (
     <div className="space-y-6">
@@ -779,7 +772,7 @@ export default function OAuthManagement() {
                             <Copy className="w-3.5 h-3.5" />
                            </Button>
                          </div>
-                      </div>
+                       </div>
                     </div>
                   </div>
                 )}
