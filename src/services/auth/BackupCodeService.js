@@ -38,7 +38,6 @@ export class BackupCodeService {
 
       // 生成新的备份码
       const codes = this._generateSecureBackupCodes(count);
-      const expiresAt = new Date(Date.now() + this.CODE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
       const client = await pool.connect();
       try {
@@ -60,16 +59,15 @@ export class BackupCodeService {
           }
         }
 
-        // 存储新的备份码
+        // 存储新的备份码（使用现有的数据库结构）
         const codeRecords = [];
         for (const code of codes) {
           const id = uuidv4();
           const hash = await bcrypt.hash(code, 12); // 使用更高的安全等级
           
           await client.query(
-            `INSERT INTO backup_codes (id, user_id, code_hash, created_at, expires_at, verification_attempts) 
-             VALUES ($1, $2, $3, NOW(), $4, 0)`,
-            [id, userId, hash, expiresAt]
+            'INSERT INTO backup_codes (id, user_id, code_hash) VALUES ($1, $2, $3)',
+            [id, userId, hash]
           );
 
           codeRecords.push({ id, code });
@@ -78,8 +76,7 @@ export class BackupCodeService {
         // 记录生成事件
         await this._logBackupCodeEvent(client, userId, 'GENERATED', {
           count: codes.length,
-          regenerate,
-          expiresAt
+          regenerate
         });
 
         await client.query('COMMIT');
@@ -89,7 +86,6 @@ export class BackupCodeService {
         return {
           codes, // 明文备份码，仅在生成时返回
           count: codes.length,
-          expiresAt,
           message: '请安全保存这些备份码，它们只会显示一次'
         };
 
@@ -132,12 +128,9 @@ export class BackupCodeService {
       try {
         await client.query('BEGIN');
 
-        // 获取用户所有可用的备份码
+        // 获取用户所有可用的备份码（使用现有数据库结构）
         const { rows: availableCodes } = await client.query(
-          `SELECT id, code_hash, verification_attempts, expires_at
-           FROM backup_codes 
-           WHERE user_id = $1 AND used = FALSE AND expires_at > NOW()
-           ORDER BY created_at ASC`,
+          'SELECT id, code_hash FROM backup_codes WHERE user_id = $1 AND used = FALSE',
           [userId]
         );
 
@@ -149,22 +142,11 @@ export class BackupCodeService {
         // 遍历所有未使用的备份码，尝试匹配
         let matchedCode = null;
         for (const codeRecord of availableCodes) {
-          // 检查验证尝试次数
-          if (codeRecord.verification_attempts >= this.MAX_VERIFICATION_ATTEMPTS) {
-            continue; // 跳过已达到最大尝试次数的备份码
-          }
-
           const isMatch = await bcrypt.compare(normalizedCode, codeRecord.code_hash);
           if (isMatch) {
             matchedCode = codeRecord;
             break;
           }
-
-          // 增加验证尝试次数
-          await client.query(
-            'UPDATE backup_codes SET verification_attempts = verification_attempts + 1 WHERE id = $1',
-            [codeRecord.id]
-          );
         }
 
         if (!matchedCode) {
@@ -176,20 +158,18 @@ export class BackupCodeService {
           });
 
           await client.query('COMMIT');
-          throw new Error('备份码无效或已达到最大验证次数');
+          throw new Error('备份码无效');
         }
 
         // 标记备份码为已使用
         await client.query(
-          `UPDATE backup_codes 
-           SET used = TRUE, used_at = NOW(), used_ip = $1, used_user_agent = $2 
-           WHERE id = $3`,
-          [clientIP, userAgent, matchedCode.id]
+          'UPDATE backup_codes SET used = TRUE, used_at = CURRENT_TIMESTAMP WHERE id = $1',
+          [matchedCode.id]
         );
 
         // 获取剩余备份码数量
         const { rows: remainingCodes } = await client.query(
-          'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE AND expires_at > NOW()',
+          'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE',
           [userId]
         );
 
@@ -240,7 +220,7 @@ export class BackupCodeService {
       }
 
       const { rows } = await pool.query(
-        'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE AND expires_at > NOW()',
+        'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE',
         [userId]
       );
 
@@ -264,7 +244,7 @@ export class BackupCodeService {
       }
 
       const { rows } = await pool.query(
-        'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE AND expires_at > NOW()',
+        'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE',
         [userId]
       );
 
@@ -290,11 +270,8 @@ export class BackupCodeService {
       const { rows } = await pool.query(
         `SELECT 
            COUNT(*) as total_generated,
-           COUNT(CASE WHEN used = FALSE AND expires_at > NOW() THEN 1 END) as available,
-           COUNT(CASE WHEN used = TRUE THEN 1 END) as used,
-           COUNT(CASE WHEN expires_at <= NOW() THEN 1 END) as expired,
-           MAX(created_at) as last_generated,
-           MIN(CASE WHEN used = FALSE AND expires_at > NOW() THEN expires_at END) as next_expiry
+           COUNT(CASE WHEN used = FALSE THEN 1 END) as available,
+           COUNT(CASE WHEN used = TRUE THEN 1 END) as used
          FROM backup_codes 
          WHERE user_id = $1`,
         [userId]
@@ -306,9 +283,6 @@ export class BackupCodeService {
         totalGenerated: parseInt(stats.total_generated) || 0,
         available: parseInt(stats.available) || 0,
         used: parseInt(stats.used) || 0,
-        expired: parseInt(stats.expired) || 0,
-        lastGenerated: stats.last_generated,
-        nextExpiry: stats.next_expiry,
         needsRegeneration: parseInt(stats.available) <= 2
       };
 
@@ -330,25 +304,17 @@ export class BackupCodeService {
         throw new Error('用户ID是必填字段');
       }
 
+      // 查询现有数据库结构中的字段
       const { rows } = await pool.query(
-        `SELECT id, created_at, used, used_at, used_ip, expires_at, verification_attempts
-         FROM backup_codes
-         WHERE user_id = $1
-         ORDER BY created_at DESC
-         LIMIT $2`,
+        'SELECT id, used, used_at FROM backup_codes WHERE user_id = $1 ORDER BY id DESC LIMIT $2',
         [userId, limit]
       );
 
       return rows.map(row => ({
         id: row.id,
-        createdAt: row.created_at,
         used: row.used,
         usedAt: row.used_at,
-        usedIP: row.used_ip,
-        expiresAt: row.expires_at,
-        verificationAttempts: row.verification_attempts,
-        isExpired: new Date(row.expires_at) <= new Date(),
-        status: row.used ? 'USED' : (new Date(row.expires_at) <= new Date() ? 'EXPIRED' : 'AVAILABLE')
+        status: row.used ? 'USED' : 'AVAILABLE'
       }));
 
     } catch (error) {
@@ -365,18 +331,20 @@ export class BackupCodeService {
   async cleanupExpiredCodes(options = {}) {
     const { 
       batchSize = 1000,
-      retentionDays = 30 // 过期后保留30天用于审计
+      retentionDays = 365 // 保留1年的已使用备份码
     } = options;
 
     try {
       const cleanupDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
+      // 清理很久以前使用的备份码（由于没有expires_at字段，基于used_at清理）
       const result = await pool.query(
         `DELETE FROM backup_codes 
-         WHERE expires_at < $1 
+         WHERE used = TRUE 
+         AND used_at < $1 
          AND id IN (
            SELECT id FROM backup_codes 
-           WHERE expires_at < $1 
+           WHERE used = TRUE AND used_at < $1 
            LIMIT $2
          )`,
         [cleanupDate, batchSize]
@@ -385,7 +353,7 @@ export class BackupCodeService {
       const cleanedCount = result.rowCount;
       
       if (cleanedCount > 0) {
-        console.log(`[BackupCode] 清理了 ${cleanedCount} 个过期备份码`);
+        console.log(`[BackupCode] 清理了 ${cleanedCount} 个旧的已使用备份码`);
       }
 
       return cleanedCount;
