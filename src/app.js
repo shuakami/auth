@@ -4,7 +4,7 @@ import cors from 'cors';
 import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/admin/users.js';
 import { setupDocs } from './middlewares/docs.js';
-import { validateTokenMiddleware } from './middlewares/auth.js';
+import { ensureAuth } from './middlewares/authenticated.js';
 
 const app = express();
 
@@ -29,7 +29,7 @@ setupDocs(app);
 app.use('/api', authRouter);
 
 /* 管理 API 路由 */
-app.use('/api/admin/users', validateTokenMiddleware, adminUsersRouter);
+app.use('/api/admin/users', ensureAuth, adminUsersRouter);
 
 /* 全局错误处理 */
 app.use((err, _req, res, _next) => {
