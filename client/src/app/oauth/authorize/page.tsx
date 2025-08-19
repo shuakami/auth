@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Shield, Check, X, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ async function postConsent(data: any) {
     return res.json();
 }
 
-export default function AuthorizePage() {
+function AuthorizePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
@@ -136,5 +136,17 @@ export default function AuthorizePage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function AuthorizePage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                <LoadingIndicator />
+            </div>
+        }>
+            <AuthorizePageContent />
+        </Suspense>
     );
 }
