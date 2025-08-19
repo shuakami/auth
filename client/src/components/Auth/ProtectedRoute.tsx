@@ -10,13 +10,13 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  // 直接获取 user 对象进行判断
-  const { user, isLoading } = useAuth();
+  // 使用 initialLoading 控制首次加载，避免在背景检查时显示加载指示器
+  const { user, initialLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // 等待加载完成
-    if (isLoading) {
+    // 等待初始加载完成
+    if (initialLoading) {
       return;
     }
 
@@ -26,14 +26,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       router.push('/login');
     }
     // 如果 user 存在，则什么都不做
-  }, [user, isLoading, router]); // 依赖 user 和 isLoading
+  }, [user, initialLoading, router]); // 依赖 user 和 initialLoading
 
-  // 正在加载时显示新的加载组件
-  if (isLoading) {
+  // 正在初始加载时显示加载组件
+  if (initialLoading) {
     return <LoadingIndicator />;
   }
 
-  // 加载完成且用户存在，渲染子组件
+  // 初始加载完成且用户存在，渲染子组件
   // 如果用户不存在，useEffect 已经处理重定向，返回 null 避免渲染内容
   return user ? <>{children}</> : null;
 };

@@ -12,18 +12,18 @@ const CLIENT_REDIRECT_COOKIE_NAME = 'client_redirect_target';
  * 返回一个布尔值 `isRedirecting`，指示是否正在尝试/执行重定向。
  */
 export function useRedirectHandler(): { isRedirecting: boolean } {
-  const { user, isLoading } = useAuth();
+  const { user, initialLoading } = useAuth();
   const [isRedirecting, setIsRedirecting] = useState(false); // 添加状态
 
   useEffect(() => {
     // 身份验证加载时重置状态
-    if (isLoading) {
+    if (initialLoading) {
       setIsRedirecting(false); 
       return;
     }
 
     // 仅在身份验证加载完成后继续
-    if (!isLoading) {
+    if (!initialLoading) {
       console.log(`[useRedirectHandler] Auth loaded. User: ${user ? user.id : 'null'}`);
       const cookieValueRaw = document.cookie
         .split('; ')
@@ -62,7 +62,7 @@ export function useRedirectHandler(): { isRedirecting: boolean } {
       }
     }
     // 依赖 isLoading 和 user，确保状态更新时重新检查
-  }, [isLoading, user]);
+  }, [initialLoading, user]);
 
   // 返回重定向状态
   return { isRedirecting };

@@ -21,7 +21,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  isLoading: boolean; // 将被替换为 initialLoading
+  initialLoading: boolean; // 新增：用于初始加载
+  isCheckingAuth: boolean; // 新增：用于背景检查
   login: (userData: User) => void;
   logout: () => void;
   checkAuth: () => Promise<User | null>;
@@ -37,10 +39,14 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // 初始加载状态为 true
+  const [initialLoading, setInitialLoading] = useState(true); // 初始加载状态
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false); // 背景检查状态
 
   const checkAuth = async (): Promise<User | null> => { // 添加函数返回值类型
-    setIsLoading(true);
+    // 只有在没有进行其他检查时才开始
+    if (isCheckingAuth) return user;
+    
+    setIsCheckingAuth(true);
     let currentUser: User | null = null; // 用于存储本次检查结果
     try {
       const response = await fetchCurrentUser();
@@ -64,7 +70,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       currentUser = null; // 确保出错时返回 null
     } finally {
-      setIsLoading(false);
+      // 首次加载完成后，更新 initialLoading
+      if (initialLoading) {
+        setInitialLoading(false);
+      }
+      setIsCheckingAuth(false);
     }
     return currentUser; // 返回本次检查的结果
   };
@@ -90,7 +100,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAuthenticated: !!user, 
+      isLoading: initialLoading, // 保持 isLoading 的向后兼容性
+      initialLoading,
+      isCheckingAuth,
+      login, 
+      logout, 
+      checkAuth 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -99,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 // 创建自定义 Hook 以方便使用 AuthContext
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
