@@ -35,17 +35,18 @@ import {
   SecuritySection,
   ConnectionsSection,
 } from './DashboardSections';
+import LocalLoadingSpinner from './components/LocalLoadingSpinner'; // 导入新的局部加载组件
 
 // 动态导入管理组件
 const UserManagement = dynamic(() => import('./components/UserManagement'), { 
   ssr: false,
-  loading: () => <LoadingIndicator />
+  loading: () => <LocalLoadingSpinner /> // 使用新的局部加载组件
 });
 
 // 动态导入OAuth管理组件
 const OAuthManagement = dynamic(() => import('./components/OAuthManagement'), { 
   ssr: false,
-  loading: () => <LoadingIndicator />
+  loading: () => <LocalLoadingSpinner /> // 使用新的局部加载组件
 });
 
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
@@ -407,6 +408,7 @@ export default function DashboardContent() {
 
   /* --------------------------- mainContent ------------------------------- */
   const mainContent = useMemo(() => {
+    // 当用户信息仍在加载时，显示主加载指示器
     if (!user) return <LoadingIndicator />;
 
     const general = (
@@ -460,6 +462,8 @@ export default function DashboardContent() {
       case 'oauth':
         return oauth;
       default:
+        // 添加一个检查，如果用户仍在加载中，显示一个加载指示器
+        if (!user) return <LoadingIndicator />;
         return null;
     }
   }, [
