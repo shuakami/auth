@@ -177,15 +177,16 @@ export class AuthorizationServerService {
       
       const user = userRows[0];
       const idTokenPayload = {
+        iss: 'https://auth.sdjz.wiki',
         sub: user.id,
         aud: clientId,
         email: user.email,
         username: user.username,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600
+        iat: Math.floor(Date.now() / 1000)
+        // exp 将由 signIdToken 通过 expiresIn 参数设置
       };
       
-      const idToken = signIdToken(idTokenPayload);
+      const idToken = signIdToken(idTokenPayload, '1h');
       
       // 8. 生成refresh token (可选，基于scope)
       let refreshToken = null;
