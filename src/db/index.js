@@ -121,8 +121,94 @@ function createSharedPool() {
   return sharedPool;
 }
 
-// 导出共享连接池实例
-export const pool = createSharedPool();
+// 懒加载的连接池实例
+let _pool = null;
+
+// 获取连接池实例（懒加载模式）
+export function getPool() {
+  if (!_pool) {
+    _pool = createSharedPool();
+  }
+  return _pool;
+}
+
+// 为了向后兼容，导出pool getter
+export const pool = new Proxy({}, {
+  get(target, prop) {
+    const actualPool = getPool();
+    const value = actualPool[prop];
+    return typeof value === 'function' ? value.bind(actualPool) : value;
+  }
+});
+
+// 🔥 懒加载数据库初始化状态
+let _initializationPromise = null;
+let _isInitialized = false;
+
+// 懒加载数据库初始化 - 只在真正需要时执行
+export async function ensureInitialized() {
+  // 如果已经初始化，直接返回
+  if (_isInitialized) {
+    dbLog('debug', 'Database already initialized, skipping');
+    return;
+  }
+  
+  // 如果正在初始化，等待现有的初始化完成
+  if (_initializationPromise) {
+    dbLog('debug', 'Database initialization in progress, waiting...');
+    return await _initializationPromise;
+  }
+  
+  // 开始新的初始化过程
+  dbLog('info', 'Starting lazy database initialization');
+  _initializationPromise = performInitialization();
+  
+  try {
+    await _initializationPromise;
+    _isInitialized = true;
+    dbLog('info', 'Lazy database initialization completed successfully');
+  } catch (error) {
+    // 初始化失败，重置状态以允许重试
+    _initializationPromise = null;
+    dbLog('error', 'Lazy database initialization failed', {
+      error: error.message,
+      code: error.code
+    });
+    throw error;
+  }
+}
+
+// 实际的初始化逻辑
+async function performInitialization() {
+  const initStartTime = Date.now();
+  
+  try {
+    // 先快速测试连接
+    await quickConnectTest();
+    
+    // 然后执行必要的DDL（只在真正需要时）
+    await init();
+    
+    const totalDuration = Date.now() - initStartTime;
+    dbLog('info', 'Database initialization performance metrics', { 
+      totalDuration: `${totalDuration}ms`,
+      poolStats: {
+        total: getPool().totalCount,
+        idle: getPool().idleCount,
+        waiting: getPool().waitingCount
+      }
+    });
+    
+  } catch (error) {
+    const totalDuration = Date.now() - initStartTime;
+    dbLog('error', 'Database initialization failed in performInitialization', {
+      totalDuration: `${totalDuration}ms`,
+      error: error.message,
+      code: error.code
+    });
+    throw error;
+  }
+}
 
 // 快速连接测试函数
 export async function quickConnectTest() {
@@ -132,7 +218,8 @@ export async function quickConnectTest() {
   try {
     dbLog('info', 'Performing quick connection test');
     
-    client = await pool.connect();
+    const actualPool = getPool(); // 使用懒加载的连接池
+    client = await actualPool.connect();
     const result = await client.query('SELECT 1 as test');
     
     const duration = Date.now() - startTime;
@@ -155,6 +242,20 @@ export async function quickConnectTest() {
       client.release();
     }
   }
+}
+
+// 智能数据库操作包装器 - 自动触发初始化
+export async function smartQuery(text, params) {
+  await ensureInitialized();
+  const actualPool = getPool();
+  return await actualPool.query(text, params);
+}
+
+// 智能连接获取 - 自动触发初始化
+export async function smartConnect() {
+  await ensureInitialized();
+  const actualPool = getPool();
+  return await actualPool.connect();
 }
 
 // 连接健康检查
@@ -400,7 +501,8 @@ export async function init() {
       dbLog('info', `Executing database step: ${step.name}`);
       
       await withRetry(async () => {
-        const client = await pool.connect();
+        const actualPool = getPool();
+        const client = await actualPool.connect();
         try {
           await client.query(step.sql);
           return true;
@@ -455,7 +557,8 @@ async function initializeSuperAdmin() {
 
     dbLog('info', 'Starting super admin initialization', { adminId: SUPER_ADMIN_ID });
     
-    client = await pool.connect();
+    const actualPool = getPool();
+    client = await actualPool.connect();
     const { rows } = await client.query('SELECT role FROM users WHERE id = $1 LIMIT 1', [SUPER_ADMIN_ID]);
     
     if (rows.length > 0 && rows[0].role !== 'super_admin') {

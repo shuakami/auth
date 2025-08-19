@@ -1,5 +1,4 @@
 import app from './app.js';
-import { init as initDb, quickConnectTest } from './db/index.js';
 
 const port = process.env.PORT || 3000;
 
@@ -9,26 +8,22 @@ function startupLog(level, message, data = null) {
   console.log(`${timestamp} [STARTUP-${level.toUpperCase()}] ${message}`, data ? JSON.stringify(data) : '');
 }
 
+// 🔥 根本解决方案：不在函数启动时做数据库初始化！
 (async () => {
   const startupStartTime = Date.now();
   
   try {
-    startupLog('info', 'Starting auth system initialization', {
+    startupLog('info', 'Starting auth system (fast startup mode)', {
       nodeEnv: process.env.NODE_ENV,
       nodeVersion: process.version,
       platform: process.platform
     });
 
-    // 数据库初始化
-    startupLog('info', 'Initializing database connection and schema...');
-    await initDb();
-    
-    // 验证数据库连接
-    startupLog('info', 'Performing quick database connection test...');
-    await quickConnectTest();
+    // ✅ 移除数据库初始化 - 使用懒加载模式
+    // 数据库初始化移到第一次数据库调用时进行
     
     const startupDuration = Date.now() - startupStartTime;
-    startupLog('info', 'Auth system initialization completed successfully', {
+    startupLog('info', 'Auth system ready (database will initialize on first request)', {
       startupDuration: `${startupDuration}ms`,
       environment: process.env.NODE_ENV
     });
@@ -42,18 +37,15 @@ function startupLog(level, message, data = null) {
 
   } catch (error) {
     const startupDuration = Date.now() - startupStartTime;
-    startupLog('error', 'Auth system initialization failed catastrophically', {
+    startupLog('error', 'Auth system startup failed', {
       startupDuration: `${startupDuration}ms`,
       error: error.message,
-      code: error.code,
-      stack: error.stack
+      code: error.code
     });
     
-    // 在生产环境中不退出进程，让Vercel处理错误
     if (process.env.NODE_ENV !== 'production') {
       process.exit(1);
     } else {
-      // 抛出错误让Vercel显示适当的错误页面
       throw error;
     }
   }
