@@ -63,6 +63,7 @@ interface UserManagementState {
   selectedUsers: Set<string>;
   editingUser: UserEditForm | null;
   showDeleteConfirm: string | null;
+  showBatchDeleteConfirm: boolean;
   availableRoles: RoleOption[];
   sortBy: string;
   sortOrder: 'ASC' | 'DESC';
@@ -81,6 +82,7 @@ const initialState: UserManagementState = {
   selectedUsers: new Set(),
   editingUser: null,
   showDeleteConfirm: null,
+  showBatchDeleteConfirm: false,
   availableRoles: [],
   sortBy: 'created_at',
   sortOrder: 'DESC',
@@ -120,12 +122,27 @@ function stateReducer(state: UserManagementState, action: StateAction): UserMana
 export default function UserManagement() {
   const [state, dispatch] = useReducer(stateReducer, initialState);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [searchInputValue, setSearchInputValue] = useState('');
 
   // 显示消息
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
   }, []);
+
+  // 搜索值防抖处理
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // 只有当输入值与当前状态中的搜索查询不一致时才更新
+      if (searchInputValue !== state.searchQuery) {
+        dispatch({ searchQuery: searchInputValue, currentPage: 1 });
+      }
+    }, 500); // 500ms 延迟
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchInputValue, state.searchQuery]);
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -171,13 +188,6 @@ export default function UserManagement() {
     loadUsers();
     loadRoles();
   }, [loadUsers, loadRoles]);
-
-  // 搜索处理
-  const handleSearch = useCallback((e: FormEvent) => {
-    e.preventDefault();
-    dispatch({ currentPage: 1 });
-    loadUsers();
-  }, [loadUsers]);
 
   // 编辑用户
   const handleEditUser = useCallback((user: User) => {
@@ -428,7 +438,7 @@ export default function UserManagement() {
                     </td>
                     <td className="px-6 py-3.5 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0 flex items-center space-x-1.5 text-neutral-400 dark:text-zinc-500">
+                        <div className="w-10 flex-shrink-0 flex items-center space-x-1.5 text-neutral-400 dark:text-zinc-500">
                           {user.githubLinked && <Github className="w-4 h-4" />}
                           {user.googleLinked && <Chrome className="w-4 h-4" />}
                         </div>
@@ -554,59 +564,40 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* 搜索和筛选 */}
-      <div className="rounded-lg border border-neutral-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-        <div className="px-6 py-4 border-b border-neutral-200 dark:border-zinc-700">
-          <h4 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">搜索与筛选</h4>
+      {/* 搜索和筛选工具栏 */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="通过用户名或邮箱搜索..."
+            value={searchInputValue}
+            onChange={(e) => setSearchInputValue(e.target.value)}
+            className="w-full md:max-w-xs pl-10 pr-4 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+          />
         </div>
-        <div className="p-6 space-y-4">
-          <form onSubmit={handleSearch} className="flex gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="搜索用户名或邮箱..."
-                value={state.searchQuery}
-                onChange={(e) => dispatch({ searchQuery: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
-              />
-            </div>
-            <Button 
-              type="submit" 
-              disabled={state.loading}
-              size="sm"
-              className="px-4"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              搜索
-            </Button>
-          </form>
 
-          <div className="flex gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
-              <select
-                value={state.roleFilter}
-                onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '' })}
-                className="pl-10 pr-8 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 appearance-none focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
-              >
-                <option value="">所有角色</option>
-                <option value="user">普通用户</option>
-                <option value="admin">管理员</option>
-                <option value="super_admin">超级管理员</option>
-              </select>
-            </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={state.roleFilter}
+            onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '', currentPage: 1 })}
+            className="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+          >
+            <option value="">所有角色</option>
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+            <option value="super_admin">超级管理员</option>
+          </select>
 
-            <select
-              value={state.verifiedFilter.toString()}
-              onChange={(e) => dispatch({ verifiedFilter: e.target.value === '' ? '' : e.target.value === 'true' })}
-              className="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
-            >
-              <option value="">所有状态</option>
-              <option value="true">已验证</option>
-              <option value="false">未验证</option>
-            </select>
-          </div>
+          <select
+            value={state.verifiedFilter.toString()}
+            onChange={(e) => dispatch({ verifiedFilter: e.target.value === '' ? '' : e.target.value === 'true', currentPage: 1 })}
+            className="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+          >
+            <option value="">所有状态</option>
+            <option value="true">已验证</option>
+            <option value="false">未验证</option>
+          </select>
         </div>
       </div>
 
@@ -640,7 +631,7 @@ export default function UserManagement() {
                 <Button
                   size="sm"
                   variant="error"
-                  onClick={() => handleBatchOperation('delete')}
+                  onClick={() => dispatch({ showBatchDeleteConfirm: true })}
                   className="h-8"
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
@@ -751,6 +742,35 @@ export default function UserManagement() {
               <li>永久删除用户账户</li>
               <li>清除所有相关数据</li>
               <li>用户将无法再次登录</li>
+            </ul>
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              此操作无法撤销，请谨慎操作。
+            </p>
+          </div>
+        }
+        type="danger"
+        confirmText="确认删除"
+        cancelText="取消"
+      />
+
+      {/* 批量删除确认模态框 */}
+      <ConfirmModal
+        isOpen={state.showBatchDeleteConfirm}
+        onClose={() => dispatch({ showBatchDeleteConfirm: false })}
+        onConfirm={() => {
+          handleBatchOperation('delete');
+          dispatch({ showBatchDeleteConfirm: false });
+        }}
+        title={`确认批量删除 ${state.selectedUsers.size} 个用户`}
+        message={
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-600 dark:text-zinc-400">
+              您确定要删除选中的 <strong>{state.selectedUsers.size}</strong> 个用户吗？此操作将会：
+            </p>
+            <ul className="text-sm text-neutral-600 dark:text-zinc-400 space-y-1 list-disc list-inside">
+              <li>永久删除这些用户账户</li>
+              <li>清除所有相关数据</li>
+              <li>这些用户将无法再次登录</li>
             </ul>
             <p className="text-sm font-medium text-red-600 dark:text-red-400">
               此操作无法撤销，请谨慎操作。
