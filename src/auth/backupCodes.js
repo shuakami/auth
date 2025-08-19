@@ -1,133 +1,70 @@
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { pool } from '../db/index.js';
-import crypto from 'crypto';
-
 /**
- * 生成指定数量的随机备份码
- * @param {number} count 需要生成的备份码数量，默认为 10
- * @returns {string[]} 生成的备份码数组
+ * 备份码服务
+ * 使用新的模块化架构，保持API兼容性
  */
-function generateBackupCodes(count = 10) {
-  // 生成 8 位随机字母数字组合的备份码
-  const codes = [];
-  for (let i = 0; i < count; i++) {
-    // 使用 crypto.randomBytes 生成真随机数
-    const bytes = crypto.randomBytes(4);
-    // 转换为 8 位的字母数字字符串，去掉容易混淆的字符（0, O, 1, I, l）
-    const code = bytes.toString('base64')
-      .replace(/[+/]/g, '') // 移除 base64 的特殊字符
-      .replace(/[01IOl]/g, '') // 移除容易混淆的字符
-      .slice(0, 8) // 取前 8 位
-      .toUpperCase(); // 转为大写
-    codes.push(code);
-  }
-  return codes;
-}
+import { BackupCodeService } from '../services/auth/BackupCodeService.js';
+
+// 创建服务实例
+const backupCodeService = new BackupCodeService();
 
 /**
- * 为用户生成并存储新的备份码
- * @param {string} userId 用户 ID
- * @returns {Promise<string[]>} 生成的备份码数组（明文，用于显示给用户）
+ * 为用户生成并存储新的备份码（向后兼容）
+ * @param {string} userId 用户ID
+ * @returns {Promise<string[]>} 生成的备份码数组
  */
 export async function generateAndSaveBackupCodes(userId) {
-  const codes = generateBackupCodes();
-  const client = await pool.connect();
-
   try {
-    // 开启事务
-    await client.query('BEGIN');
-
-    // 删除用户现有的所有备份码
-    await client.query('DELETE FROM backup_codes WHERE user_id = $1', [userId]);
-
-    // 存储新的备份码
-    for (const code of codes) {
-      const hash = await bcrypt.hash(code, 10);
-      await client.query(
-        'INSERT INTO backup_codes (id, user_id, code_hash) VALUES ($1, $2, $3)',
-        [uuidv4(), userId, hash]
-      );
-    }
-
-    // 提交事务
-    await client.query('COMMIT');
-    return codes; // 返回明文备份码，供显示给用户
-  } catch (err) {
-    // 如果出错，回滚事务
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    const result = await backupCodeService.generateAndSaveBackupCodes(userId);
+    return result.codes; // 返回备份码数组，保持原有格式
+  } catch (error) {
+    console.error('[BackupCode] 兼容接口生成备份码失败:', error);
+    throw error;
   }
 }
 
 /**
- * 验证用户的备份码
- * @param {string} userId 用户 ID
+ * 验证用户的备份码（向后兼容）
+ * @param {string} userId 用户ID
  * @param {string} code 用户输入的备份码
  * @returns {Promise<boolean>} 验证是否成功
  */
 export async function verifyBackupCode(userId, code) {
-  const client = await pool.connect();
-
   try {
-    // 开启事务
-    await client.query('BEGIN');
-
-    // 获取用户所有未使用的备份码
-    const result = await client.query(
-      'SELECT id, code_hash FROM backup_codes WHERE user_id = $1 AND used = false',
-      [userId]
-    );
-
-    // 遍历所有未使用的备份码，尝试匹配
-    for (const row of result.rows) {
-      const match = await bcrypt.compare(code, row.code_hash);
-      if (match) {
-        // 找到匹配的备份码，将其标记为已使用
-        await client.query(
-          'UPDATE backup_codes SET used = true, used_at = CURRENT_TIMESTAMP WHERE id = $1',
-          [row.id]
-        );
-        await client.query('COMMIT');
-        return true;
-      }
-    }
-
-    // 没有找到匹配的备份码
-    await client.query('COMMIT');
+    const result = await backupCodeService.verifyBackupCode(userId, code);
+    return result.success; // 返回布尔值，保持原有格式
+  } catch (error) {
+    console.error('[BackupCode] 兼容接口验证备份码失败:', error);
     return false;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
   }
 }
 
 /**
- * 检查用户是否还有可用的备份码
- * @param {string} userId 用户 ID
+ * 检查用户是否还有可用的备份码（向后兼容）
+ * @param {string} userId 用户ID
  * @returns {Promise<boolean>} 是否有可用的备份码
  */
 export async function hasAvailableBackupCodes(userId) {
-  const result = await pool.query(
-    'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = false',
-    [userId]
-  );
-  return result.rows[0].count > 0;
+  try {
+    return await backupCodeService.hasAvailableBackupCodes(userId);
+  } catch (error) {
+    console.error('[BackupCode] 兼容接口检查可用备份码失败:', error);
+    return false;
+  }
 }
 
 /**
- * 获取用户剩余的未使用备份码数量
- * @param {string} userId 用户 ID
+ * 获取用户剩余的未使用备份码数量（向后兼容）
+ * @param {string} userId 用户ID
  * @returns {Promise<number>} 剩余的未使用备份码数量
  */
 export async function getRemainingBackupCodesCount(userId) {
-  const result = await pool.query(
-    'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = false',
-    [userId]
-  );
-  return parseInt(result.rows[0].count);
-} 
+  try {
+    return await backupCodeService.getRemainingBackupCodesCount(userId);
+  } catch (error) {
+    console.error('[BackupCode] 兼容接口获取剩余备份码数量失败:', error);
+    return 0;
+  }
+}
+
+// 导出服务实例以供高级用法
+export { backupCodeService }; 

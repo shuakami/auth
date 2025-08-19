@@ -1,54 +1,67 @@
-import { v4 as uuidv4 } from 'uuid';
-import bcrypt from 'bcryptjs';
-import { pool } from '../db/index.js';
-import * as User from './userService.js';
-import { sendResetPasswordEmail } from '../mail/resend.js';
-import { PUBLIC_BASE_URL } from '../config/env.js';
+/**
+ * 密码重置服务
+ * 使用新的模块化架构，保持API兼容性
+ */
+import { PasswordResetService } from './auth/PasswordResetService.js';
 
-// 生成重置密码 token 并发送邮件
+// 创建服务实例
+const passwordResetService = new PasswordResetService();
+
+/**
+ * 生成重置密码 token 并发送邮件（向后兼容）
+ * @param {string} email 邮箱地址
+ * @param {number} expiresIn 过期时间（毫秒）
+ * @returns {Promise<Object>}
+ */
 export async function createResetToken(email, expiresIn = 30 * 60 * 1000) {
-  const user = await User.findByEmail(email);
-  if (!user) return { exists: false };
-  const token = uuidv4() + uuidv4();
-  const expiresAt = new Date(Date.now() + expiresIn);
-  await pool.query(
-    `INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`,
-    [user.id, token, expiresAt]
-  );
-  const link = `${PUBLIC_BASE_URL}/login/reset?token=${token}`;
-  await sendResetPasswordEmail(email, link);
-  return { exists: true };
+  try {
+    const result = await passwordResetService.createResetToken(email, { expiresIn });
+    
+    // 保持原有的返回格式
+    return { 
+      exists: result.success,
+      success: result.success,
+      message: result.message,
+      emailSent: result.emailSent
+    };
+  } catch (error) {
+    console.error('[PasswordReset] 兼容接口创建重置令牌失败:', error);
+    return { exists: false, error: error.message };
+  }
 }
 
-// 校验 token 是否有效，返回 user
+/**
+ * 校验 token 是否有效，返回 user（向后兼容）
+ * @param {string} token 重置令牌
+ * @returns {Promise<Object|null>}
+ */
 export async function verifyResetToken(token) {
-  const result = await pool.query(
-    `SELECT * FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
-    [token]
-  );
-  if (!result.rows[0]) return null;
-  const user = await User.findById(result.rows[0].user_id);
-  return user;
+  try {
+    const result = await passwordResetService.verifyResetToken(token);
+    
+    // 保持原有的返回格式
+    return result ? result.user : null;
+  } catch (error) {
+    console.error('[PasswordReset] 兼容接口验证重置令牌失败:', error);
+    return null;
+  }
 }
 
-// 重置密码并失效 token
+/**
+ * 重置密码并失效 token（向后兼容）
+ * @param {string} token 重置令牌
+ * @param {string} newPassword 新密码
+ * @returns {Promise<boolean>}
+ */
 export async function resetPassword(token, newPassword) {
-  const result = await pool.query(
-    `SELECT * FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
-    [token]
-  );
-  const row = result.rows[0];
-  if (!row) return false;
-  const user = await User.findById(row.user_id);
-  if (!user) return false;
-  const passwordHash = await bcrypt.hash(newPassword, 10);
-  await pool.query(
-    `UPDATE users SET password_hash = $1 WHERE id = $2`,
-    [passwordHash, user.id]
-  );
-  await pool.query(
-    `UPDATE password_reset_tokens SET used = TRUE WHERE id = $1`,
-    [row.id]
-  );
-  return true;
-} 
+  try {
+    const result = await passwordResetService.resetPassword(token, newPassword);
+    return result;
+  } catch (error) {
+    console.error('[PasswordReset] 兼容接口重置密码失败:', error);
+    return false;
+  }
+}
+
+// 导出服务实例以供高级用法
+export { passwordResetService }; 
