@@ -1,7 +1,7 @@
 /**
  * OAuth应用管理API服务
  */
-import { api } from './api';
+import api from './api';
 
 // OAuth应用类型
 export interface OAuthApp {

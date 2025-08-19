@@ -9,9 +9,39 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import { DATABASE_URL, DATABASE_SSL } from '../config/env.js';
 
-export const pool = new Pool({
+// 数据库连接配置
+const poolConfig = {
   connectionString: DATABASE_URL,
-  ssl: DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+  ssl: DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+  // 连接池设置
+  max: 20, // 最大连接数
+  min: 2,  // 最小连接数
+  idle: 10000, // 空闲连接超时 (10秒)
+  // 连接超时设置
+  connectionTimeoutMillis: 10000, // 连接超时 (10秒)
+  idleTimeoutMillis: 30000, // 空闲超时 (30秒) 
+  query_timeout: 60000, // 查询超时 (60秒)
+  // 重试设置
+  acquireTimeoutMillis: 10000, // 获取连接超时 (10秒)
+};
+
+export const pool = new Pool(poolConfig);
+
+// 连接池错误处理
+pool.on('error', (err, client) => {
+  console.error('[DB] 连接池出现意外错误:', err);
+});
+
+pool.on('connect', (client) => {
+  console.log('[DB] 新数据库连接建立');
+});
+
+pool.on('acquire', (client) => {
+  console.log('[DB] 从连接池获取连接');
+});
+
+pool.on('remove', (client) => {
+  console.log('[DB] 连接从连接池中移除');
 });
 
 export async function init() {
