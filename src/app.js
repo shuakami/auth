@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/admin/users.js';
+import oauthAppsRouter from './routes/oauth/apps.js';
 import { setupDocs } from './middlewares/docs.js';
 import { ensureAuth } from './middlewares/authenticated.js';
 
@@ -30,6 +31,9 @@ app.use('/api', authRouter);
 
 /* 管理 API 路由 */
 app.use('/api/admin/users', ensureAuth, adminUsersRouter);
+
+/* OAuth API 路由 */
+app.use('/api/oauth/apps', ensureAuth, oauthAppsRouter);
 
 /* 全局错误处理 */
 app.use((err, _req, res, _next) => {

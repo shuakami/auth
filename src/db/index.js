@@ -139,6 +139,49 @@ export async function init() {
     );
     CREATE INDEX IF NOT EXISTS "IDX_login_history_user_id" ON login_history (user_id);
     CREATE INDEX IF NOT EXISTS "IDX_login_history_login_at" ON login_history (login_at);
+
+    -- OAuth2/OIDC 相关表
+    CREATE TABLE IF NOT EXISTS oauth_applications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL UNIQUE,
+      description TEXT,
+      client_id VARCHAR(255) NOT NULL UNIQUE,
+      client_secret VARCHAR(255) NOT NULL,
+      redirect_uris TEXT NOT NULL, -- JSON array
+      scopes TEXT NOT NULL, -- JSON array  
+      app_type VARCHAR(50) NOT NULL CHECK (app_type IN ('web', 'mobile', 'desktop', 'server')),
+      is_active BOOLEAN DEFAULT TRUE,
+      usage_count INTEGER DEFAULT 0,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_oauth_applications_client_id" ON oauth_applications (client_id);
+
+    CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      code VARCHAR(255) NOT NULL UNIQUE,
+      client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      redirect_uri TEXT NOT NULL,
+      scopes TEXT NOT NULL, -- JSON array
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_code" ON oauth_authorization_codes (code);
+    CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_user_id" ON oauth_authorization_codes (user_id);
+
+    CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      token_hash VARCHAR(255) NOT NULL UNIQUE,
+      client_id VARCHAR(255) NOT NULL REFERENCES oauth_applications(client_id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      scopes TEXT NOT NULL, -- JSON array
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_oauth_access_tokens_token_hash" ON oauth_access_tokens (token_hash);
+    CREATE INDEX IF NOT EXISTS "IDX_oauth_access_tokens_user_id" ON oauth_access_tokens (user_id);
   `);
 
   // 4. 添加新的列以支持重构后的服务

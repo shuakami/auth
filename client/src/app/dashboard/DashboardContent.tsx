@@ -42,6 +42,12 @@ const UserManagement = dynamic(() => import('./components/UserManagement'), {
   loading: () => <LoadingIndicator />
 });
 
+// 动态导入OAuth管理组件
+const OAuthManagement = dynamic(() => import('./components/OAuthManagement'), { 
+  ssr: false,
+  loading: () => <LoadingIndicator />
+});
+
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
@@ -117,9 +123,17 @@ export default function DashboardContent() {
 
   /* --------------------------- 视口 / 分区切换 ---------------------------- */
   const [activeSection, setActiveSection] = useReducer(
-    (_: 'general' | 'security' | 'connections' | 'admin', next: 'general' | 'security' | 'connections' | 'admin') => next,
-    'general',
+    (_: 'general' | 'security' | 'connections' | 'admin' | 'oauth', next: 'general' | 'security' | 'connections' | 'admin' | 'oauth') => next,
+    // 从localStorage恢复上次的选择，默认为'general'
+    (typeof window !== 'undefined' ? localStorage.getItem('dashboard-active-section') as any : null) || 'general',
   );
+
+  // 保存activeSection到localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard-active-section', activeSection);
+    }
+  }, [activeSection]);
   
   /* --------------------------- 管理员权限检查 ---------------------------- */
   const [isAdmin, setIsAdmin] = useReducer((_: boolean, next: boolean) => next, false);
@@ -430,8 +444,9 @@ export default function DashboardContent() {
     );
 
     const admin = isAdmin ? <UserManagement /> : null;
+    const oauth = isAdmin ? <OAuthManagement /> : null;
 
-    if (isMobile) return <>{general}{security}{connections}{admin}</>;
+    if (isMobile) return <>{general}{security}{connections}{admin}{oauth}</>;
 
     switch (activeSection) {
       case 'general':
@@ -442,6 +457,8 @@ export default function DashboardContent() {
         return connections;
       case 'admin':
         return admin;
+      case 'oauth':
+        return oauth;
       default:
         return null;
     }
@@ -485,6 +502,11 @@ export default function DashboardContent() {
               {isAdmin && (
                 <NavItem active={activeSection === 'admin'} onClick={() => setActiveSection('admin')}>
                   用户管理
+                </NavItem>
+              )}
+              {isAdmin && (
+                <NavItem active={activeSection === 'oauth'} onClick={() => setActiveSection('oauth')}>
+                  OAuth应用
                 </NavItem>
               )}
             </div>
