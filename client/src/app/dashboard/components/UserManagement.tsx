@@ -267,20 +267,21 @@ export default function UserManagement() {
 
   // 角色标签样式 - 参考现有设计系统
   const getRoleConfig = useCallback((role: UserRole) => {
+    const baseStyle = 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300';
     const configs = {
       user: {
-        icon: <Users className="w-3 h-3" />,
-        style: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+        icon: <Users className="w-3.5 h-3.5" />,
+        style: baseStyle,
         label: '用户',
       },
       admin: {
-        icon: <Shield className="w-3 h-3" />,
-        style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+        icon: <Shield className="w-3.5 h-3.5" />,
+        style: baseStyle,
         label: '管理员',
       },
       super_admin: {
-        icon: <Crown className="w-3 h-3" />,
-        style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+        icon: <Crown className="w-3.5 h-3.5" />,
+        style: baseStyle,
         label: '超级管理员',
       },
     };
@@ -291,46 +292,55 @@ export default function UserManagement() {
   const UserTableSkeleton = () => (
     <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700">
+        <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700 table-fixed">
+          <colgroup>
+            <col className="w-14" />
+            <col />
+            <col className="w-40" />
+            <col className="w-40" />
+            <col className="w-32" />
+            <col className="w-32" />
+          </colgroup>
           <thead className="bg-neutral-50 dark:bg-zinc-800">
             <tr>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">
                 <div className="w-4 h-4 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
               </th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
-              <th scope="col" className="relative px-6 py-4"><span className="sr-only">操作</span></th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
+              <th scope="col" className="relative px-6 py-3"><span className="sr-only">操作</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
             {[...Array(5)].map((_, i) => (
-              <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50 transition-colors">
-                <td className="px-6 py-4">
+              <tr key={i}>
+                <td className="px-6 py-3.5">
                   <div className="w-4 h-4 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-3.5">
                   <div className="space-y-2">
                     <div className="h-4 w-32 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                     <div className="h-3 w-48 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="h-6 w-16 bg-neutral-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                <td className="px-6 py-3.5">
+                  <div className="h-6 w-20 bg-neutral-200 dark:bg-zinc-700 rounded-md animate-pulse"></div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="space-y-1">
-                    <div className="h-6 w-12 bg-neutral-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center gap-4">
+                    <div className="h-5 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="h-5 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-6 py-3.5">
                   <div className="h-4 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-3.5 text-right">
                   <div className="flex justify-end gap-2">
-                    <div className="h-8 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                    <div className="h-8 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="h-8 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="h-8 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
                   </div>
                 </td>
               </tr>
@@ -376,10 +386,18 @@ export default function UserManagement() {
     return (
       <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700">
+          <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700 table-fixed">
+            <colgroup>
+              <col className="w-14" />
+              <col />
+              <col className="w-40" />
+              <col className="w-40" />
+              <col className="w-32" />
+              <col className="w-32" />
+            </colgroup>
             <thead className="bg-neutral-50 dark:bg-zinc-800">
               <tr>
-                <th scope="col" className="px-6 py-4 text-left">
+                <th scope="col" className="px-6 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={state.selectedUsers.size === state.users.length && state.users.length > 0}
@@ -387,11 +405,11 @@ export default function UserManagement() {
                     className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
                   />
                 </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
-                <th scope="col" className="relative px-6 py-4"><span className="sr-only">操作</span></th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
+                <th scope="col" className="relative px-6 py-3"><span className="sr-only">操作</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700">
@@ -399,7 +417,7 @@ export default function UserManagement() {
                 const roleConfig = getRoleConfig(user.role);
                 return (
                   <tr key={user.id} className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3.5">
                       <input
                         type="checkbox"
                         checked={state.selectedUsers.has(user.id)}
@@ -407,57 +425,49 @@ export default function UserManagement() {
                         className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
                       />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3.5 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
-                        <div className="flex items-center space-x-1 text-neutral-400 dark:text-zinc-500">
+                        <div className="flex-shrink-0 flex items-center space-x-1.5 text-neutral-400 dark:text-zinc-500">
                           {user.githubLinked && <Github className="w-4 h-4" />}
                           {user.googleLinked && <Chrome className="w-4 h-4" />}
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                        <div className="truncate">
+                          <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
                             {user.username || '未设置用户名'}
                           </div>
-                          <div className="text-sm text-neutral-500 dark:text-zinc-400">{user.email}</div>
+                          <div className="text-sm text-neutral-500 dark:text-zinc-400 truncate">{user.email}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleConfig.style}`}>
+                    <td className="px-6 py-3.5">
+                      <span className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1 text-xs font-medium ${roleConfig.style}`}>
                         {roleConfig.icon}
                         {roleConfig.label}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          user.verified
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        }`}>
-                          {user.verified ? (
-                            <>
-                              <MailCheck className="w-3 h-3" />
-                              已验证
-                            </>
-                          ) : (
-                            <>
-                              <Mail className="w-3 h-3" />
-                              未验证
-                            </>
-                          )}
-                        </span>
+                    <td className="px-6 py-3.5 text-sm">
+                      <div className="flex items-center gap-4">
+                        <div className={`flex items-center gap-1.5 ${
+                            user.verified
+                              ? 'text-green-600 dark:text-green-500'
+                              : 'text-neutral-500 dark:text-zinc-500'
+                          }`}
+                        >
+                          {user.verified ? <MailCheck className="w-4 h-4 flex-shrink-0" /> : <Mail className="w-4 h-4 flex-shrink-0" />}
+                          <span className="font-medium text-xs">{user.verified ? '已验证' : '未验证'}</span>
+                        </div>
                         {user.totpEnabled && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            <ShieldCheck className="w-3 h-3" />
-                            2FA
-                          </span>
+                          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-500">
+                            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+                            <span className="font-medium text-xs">2FA</span>
+                          </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-neutral-600 dark:text-zinc-400">
-                      {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                    <td className="px-6 py-3.5 text-sm text-neutral-600 dark:text-zinc-400 whitespace-nowrap">
+                      {new Date(user.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-3.5 text-right whitespace-nowrap">
                       <div className="flex justify-end gap-2">
                         <Button
                           size="sm"
@@ -465,7 +475,7 @@ export default function UserManagement() {
                           onClick={() => handleEditUser(user)}
                           className="h-8 px-3"
                         >
-                          <Edit className="w-4 h-4 mr-1" />
+                          <Edit className="w-4 h-4 mr-1.5" />
                           编辑
                         </Button>
                         <Button
@@ -474,7 +484,7 @@ export default function UserManagement() {
                           onClick={() => dispatch({ showDeleteConfirm: user.id })}
                           className="h-8 px-3"
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
+                          <Trash2 className="w-4 h-4 mr-1.5" />
                           删除
                         </Button>
                       </div>
