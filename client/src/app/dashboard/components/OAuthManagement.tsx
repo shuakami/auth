@@ -47,6 +47,8 @@ interface OAuthManagementState {
   error: string;
   showCreateForm: boolean;
   editingApp: OAuthApp | null;
+  editingAppForm: Partial<CreateAppForm> | null;
+  activeSettingsTab: 'general' | 'credentials' | 'guide' | 'danger';
   showDeleteConfirm: string | null;
   visibleSecrets: Set<string>;
   copiedSecrets: Set<string>;
@@ -67,6 +69,8 @@ const initialState: OAuthManagementState = {
   error: '',
   showCreateForm: false,
   editingApp: null,
+  editingAppForm: null,
+  activeSettingsTab: 'general',
   showDeleteConfirm: null,
   visibleSecrets: new Set(),
   copiedSecrets: new Set(),
@@ -184,6 +188,29 @@ export default function OAuthManagement() {
       showMessage('error', error.response?.data?.error || error.message || '创建应用失败');
     }
   }, [form, showMessage, loadApps]);
+
+  // 更新应用
+  const handleUpdateApp = useCallback(async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (!state.editingApp || !state.editingAppForm) return;
+
+    try {
+      const updateRequest = {
+        name: state.editingAppForm.name?.trim(),
+        description: state.editingAppForm.description?.trim(),
+        redirectUris: state.editingAppForm.redirectUris?.split('\n').map(uri => uri.trim()).filter(Boolean),
+      };
+
+      await updateOAuthApp(state.editingApp.id, updateRequest);
+      
+      await loadApps();
+      
+      dispatch({ editingApp: null, editingAppForm: null });
+      showMessage('success', '应用更新成功');
+    } catch (error: any) {
+      showMessage('error', error.response?.data?.error || '更新失败');
+    }
+  }, [state.editingApp, state.editingAppForm, showMessage, loadApps]);
 
   // 删除应用
   const handleDeleteApp = useCallback(async (appId: string) => {
@@ -353,7 +380,15 @@ export default function OAuthManagement() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => dispatch({ editingApp: app })}
+                    onClick={() => dispatch({ 
+                      editingApp: app,
+                      activeSettingsTab: 'general',
+                      editingAppForm: {
+                        name: app.name,
+                        description: app.description || '',
+                        redirectUris: app.redirectUris.join('\n'),
+                      }
+                    })}
                     className="h-8 px-3"
                   >
                     <Settings className="w-4 h-4 mr-1.5" />
@@ -589,158 +624,152 @@ export default function OAuthManagement() {
       {/* 应用设置模态框 */}
       <ConfirmModal
         isOpen={!!state.editingApp}
-        onClose={() => dispatch({ editingApp: null })}
-        onConfirm={() => dispatch({ editingApp: null })}
-        title={`${state.editingApp?.name || ''} - 集成指南`}
+        onClose={() => dispatch({ editingApp: null, editingAppForm: null })}
+        title="应用设置"
+        type="default"
+        confirmText="保存更改"
+        cancelText="取消"
+        onConfirm={handleUpdateApp}
         message={
-          state.editingApp && (
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-              {/* 快速开始 */}
-              <div className="space-y-3">
-                <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  🚀 快速开始
-                </h4>
-                <div className="rounded-lg bg-neutral-50 dark:bg-zinc-800/50 p-4 space-y-3">
-                  <div>
-                    <div className="text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-1">Client ID</div>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 rounded bg-white dark:bg-zinc-800 px-2 py-1 text-xs font-mono text-neutral-700 dark:text-zinc-300 border border-neutral-200 dark:border-zinc-700">
-                        {state.editingApp.clientId}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => copyToClipboard(state.editingApp!.clientId, state.editingApp!.id)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-1">Client Secret</div>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 rounded bg-white dark:bg-zinc-800 px-2 py-1 text-xs font-mono text-neutral-700 dark:text-zinc-300 border border-neutral-200 dark:border-zinc-700">
-                        {state.visibleSecrets.has(state.editingApp.id) ? state.editingApp.clientSecret : '••••••••••••••••'}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: state.editingApp!.id })}
-                        className="h-7 w-7 p-0"
-                      >
-                        {state.visibleSecrets.has(state.editingApp.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => copyToClipboard(state.editingApp!.clientSecret, state.editingApp!.id)}
-                        className="h-7 w-7 p-0"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+          state.editingApp && state.editingAppForm && (
+            <div className="text-left">
+              <div className="border-b border-neutral-200 dark:border-zinc-700 mb-4">
+                <nav className="-mb-px flex gap-6" aria-label="Tabs">
+                  <button
+                    onClick={() => dispatch({ activeSettingsTab: 'general' })}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                      state.activeSettingsTab === 'general'
+                        ? 'border-black dark:border-white text-black dark:text-white'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    常规设置
+                  </button>
+                  <button
+                    onClick={() => dispatch({ activeSettingsTab: 'credentials' })}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                      state.activeSettingsTab === 'credentials'
+                        ? 'border-black dark:border-white text-black dark:text-white'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    应用凭证
+                  </button>
+                  <button
+                    onClick={() => dispatch({ activeSettingsTab: 'guide' })}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                      state.activeSettingsTab === 'guide'
+                        ? 'border-black dark:border-white text-black dark:text-white'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    集成指南
+                  </button>
+                  <button
+                    onClick={() => dispatch({ activeSettingsTab: 'danger' })}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                      state.activeSettingsTab === 'danger'
+                        ? 'border-red-600 text-red-600'
+                        : 'border-transparent text-neutral-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500'
+                    }`}
+                  >
+                    危险区域
+                  </button>
+                </nav>
               </div>
 
-              {/* 集成步骤 */}
-              <div className="space-y-4">
-                <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  📝 集成步骤
-                </h4>
-                
-                {/* 步骤 1 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center">
-                      1
+              <div className="max-h-[60vh] overflow-y-auto pr-2">
+                {state.activeSettingsTab === 'general' && (
+                  <form className="space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用名称</label>
+                      <input
+                        type="text"
+                        value={state.editingAppForm.name}
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, name: e.target.value }})}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                      />
                     </div>
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">配置授权 URL</span>
-                  </div>
-                  <div className="ml-8">
-                    <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                      将用户重定向到以下 URL 开始 OAuth 流程：
-                    </p>
-                    <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
-                      {`${window.location.origin}/oauth/authorize?client_id=${state.editingApp.clientId}&response_type=code&scope=${state.editingApp.scopes.join('%20')}&redirect_uri=YOUR_REDIRECT_URI`}
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用描述</label>
+                      <textarea
+                        value={state.editingAppForm.description}
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, description: e.target.value }})}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                      />
                     </div>
-                  </div>
-                </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">重定向URI</label>
+                      <textarea
+                        value={state.editingAppForm.redirectUris}
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, redirectUris: e.target.value }})}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                      />
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个URI</p>
+                    </div>
+                  </form>
+                )}
 
-                {/* 步骤 2 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center">
-                      2
-                    </div>
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">处理授权回调</span>
-                  </div>
-                  <div className="ml-8">
-                    <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                      用户授权后会重定向到您的回调 URL，携带授权码：
+                {state.activeSettingsTab === 'credentials' && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-neutral-600 dark:text-zinc-400">
+                      这是您的应用凭证，请妥善保管。
                     </p>
-                    <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300">
-                      {`${state.editingApp.redirectUris[0] || 'YOUR_REDIRECT_URI'}?code=AUTHORIZATION_CODE`}
+                    <div>
+                      <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
+                        Client ID
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 truncate">
+                          {state.editingApp.clientId}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(state.editingApp!.clientId, state.editingApp!.id)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* 步骤 3 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center">
-                      3
-                    </div>
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">交换访问令牌</span>
-                  </div>
-                  <div className="ml-8">
-                    <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                      使用授权码换取访问令牌：
-                    </p>
-                    <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 space-y-2">
-                      <div>POST {window.location.origin}/oauth/token</div>
-                      <div>Content-Type: application/x-www-form-urlencoded</div>
-                      <div className="mt-2">
-                        grant_type=authorization_code<br/>
-                        code=AUTHORIZATION_CODE<br/>
-                        client_id={state.editingApp.clientId}<br/>
-                        client_secret=YOUR_CLIENT_SECRET<br/>
-                        redirect_uri=YOUR_REDIRECT_URI
+                    <div>
+                      <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
+                        Client Secret
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
+                          {state.visibleSecrets.has(state.editingApp.id) ? state.editingApp.clientSecret : '••••••••••••••••'}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: state.editingApp!.id })}
+                          className="h-7 w-7 p-0"
+                        >
+                          {state.visibleSecrets.has(state.editingApp.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(state.editingApp!.clientSecret, state.editingApp!.id)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* 步骤 4 */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center justify-center">
-                      4
-                    </div>
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">获取用户信息</span>
-                  </div>
-                  <div className="ml-8">
-                    <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                      使用访问令牌获取用户信息：
-                    </p>
-                    <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 space-y-2">
-                      <div>GET {window.location.origin}/oauth/userinfo</div>
-                      <div>Authorization: Bearer YOUR_ACCESS_TOKEN</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 代码示例 */}
-              <div className="space-y-3">
-                <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  💻 代码示例
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <div className="text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-2">JavaScript (Node.js)</div>
-                    <div className="rounded bg-neutral-900 dark:bg-zinc-900 p-4 text-xs font-mono text-green-400 overflow-x-auto">
+                )}
+                
+                {state.activeSettingsTab === 'guide' && (
+                  <div className="text-sm text-neutral-700 dark:text-zinc-300 space-y-4">
+                    <p>这是一个简洁的集成指南。</p>
+                    <div>
+                      <div className="text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-2">JavaScript (Node.js)</div>
+                      <div className="rounded bg-neutral-900 dark:bg-zinc-900 p-4 text-xs font-mono text-green-400 overflow-x-auto">
 {`// 步骤 1: 重定向到授权页面
 const authUrl = \`${window.location.origin}/oauth/authorize?\` +
   \`client_id=${state.editingApp.clientId}&\` +
@@ -769,55 +798,31 @@ const userResponse = await fetch('${window.location.origin}/oauth/userinfo', {
 });
 
 const userInfo = await userResponse.json();`}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* 安全提示 */}
-              <div className="space-y-3">
-                <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  🔒 安全最佳实践
-                </h4>
-                <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
-                  <ul className="text-sm text-yellow-800 dark:text-yellow-200 space-y-2">
-                    <li>• 始终验证重定向 URI 与注册的 URI 匹配</li>
-                    <li>• 在服务器端安全存储 Client Secret，不要暴露在前端</li>
-                    <li>• 使用 HTTPS 进行所有 OAuth 通信</li>
-                    <li>• 实施适当的速率限制和访问控制</li>
-                    <li>• 定期轮换 Client Secret</li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* 测试工具 */}
-              <div className="space-y-3">
-                <h4 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                  🧪 测试集成
-                </h4>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const testUrl = `${window.location.origin}/oauth/authorize?client_id=${state.editingApp?.clientId}&response_type=code&scope=${state.editingApp?.scopes.join('%20')}&redirect_uri=${encodeURIComponent(state.editingApp?.redirectUris[0] || '')}`;
-                      window.open(testUrl, '_blank');
-                    }}
-                    className="w-full"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    测试授权流程
-                  </Button>
-                  <p className="text-xs text-neutral-500 dark:text-zinc-500">
-                    点击上面的按钮可以测试完整的 OAuth 流程
-                  </p>
-                </div>
+                {state.activeSettingsTab === 'danger' && (
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-red-600">删除此应用</h4>
+                    <p className="text-sm text-neutral-600 dark:text-zinc-400">
+                      一旦删除应用，将无法恢复。所有使用此应用的用户将无法登录。
+                    </p>
+                    <Button
+                      variant="error"
+                      onClick={() => {
+                        dispatch({ showDeleteConfirm: state.editingApp!.id, editingApp: null, editingAppForm: null });
+                      }}
+                    >
+                      删除应用
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )
         }
-        type="default"
-        confirmText="关闭"
-        cancelText=""
       />
 
       {/* 删除确认模态框 */}
