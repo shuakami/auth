@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/admin/users.js';
+import adminRolesRouter from './routes/admin/roles.js';
 import oauthAppsRouter from './routes/oauth/apps.js';
 import oauthProviderRouter from './routes/oauth_provider.js'; // 导入新的路由
 import { setupDocs } from './middlewares/docs.js';
@@ -32,6 +33,7 @@ app.use('/api', authRouter);
 
 /* 管理 API 路由 */
 app.use('/api/admin/users', ensureAuth, adminUsersRouter);
+app.use('/api/admin/roles', ensureAuth, adminRolesRouter);
 
 /* OAuth API 路由 */
 app.use('/api/oauth/apps', ensureAuth, oauthAppsRouter);

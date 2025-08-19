@@ -275,27 +275,7 @@ router.delete('/:userId', requireUserManagement(), async (req, res) => {
   }
 });
 
-/**
- * 获取可用角色列表
- * GET /admin/roles
- */
-router.get('/roles/available', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    const availableRoles = getAvailableRoles(req.userRole);
-    
-    res.json({
-      success: true,
-      data: availableRoles
-    });
 
-  } catch (error) {
-    console.error('[Admin] 获取可用角色失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || '获取可用角色失败'
-    });
-  }
-});
 
 /**
  * 批量操作用户
