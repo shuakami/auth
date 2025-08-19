@@ -15,8 +15,19 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
   const handleOAuthSuccess = useCallback(async () => {
     const user = await checkAuth();
     if (user) {
-      router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-      console.log('[useOAuth] OAuth success, user found. Initiating navigation towards /dashboard.');
+      // 检查是否有 returnUrl 参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const returnUrl = urlParams.get('returnUrl');
+      
+      if (returnUrl) {
+        // 如果有 returnUrl，重定向到该URL
+        console.log('[useOAuth] OAuth success, redirecting to returnUrl:', returnUrl);
+        window.location.href = returnUrl;
+      } else {
+        // 默认重定向到 dashboard
+        router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+        console.log('[useOAuth] OAuth success, user found. Initiating navigation towards /dashboard.');
+      }
     } else {
       onError(ERROR_MESSAGES.OAUTH_SUCCESS_NO_USER);
     }

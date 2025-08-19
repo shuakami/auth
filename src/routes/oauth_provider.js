@@ -7,6 +7,7 @@ import express from 'express';
 import { ensureAuth } from '../middlewares/authenticated.js';
 import { AuthorizationServerService } from '../auth/services/oauth/AuthorizationServerService.js';
 import { pool } from '../db/index.js';
+import { PUBLIC_BASE_URL } from '../config/env.js';
 
 const router = express.Router();
 const authService = new AuthorizationServerService();
@@ -17,8 +18,8 @@ const authService = new AuthorizationServerService();
  * OAuth 2.0 授权端点。
  * 验证客户端请求，检查用户登录状态，并将用户重定向到前端的同意授权页面。
  */
-router.get('/authorize', ensureAuth, async (req, res) => {
-  const { query, user } = req;
+router.get('/authorize', async (req, res) => {
+  const { query } = req;
 
   // 1. 验证授权请求的参数 (client_id, redirect_uri, etc.)
   const { isValid, error, errorDescription, client, validatedScope } = await authService.validateAuthorizationRequest(query);
@@ -36,17 +37,51 @@ router.get('/authorize', ensureAuth, async (req, res) => {
     return res.status(400).json({ error, error_description: errorDescription });
   }
 
-  // 2. 将验证过的请求参数和客户端信息传递给前端同意页面
-  const consentUrl = new URL('/oauth/authorize', process.env.CLIENT_URL || 'http://localhost:3000');
-  consentUrl.searchParams.set('client_id', client.client_id);
-  consentUrl.searchParams.set('client_name', client.name);
-  consentUrl.searchParams.set('redirect_uri', query.redirect_uri);
-  consentUrl.searchParams.set('scope', validatedScope);
-  if (query.state) consentUrl.searchParams.set('state', query.state);
-  if (query.code_challenge) consentUrl.searchParams.set('code_challenge', query.code_challenge);
-  if (query.code_challenge_method) consentUrl.searchParams.set('code_challenge_method', query.code_challenge_method);
+  // 2. 检查用户登录状态
+  const accessToken = req.cookies.accessToken || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
   
-  res.redirect(consentUrl.toString());
+  if (!accessToken) {
+    // 用户未登录，重定向到登录页面，登录后自动回到授权页面
+    const loginUrl = new URL('/login', PUBLIC_BASE_URL);
+    // 将当前的授权请求参数编码并传递给登录页面
+    const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+    loginUrl.searchParams.set('returnUrl', returnUrl);
+    return res.redirect(loginUrl.toString());
+  }
+
+  // 3. 验证访问令牌
+  try {
+    const { verifyAccessToken } = await import('../auth/jwt.js');
+    const payload = verifyAccessToken(accessToken);
+    
+    if (!payload || !payload.uid) {
+      // 令牌无效，重定向到登录页面
+      const loginUrl = new URL('/login', PUBLIC_BASE_URL);
+      const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+      loginUrl.searchParams.set('returnUrl', returnUrl);
+      return res.redirect(loginUrl.toString());
+    }
+
+    // 4. 用户已登录且令牌有效，将验证过的请求参数传递给前端同意页面
+    const consentUrl = new URL('/oauth/authorize', PUBLIC_BASE_URL);
+    consentUrl.searchParams.set('client_id', client.client_id);
+    consentUrl.searchParams.set('client_name', client.name);
+    consentUrl.searchParams.set('redirect_uri', query.redirect_uri);
+    consentUrl.searchParams.set('scope', validatedScope);
+    if (query.state) consentUrl.searchParams.set('state', query.state);
+    if (query.code_challenge) consentUrl.searchParams.set('code_challenge', query.code_challenge);
+    if (query.code_challenge_method) consentUrl.searchParams.set('code_challenge_method', query.code_challenge_method);
+    
+    res.redirect(consentUrl.toString());
+
+  } catch (error) {
+    console.error('[OAuth] Token verification failed:', error);
+    // 令牌验证失败，重定向到登录页面
+    const loginUrl = new URL('/login', PUBLIC_BASE_URL);
+    const returnUrl = `/oauth/authorize?${new URLSearchParams(query).toString()}`;
+    loginUrl.searchParams.set('returnUrl', returnUrl);
+    return res.redirect(loginUrl.toString());
+  }
 });
 
 

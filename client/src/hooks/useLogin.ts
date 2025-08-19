@@ -98,8 +98,19 @@ export const useLogin = () => {
   const handleLoginSuccess = useCallback(async () => {
     const loggedInUser = await checkAuth();
     if (loggedInUser) {
-      router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-      console.log('[useLogin] Login success, user found. Initiating navigation towards /dashboard.');
+      // 检查是否有 returnUrl 参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const returnUrl = urlParams.get('returnUrl');
+      
+      if (returnUrl) {
+        // 如果有 returnUrl，重定向到该URL
+        console.log('[useLogin] Login success, redirecting to returnUrl:', returnUrl);
+        window.location.href = returnUrl;
+      } else {
+        // 默认重定向到 dashboard
+        router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+        console.log('[useLogin] Login success, user found. Initiating navigation towards /dashboard.');
+      }
     } else {
       setError(ERROR_MESSAGES.LOGIN_SUCCESS_NO_USER);
     }
