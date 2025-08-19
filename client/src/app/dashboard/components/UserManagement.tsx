@@ -23,7 +23,9 @@ import {
   Mail,
   MailCheck,
   Github,
-  Chrome
+  Chrome,
+  ShieldOff,
+  MailX,
 } from 'lucide-react';
 import {
   getUsersList,
@@ -265,23 +267,19 @@ export default function UserManagement() {
     }
   }, [state.selectedUsers, showMessage, loadUsers]);
 
-  // 角色标签样式 - 参考现有设计系统
+  // 角色标签样式 - a more minimal approach
   const getRoleConfig = useCallback((role: UserRole) => {
-    const baseStyle = 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300';
     const configs = {
       user: {
-        icon: <Users className="w-3.5 h-3.5" />,
-        style: baseStyle,
+        icon: <Users className="w-4 h-4 text-neutral-500" />,
         label: '用户',
       },
       admin: {
-        icon: <Shield className="w-3.5 h-3.5" />,
-        style: baseStyle,
+        icon: <Shield className="w-4 h-4 text-neutral-500" />,
         label: '管理员',
       },
       super_admin: {
-        icon: <Crown className="w-3.5 h-3.5" />,
-        style: baseStyle,
+        icon: <Crown className="w-4 h-4 text-neutral-500" />,
         label: '超级管理员',
       },
     };
@@ -326,12 +324,15 @@ export default function UserManagement() {
                   </div>
                 </td>
                 <td className="px-6 py-3.5">
-                  <div className="h-6 w-20 bg-neutral-200 dark:bg-zinc-700 rounded-md animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse"></div>
+                    <div className="h-4 w-12 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse"></div>
+                  </div>
                 </td>
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-4">
-                    <div className="h-5 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                    <div className="h-5 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="w-4 h-4 rounded-full bg-neutral-200 dark:bg-zinc-700 animate-pulse"></div>
+                    <div className="w-4 h-4 rounded-full bg-neutral-200 dark:bg-zinc-700 animate-pulse"></div>
                   </div>
                 </td>
                 <td className="px-6 py-3.5">
@@ -439,29 +440,28 @@ export default function UserManagement() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5">
-                      <span className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1 text-xs font-medium ${roleConfig.style}`}>
+                    <td className="px-6 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
                         {roleConfig.icon}
-                        {roleConfig.label}
-                      </span>
+                        <span className="text-sm font-medium text-neutral-800 dark:text-zinc-200">{roleConfig.label}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-3.5 text-sm">
+                    <td className="px-6 py-3.5">
                       <div className="flex items-center gap-4">
-                        <div className={`flex items-center gap-1.5 ${
-                            user.verified
-                              ? 'text-green-600 dark:text-green-500'
-                              : 'text-neutral-500 dark:text-zinc-500'
-                          }`}
-                        >
-                          {user.verified ? <MailCheck className="w-4 h-4 flex-shrink-0" /> : <Mail className="w-4 h-4 flex-shrink-0" />}
-                          <span className="font-medium text-xs">{user.verified ? '已验证' : '未验证'}</span>
-                        </div>
-                        {user.totpEnabled && (
-                          <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-500">
-                            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-                            <span className="font-medium text-xs">2FA</span>
-                          </div>
-                        )}
+                        <span title={user.verified ? '邮箱已验证' : '邮箱未验证'}>
+                          {user.verified ? (
+                            <MailCheck className="w-4 h-4 text-neutral-700 dark:text-zinc-300" />
+                          ) : (
+                            <MailX className="w-4 h-4 text-neutral-400 dark:text-zinc-500" />
+                          )}
+                        </span>
+                        <span title={user.totpEnabled ? '2FA 已启用' : '2FA 未启用'}>
+                          {user.totpEnabled ? (
+                            <ShieldCheck className="w-4 h-4 text-neutral-700 dark:text-zinc-300" />
+                          ) : (
+                            <ShieldOff className="w-4 h-4 text-neutral-400 dark:text-zinc-500" />
+                          )}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-3.5 text-sm text-neutral-600 dark:text-zinc-400 whitespace-nowrap">
@@ -480,9 +480,9 @@ export default function UserManagement() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="error"
+                          variant="ghost"
                           onClick={() => dispatch({ showDeleteConfirm: user.id })}
-                          className="h-8 px-3"
+                          className="h-8 px-3 text-red-600 hover:bg-red-100 dark:text-red-500 dark:hover:bg-red-900/30"
                         >
                           <Trash2 className="w-4 h-4 mr-1.5" />
                           删除
