@@ -17,6 +17,7 @@ app.set('trust proxy', 1);
 /* 全局中间件 */
 app.use(cookieParser());
 app.use(json());
+app.use(express.urlencoded({ extended: true })); // 添加表单数据解析支持
 app.use(cors({
   origin: /^https:\/\/[a-zA-Z0-9.-]+\.sdjz\.wiki$/,
   credentials: true
