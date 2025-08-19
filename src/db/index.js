@@ -233,5 +233,52 @@ export async function init() {
     }
   }
 
+  // 为 users 表添加角色列
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin'));`);
+    console.log("成功添加 'role' 列到 'users' 表。");
+  } catch (err) {
+    if (err.code === '42701') {
+      console.log("'role' 列已存在于 'users' 表。");
+    } else {
+      console.error("尝试添加 'role' 列时出错:", err);
+    }
+  }
+
   console.log('数据库初始化检查完成。');
+
+  // 初始化超级管理员权限
+  await initializeSuperAdmin();
+}
+
+/**
+ * 初始化超级管理员
+ */
+async function initializeSuperAdmin() {
+  try {
+    const { SUPER_ADMIN_ID } = await import('../config/env.js');
+    
+    if (!SUPER_ADMIN_ID) {
+      console.log('[Permission] 未配置SUPER_ADMIN_ID，跳过超级管理员初始化');
+      return;
+    }
+
+    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [SUPER_ADMIN_ID]);
+    
+    if (rows.length > 0) {
+      const currentRole = rows[0].role;
+      if (currentRole !== 'super_admin') {
+        // 更新为超级管理员
+        await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['super_admin', SUPER_ADMIN_ID]);
+        console.log(`[Permission] 已将用户 ${SUPER_ADMIN_ID} 设置为超级管理员`);
+      } else {
+        console.log(`[Permission] 超级管理员 ${SUPER_ADMIN_ID} 权限正常`);
+      }
+    } else {
+      console.warn(`[Permission] 超级管理员ID ${SUPER_ADMIN_ID} 对应的用户不存在，请先注册该账号`);
+    }
+
+  } catch (error) {
+    console.error('[Permission] 初始化超级管理员失败:', error);
+  }
 }

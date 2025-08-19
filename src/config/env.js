@@ -15,7 +15,8 @@ export const {
   PUBLIC_BASE_URL = 'http://localhost:3000',
   APP_KEY,
   COOKIE_DOMAIN,
-  TOTP_ISSUER
+  TOTP_ISSUER,
+  SUPER_ADMIN_ID
 } = process.env;
 
 if (!DATABASE_URL) throw new Error('缺少 DATABASE_URL');

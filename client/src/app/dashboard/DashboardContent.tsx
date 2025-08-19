@@ -27,6 +27,7 @@ import {
   updateUsername,
   verify2FA,
 } from '@/services/api';
+import { checkAdminPermission } from '@/services/admin';
 
 import { NavItem, Input } from './DashboardUI';
 import {
@@ -34,6 +35,12 @@ import {
   SecuritySection,
   ConnectionsSection,
 } from './DashboardSections';
+
+// 动态导入管理组件
+const UserManagement = dynamic(() => import('./components/UserManagement'), { 
+  ssr: false,
+  loading: () => <LoadingIndicator />
+});
 
 const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
@@ -110,9 +117,17 @@ export default function DashboardContent() {
 
   /* --------------------------- 视口 / 分区切换 ---------------------------- */
   const [activeSection, setActiveSection] = useReducer(
-    (_: 'general' | 'security' | 'connections', next: 'general' | 'security' | 'connections') => next,
+    (_: 'general' | 'security' | 'connections' | 'admin', next: 'general' | 'security' | 'connections' | 'admin') => next,
     'general',
   );
+  
+  /* --------------------------- 管理员权限检查 ---------------------------- */
+  const [isAdmin, setIsAdmin] = useReducer((_: boolean, next: boolean) => next, false);
+  useEffect(() => {
+    checkAdminPermission()
+      .then(setIsAdmin)
+      .catch(() => setIsAdmin(false));
+  }, [user]);
   const [isMobile, setIsMobile] = useReducer(() => window.matchMedia('(max-width: 1023px)').matches, false);
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 1023px)');
@@ -414,7 +429,9 @@ export default function DashboardContent() {
       />
     );
 
-    if (isMobile) return <>{general}{security}{connections}</>;
+    const admin = isAdmin ? <UserManagement /> : null;
+
+    if (isMobile) return <>{general}{security}{connections}{admin}</>;
 
     switch (activeSection) {
       case 'general':
@@ -423,6 +440,8 @@ export default function DashboardContent() {
         return security;
       case 'connections':
         return connections;
+      case 'admin':
+        return admin;
       default:
         return null;
     }
@@ -430,6 +449,7 @@ export default function DashboardContent() {
     user,
     isMobile,
     activeSection,
+    isAdmin,
     form.showUserId,
     form.backupCount,
     form.backupMsg,
@@ -462,6 +482,11 @@ export default function DashboardContent() {
               <NavItem active={activeSection === 'connections'} onClick={() => setActiveSection('connections')}>
                 账号绑定
               </NavItem>
+              {isAdmin && (
+                <NavItem active={activeSection === 'admin'} onClick={() => setActiveSection('admin')}>
+                  用户管理
+                </NavItem>
+              )}
             </div>
           </nav>
 

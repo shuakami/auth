@@ -87,6 +87,28 @@ export async function bindGoogleId(userId, googleId) {
   return userOAuthService.bindGoogleId(userId, googleId);
 }
 
+// ================== 角色管理 ==================
+
+export async function updateUserRole(userId, role) {
+  return userService.updateUserRole(userId, role);
+}
+
+export async function getUsersList(options = {}) {
+  return userService.getUsersList(options);
+}
+
+export async function searchUsers(query, options = {}) {
+  return userService.searchUsers(query, options);
+}
+
+export async function getUserStats(userId) {
+  return userService.getUserStats(userId);
+}
+
+export async function findByIds(userIds) {
+  return userService.findByIds(userIds);
+}
+
 // ================== 导出服务实例 ==================
 
 export { userService, userOAuthService, userTotpService };

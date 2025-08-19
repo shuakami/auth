@@ -597,4 +597,196 @@ export class UserService {
       ttl: this.CACHE_TTL
     };
   }
+
+  // ================== 角色管理 ==================
+
+  /**
+   * 更新用户角色
+   * @param {string} userId 用户ID
+   * @param {string} role 新角色
+   * @returns {Promise<boolean>}
+   */
+  async updateUserRole(userId, role) {
+    try {
+      if (!userId || !role) {
+        throw new Error('用户ID和角色是必填字段');
+      }
+
+      // 验证角色值
+      const validRoles = ['user', 'admin', 'super_admin'];
+      if (!validRoles.includes(role)) {
+        throw new Error('无效的角色值');
+      }
+
+      const result = await pool.query(
+        'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2',
+        [role, userId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error('更新失败，用户不存在');
+      }
+
+      // 清除缓存
+      this._invalidateUserCache(null, userId);
+
+      console.log(`[UserService] 用户 ${userId} 角色更新为: ${role}`);
+      return true;
+
+    } catch (error) {
+      console.error('[UserService] 更新用户角色失败:', error);
+      throw new Error(error.message || '更新用户角色失败');
+    }
+  }
+
+  /**
+   * 获取用户列表（管理功能）
+   * @param {Object} options 查询选项
+   * @returns {Promise<Object>}
+   */
+  async getUsersList(options = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      role = null,
+      verified = null,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    try {
+      const offset = (page - 1) * limit;
+      
+      let whereClause = 'WHERE 1=1';
+      const params = [];
+      let paramIndex = 1;
+
+      // 角色筛选
+      if (role) {
+        whereClause += ` AND role = $${paramIndex}`;
+        params.push(role);
+        paramIndex++;
+      }
+
+      // 验证状态筛选
+      if (verified !== null) {
+        whereClause += ` AND verified = $${paramIndex}`;
+        params.push(verified);
+        paramIndex++;
+      }
+
+      // 验证排序字段
+      const validSortFields = ['id', 'email', 'username', 'role', 'verified', 'created_at', 'updated_at'];
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+      // 查询用户列表
+      const { rows: users } = await pool.query(
+        `SELECT 
+           id, email, username, role, verified, totp_enabled, 
+           github_id IS NOT NULL as github_linked,
+           google_id IS NOT NULL as google_linked,
+           created_at, updated_at
+         FROM users 
+         ${whereClause}
+         ORDER BY ${sortField} ${order}
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        [...params, limit, offset]
+      );
+
+      // 查询总数
+      const { rows: countResult } = await pool.query(
+        `SELECT COUNT(*) as total FROM users ${whereClause}`,
+        params
+      );
+
+      const total = parseInt(countResult[0].total);
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        users: users.map(user => ({
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          role: user.role || 'user',
+          verified: user.verified,
+          totpEnabled: user.totp_enabled,
+          githubLinked: user.github_linked,
+          googleLinked: user.google_linked,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      };
+
+    } catch (error) {
+      console.error('[UserService] 获取用户列表失败:', error);
+      throw new Error('获取用户列表失败');
+    }
+  }
+
+  /**
+   * 搜索用户
+   * @param {string} query 搜索关键词
+   * @param {Object} options 搜索选项
+   * @returns {Promise<Array>}
+   */
+  async searchUsers(query, options = {}) {
+    const { limit = 10, role = null } = options;
+
+    try {
+      if (!query || query.trim().length < 2) {
+        throw new Error('搜索关键词至少需要2个字符');
+      }
+
+      const searchTerm = `%${query.trim().toLowerCase()}%`;
+      let whereClause = 'WHERE (LOWER(email) LIKE $1 OR LOWER(username) LIKE $1)';
+      const params = [searchTerm];
+      let paramIndex = 2;
+
+      // 角色筛选
+      if (role) {
+        whereClause += ` AND role = $${paramIndex}`;
+        params.push(role);
+        paramIndex++;
+      }
+
+      const { rows } = await pool.query(
+        `SELECT 
+           id, email, username, role, verified, totp_enabled,
+           created_at, updated_at
+         FROM users 
+         ${whereClause}
+         ORDER BY 
+           CASE WHEN LOWER(email) = LOWER($1) THEN 1
+                WHEN LOWER(username) = LOWER($1) THEN 2
+                ELSE 3 END,
+           created_at DESC
+         LIMIT $${paramIndex}`,
+        [...params, limit]
+      );
+
+      return rows.map(user => ({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role || 'user',
+        verified: user.verified,
+        totpEnabled: user.totp_enabled,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at
+      }));
+
+    } catch (error) {
+      console.error('[UserService] 搜索用户失败:', error);
+      throw new Error(error.message || '搜索用户失败');
+    }
+  }
 }

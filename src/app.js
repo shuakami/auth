@@ -2,7 +2,9 @@ import express, { json, static as expressStatic } from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import authRouter from './routes/auth.js';
+import adminUsersRouter from './routes/admin/users.js';
 import { setupDocs } from './middlewares/docs.js';
+import { validateTokenMiddleware } from './middlewares/auth.js';
 
 const app = express();
 
@@ -25,6 +27,9 @@ setupDocs(app);
 
 /* 业务 API 路由 */
 app.use('/api', authRouter);
+
+/* 管理 API 路由 */
+app.use('/api/admin/users', validateTokenMiddleware, adminUsersRouter);
 
 /* 全局错误处理 */
 app.use((err, _req, res, _next) => {
