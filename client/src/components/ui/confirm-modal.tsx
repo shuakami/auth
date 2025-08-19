@@ -19,6 +19,7 @@ export interface ConfirmModalProps {
     confirmText?: string;
     cancelText?: string;
     isLoading?: boolean;
+    className?: string;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -31,6 +32,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     confirmText = '确认',
     cancelText = '取消',
     isLoading = false,
+    className = '',
 }) => {
     // 根据类型确定样式
     const typeConfig = {
@@ -57,7 +59,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[540px] p-0 overflow-hidden border border-neutral-200 dark:border-neutral-700 shadow-sm">
+            <DialogContent className={cn(
+                "sm:max-w-[540px] p-0 overflow-hidden border border-neutral-200 dark:border-neutral-700 shadow-sm",
+                className
+            )}>
                 <div className="px-8 py-10">
                     <DialogHeader className="space-y-5">
                         <DialogTitle className={cn(

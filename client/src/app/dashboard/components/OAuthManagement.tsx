@@ -630,6 +630,7 @@ export default function OAuthManagement() {
         confirmText="保存更改"
         cancelText="取消"
         onConfirm={handleUpdateApp}
+        className="max-w-4xl"
         message={
           state.editingApp && state.editingAppForm && (
             <div className="text-left">
@@ -678,9 +679,9 @@ export default function OAuthManagement() {
                 </nav>
               </div>
 
-              <div className="max-h-[60vh] overflow-y-auto pr-2">
+              <div className="max-h-[65vh] overflow-y-auto pr-2">
                 {state.activeSettingsTab === 'general' && (
-                  <form className="space-y-4">
+                  <form className="space-y-4" onSubmit={handleUpdateApp}>
                     <div>
                       <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用名称</label>
                       <input
@@ -715,7 +716,7 @@ export default function OAuthManagement() {
                 {state.activeSettingsTab === 'credentials' && (
                   <div className="space-y-4">
                     <p className="text-sm text-neutral-600 dark:text-zinc-400">
-                      这是您的应用凭证，请妥善保管。
+                      这是您的应用凭证，请妥善保管。Client Secret 只会在这里显示一次。
                     </p>
                     <div>
                       <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
@@ -765,39 +766,50 @@ export default function OAuthManagement() {
                 )}
                 
                 {state.activeSettingsTab === 'guide' && (
-                  <div className="text-sm text-neutral-700 dark:text-zinc-300 space-y-4">
-                    <p>这是一个简洁的集成指南。</p>
-                    <div>
-                      <div className="text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-2">JavaScript (Node.js)</div>
-                      <div className="rounded bg-neutral-900 dark:bg-zinc-900 p-4 text-xs font-mono text-green-400 overflow-x-auto">
-{`// 步骤 1: 重定向到授权页面
-const authUrl = \`${window.location.origin}/oauth/authorize?\` +
-  \`client_id=${state.editingApp.clientId}&\` +
-  \`response_type=code&\` +
-  \`scope=${state.editingApp.scopes.join('%20')}&\` +
-  \`redirect_uri=\${encodeURIComponent(redirectUri)}\`;
+                  <div className="text-sm text-neutral-700 dark:text-zinc-300">
+                    <p className="mb-4 text-base">按照以下步骤将 OAuth2/OIDC 集成到您的应用中。</p>
+                    
+                    {/* 步骤 1 */}
+                    <div className="mb-6">
+                      <h4 className="font-semibold mb-2">步骤 1: 将用户重定向到授权 URL</h4>
+                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
+                        要开始授权流程，请将用户重定向到以下 URL。您的应用需要动态构建此 URL。
+                      </p>
+                      <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
+                        <span className="text-green-600">GET</span> {`${window.location.origin}/oauth/authorize?`}<br/>
+                        &nbsp;&nbsp;client_id=<span className="text-orange-500">{state.editingApp.clientId}</span><br/>
+                        &nbsp;&nbsp;&response_type=code<br/>
+                        &nbsp;&nbsp;&scope=<span className="text-orange-500">{state.editingApp.scopes.join(' ')}</span><br/>
+                        &nbsp;&nbsp;&redirect_uri=YOUR_REDIRECT_URI
+                      </div>
+                    </div>
 
-// 步骤 2: 交换访问令牌
-const response = await fetch('${window.location.origin}/oauth/token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: authorizationCode,
-    client_id: '${state.editingApp.clientId}',
-    client_secret: 'YOUR_CLIENT_SECRET',
-    redirect_uri: redirectUri
-  })
-});
-
-const tokens = await response.json();
-
-// 步骤 3: 获取用户信息
-const userResponse = await fetch('${window.location.origin}/oauth/userinfo', {
-  headers: { 'Authorization': \`Bearer \${tokens.access_token}\` }
-});
-
-const userInfo = await userResponse.json();`}
+                    {/* 步骤 2 */}
+                    <div className="mb-6">
+                      <h4 className="font-semibold mb-2">步骤 2: 交换授权码以获取访问令牌</h4>
+                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
+                        用户授权后，我们会将他们重定向回您提供的 `redirect_uri` 并附上一个 `code` 参数。使用此 `code` 向令牌端点发出 `POST` 请求以获取访问令牌。
+                      </p>
+                      <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
+                        <span className="text-purple-600">POST</span> {`${window.location.origin}/oauth/token`}<br/>
+                        Content-Type: application/x-www-form-urlencoded<br/><br/>
+                        grant_type=authorization_code<br/>
+                        code=AUTHORIZATION_CODE_FROM_CALLBACK<br/>
+                        client_id=<span className="text-orange-500">{state.editingApp.clientId}</span><br/>
+                        client_secret=YOUR_CLIENT_SECRET<br/>
+                        redirect_uri=YOUR_REDIRECT_URI
+                      </div>
+                    </div>
+                    
+                    {/* 步骤 3 */}
+                    <div className="mb-6">
+                      <h4 className="font-semibold mb-2">步骤 3: 使用访问令牌获取用户信息</h4>
+                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
+                        使用上一步中获取的 `access_token`，向 `userinfo` 端点发出请求以获取用户信息。
+                      </p>
+                       <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
+                        <span className="text-green-600">GET</span> {`${window.location.origin}/oauth/userinfo`}<br/>
+                        Authorization: Bearer YOUR_ACCESS_TOKEN
                       </div>
                     </div>
                   </div>
