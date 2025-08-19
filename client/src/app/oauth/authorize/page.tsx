@@ -44,9 +44,21 @@ function AuthorizePageContent() {
 
     useEffect(() => {
         if (isParamsMissing) {
-            setError('无效的授权请求：缺少必要的参数。');
+            // 检查具体缺少哪些参数
+            const missingParams = [];
+            if (!params.client_id) missingParams.push('client_id');
+            if (!params.redirect_uri) missingParams.push('redirect_uri');
+            if (!params.scope) missingParams.push('scope');
+            if (!params.client_name) missingParams.push('client_name (内部参数)');
+            
+            if (!params.client_name && params.client_id && params.redirect_uri && params.scope) {
+                // 如果只是缺少 client_name，说明用户直接访问了前端页面
+                setError('错误的访问方式：请通过后端API端点 /api/oauth/authorize 发起OAuth授权请求，而不是直接访问此页面。');
+            } else {
+                setError(`无效的授权请求：缺少必要的参数 (${missingParams.join(', ')})。请确保您的OAuth授权URL包含所有必要参数。`);
+            }
         }
-    }, [isParamsMissing]);
+    }, [isParamsMissing, params]);
 
     const handleConsent = async (consent: 'allow' | 'deny') => {
         setLoading(true);
@@ -69,15 +81,56 @@ function AuthorizePageContent() {
     };
 
     if (error) {
+        const isWrongEndpointError = error.includes('错误的访问方式');
+        const isMissingRedirectUri = error.includes('redirect_uri');
+        
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900 text-center px-4">
-                <div className="w-full max-w-md">
+                <div className="w-full max-w-2xl">
                     <X className="w-16 h-16 mx-auto text-red-500 mb-4" />
                     <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">授权失败</h1>
-                    <p className="mt-2 text-neutral-600 dark:text-neutral-400">{error}</p>
-                    <Button onClick={() => router.push('/')} className="mt-6">
-                        返回首页
-                    </Button>
+                    <p className="mt-2 text-neutral-600 dark:text-neutral-400 mb-6">{error}</p>
+                    
+                    {isWrongEndpointError && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800 text-left mb-6">
+                            <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">正确的OAuth授权流程：</h3>
+                            <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+                                <p>1. 应用应该访问后端API端点：</p>
+                                <code className="block bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-xs">
+                                    https://auth.sdjz.wiki/api/oauth/authorize?...
+                                </code>
+                                <p>2. 而不是直接访问前端页面：</p>
+                                <code className="block bg-red-100 dark:bg-red-800 px-2 py-1 rounded text-xs">
+                                    https://auth.sdjz.wiki/oauth/authorize?...
+                                </code>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {isMissingRedirectUri && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800 text-left mb-6">
+                            <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">缺少必要参数：</h3>
+                            <div className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                                <p>OAuth 2.0 授权请求必须包含以下参数：</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                    <li><code>client_id</code> - 应用的客户端ID</li>
+                                    <li><code>redirect_uri</code> - 授权后的回调地址</li>
+                                    <li><code>response_type=code</code> - 响应类型</li>
+                                    <li><code>scope</code> - 请求的权限范围</li>
+                                </ul>
+                                <p className="mt-2">请检查您的OAuth应用配置中是否正确设置了重定向URI。</p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className="flex gap-3 justify-center">
+                        <Button onClick={() => router.push('/')} variant="outline">
+                            返回首页
+                        </Button>
+                        <Button onClick={() => router.push('/oauth/integration-guide')} className="bg-indigo-600 hover:bg-indigo-700">
+                            查看集成指南
+                        </Button>
+                    </div>
                 </div>
             </div>
         );
