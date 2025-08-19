@@ -441,7 +441,7 @@ export default function OAuthManagement() {
                     Client Secret
                   </div>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 break-all">
                       {state.visibleSecrets.has(app.id) ? app.clientSecret : '••••••••••••••••'}
                     </code>
                     <Button
@@ -740,7 +740,7 @@ export default function OAuthManagement() {
                         Client Secret
                       </div>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 break-all">
                           {state.visibleSecrets.has(state.editingApp.id) ? state.editingApp.clientSecret : '••••••••••••••••'}
                         </code>
                         <Button
