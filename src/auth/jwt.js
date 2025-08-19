@@ -32,7 +32,8 @@ export function verifyEmailToken(token) {
 }
 
 // 生成 Access Token（短生命周期，RS256）
-export function signAccessToken(payload, expiresIn = '10m') {
+// 从10分钟延长到30分钟，减少因页面非活跃导致的token过期问题
+export function signAccessToken(payload, expiresIn = '30m') {
   return jwt.sign(payload, privateKey, { expiresIn, algorithm: 'RS256' });
 }
 

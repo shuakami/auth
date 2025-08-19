@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { tokenManager } from './EnhancedTokenManager';
 
 // @ts-ignore
 declare global {
@@ -40,7 +41,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Silent Refresh逻辑
+// Silent Refresh逻辑（现在主要由EnhancedTokenManager处理，但保持向后兼容）
 async function silentRefreshIfNeeded() {
   if (!accessTokenExp) return;
   const now = Math.floor(Date.now() / 1000);
@@ -50,6 +51,8 @@ async function silentRefreshIfNeeded() {
       const res = await apiClient.post('/refresh');
       if (res.data && res.data.exp) {
         accessTokenExp = res.data.exp;
+        // 同时更新增强token管理器
+        tokenManager.updateTokenExpiration(res.data.exp);
       }
     } catch {
       // 刷新失败，交由拦截器处理
@@ -73,6 +76,8 @@ apiClient.interceptors.response.use(
   res => {
     if (res.data && typeof res.data.exp === 'number') {
       accessTokenExp = res.data.exp;
+      // 同时更新增强token管理器
+      tokenManager.updateTokenExpiration(res.data.exp);
     }
     return res;
   },
@@ -126,6 +131,8 @@ apiClient.interceptors.response.use(
           .then(res => {
             if (res.data && res.data.exp) {
               accessTokenExp = res.data.exp; // 更新过期时间
+              // 同时更新增强token管理器
+              tokenManager.updateTokenExpiration(res.data.exp);
             }
             processQueue(null, 'token_refreshed'); // 处理队列
             resolve(apiClient(originalRequest)); // 重试原始请求

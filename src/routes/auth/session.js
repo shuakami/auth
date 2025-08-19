@@ -84,13 +84,13 @@ router.post('/refresh', async (req, res) => {
     const accessToken = signAccessToken({ uid: dbToken.user_id });
     // 解析exp
     const decoded = await import('jsonwebtoken').then(m => m.decode(accessToken));
-    const exp = decoded && decoded.exp ? decoded.exp : Math.floor(Date.now() / 1000) + 600;
-    // 用httpOnly Cookie下发新Token
+    const exp = decoded && decoded.exp ? decoded.exp : Math.floor(Date.now() / 1000) + 1800; // 30分钟 = 1800秒
+    // 用httpOnly Cookie下发新Token（30分钟，与JWT过期时间匹配）
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 10 * 60 * 1000
+      maxAge: 30 * 60 * 1000
     });
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
@@ -99,7 +99,7 @@ router.post('/refresh', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 响应体返回exp，便于前端Silent Refresh
-    res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600, exp });
+    res.json({ ok: true, tokenType: 'Bearer', expiresIn: 1800, exp }); // 30分钟 = 1800秒
   } catch (err) {
     res.status(500).json({ error: '服务器内部错误', detail: err?.message });
   }

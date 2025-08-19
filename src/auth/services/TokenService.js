@@ -30,7 +30,7 @@ export class TokenService {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: 600
+      expiresIn: 1800 // 30分钟 = 1800秒
     };
   }
 
@@ -48,10 +48,10 @@ export class TokenService {
       sameSite: 'none'
     };
 
-    // 设置访问令牌Cookie（10分钟）
+    // 设置访问令牌Cookie（30分钟，与JWT过期时间匹配）
     res.cookie('accessToken', accessToken, {
       ...cookieOptions,
-      maxAge: 10 * 60 * 1000
+      maxAge: 30 * 60 * 1000
     });
 
     // 设置刷新令牌Cookie（30天）
