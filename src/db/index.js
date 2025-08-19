@@ -500,7 +500,9 @@ export async function init() {
             scopes TEXT NOT NULL,
             expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
             used BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            code_challenge TEXT,
+            code_challenge_method VARCHAR(50)
           );
           CREATE INDEX IF NOT EXISTS "IDX_oauth_authorization_codes_code" ON oauth_authorization_codes (code);
         `

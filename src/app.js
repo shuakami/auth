@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/admin/users.js';
 import oauthAppsRouter from './routes/oauth/apps.js';
+import oauthProviderRouter from './routes/oauth_provider.js'; // 导入新的路由
 import { setupDocs } from './middlewares/docs.js';
 import { ensureAuth } from './middlewares/authenticated.js';
 
@@ -34,6 +35,7 @@ app.use('/api/admin/users', ensureAuth, adminUsersRouter);
 
 /* OAuth API 路由 */
 app.use('/api/oauth/apps', ensureAuth, oauthAppsRouter);
+app.use('/api/oauth', oauthProviderRouter); // 注册新的路由
 
 /* 全局错误处理 */
 app.use((err, _req, res, _next) => {
