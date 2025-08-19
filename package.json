@@ -33,16 +33,12 @@
     "pg": "^8.14.1",
     "qrcode": "^1.5.4",
     "react-icons": "^5.5.0",
-    "react-markdown": "^10.1.0",
-    "react-syntax-highlighter": "^15.6.1",
-    "remark-gfm": "^4.0.1",
     "resend": "^4.4.0",
     "speakeasy": "^2.0.0",
     "uuid": "^9.0.1",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@types/react-syntax-highlighter": "^15.5.13",
     "concurrently": "^9.1.2",
     "nodemon": "^3.1.10",
     "swagger-jsdoc": "^6.2.8"
