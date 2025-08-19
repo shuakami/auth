@@ -7,10 +7,24 @@ import {
   useReducer,
   useState,
   type FormEvent,
-  type ChangeEvent,
 } from 'react';
-import { Section, Button, Input } from '../DashboardUI';
+import dynamic from 'next/dynamic';
+import { Button } from '@/components/ui/button';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import { 
+  TbSearch,
+  TbFilter,
+  TbEdit,
+  TbTrash,
+  TbShield,
+  TbShieldCheck,
+  TbCrown,
+  TbUsers,
+  TbMail,
+  TbMailCheck,
+  TbBrandGithub,
+  TbBrandGoogle
+} from 'react-icons/tb';
 import {
   getUsersList,
   updateUserRole,
@@ -22,6 +36,9 @@ import {
   type UserRole,
   type RoleOption,
 } from '@/services/admin';
+
+// 动态导入 ConfirmModal
+const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
 // 用户编辑表单状态
 interface UserEditForm {
@@ -174,8 +191,8 @@ export default function UserManagement() {
   }, []);
 
   // 保存用户编辑
-  const handleSaveUser = useCallback(async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSaveUser = useCallback(async (e?: FormEvent) => {
+    e?.preventDefault();
     if (!state.editingUser) return;
 
     try {
@@ -248,226 +265,332 @@ export default function UserManagement() {
     }
   }, [state.selectedUsers, showMessage, loadUsers]);
 
-  // 角色标签样式
-  const getRoleLabel = useCallback((role: UserRole) => {
-    const styles = {
-      user: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      super_admin: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  // 角色标签样式 - 参考现有设计系统
+  const getRoleConfig = useCallback((role: UserRole) => {
+    const configs = {
+      user: {
+        icon: <TbUsers className="w-3 h-3" />,
+        style: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+        label: '用户',
+      },
+      admin: {
+        icon: <TbShield className="w-3 h-3" />,
+        style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+        label: '管理员',
+      },
+      super_admin: {
+        icon: <TbCrown className="w-3 h-3" />,
+        style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+        label: '超级管理员',
+      },
     };
-    const labels = {
-      user: '用户',
-      admin: '管理员',
-      super_admin: '超级管理员',
-    };
-    return { style: styles[role], label: labels[role] };
+    return configs[role];
   }, []);
+
+  // 骨架屏组件
+  const UserTableSkeleton = () => (
+    <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700">
+          <thead className="bg-neutral-50 dark:bg-zinc-800">
+            <tr>
+              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">
+                <div className="w-4 h-4 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+              </th>
+              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
+              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
+              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
+              <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
+              <th scope="col" className="relative px-6 py-4"><span className="sr-only">操作</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+            {[...Array(5)].map((_, i) => (
+              <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <td className="px-6 py-4">
+                  <div className="w-4 h-4 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="space-y-2">
+                    <div className="h-4 w-32 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="h-3 w-48 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="h-6 w-16 bg-neutral-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="space-y-1">
+                    <div className="h-6 w-12 bg-neutral-200 dark:bg-zinc-700 rounded-full animate-pulse"></div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="h-4 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <div className="h-8 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                    <div className="h-8 w-12 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   // 渲染用户表格
   const renderUserTable = useMemo(() => {
     if (state.loading) {
-      return <LoadingIndicator />;
+      return <UserTableSkeleton />;
     }
 
     if (state.error) {
       return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-800 dark:bg-red-900/50 dark:text-red-200">
-          {state.error}
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 text-neutral-400 dark:text-zinc-500 mb-4">
+              <TbUsers className="w-full h-full" />
+            </div>
+            <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+          </div>
         </div>
       );
     }
 
     if (state.users.length === 0) {
       return (
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-8 text-center text-neutral-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400">
-          没有找到用户
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 text-neutral-400 dark:text-zinc-500 mb-4">
+              <TbUsers className="w-full h-full" />
+            </div>
+            <p className="text-sm text-neutral-500 dark:text-zinc-400">没有找到用户</p>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700">
-        <table className="w-full divide-y divide-neutral-200 dark:divide-zinc-700">
-          <thead className="bg-neutral-50 dark:bg-zinc-800">
-            <tr>
-              <th className="px-4 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={state.selectedUsers.size === state.users.length && state.users.length > 0}
-                  onChange={(e) => dispatch({ type: e.target.checked ? 'SELECT_ALL' : 'CLEAR_SELECTION' })}
-                  className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-700"
-                />
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-zinc-400">
-                用户信息
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-zinc-400">
-                角色
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-zinc-400">
-                状态
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-zinc-400">
-                创建时间
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-zinc-400">
-                操作
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
-            {state.users.map((user) => {
-              const roleInfo = getRoleLabel(user.role);
-              return (
-                <tr key={user.id} className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50">
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      checked={state.selectedUsers.has(user.id)}
-                      onChange={() => dispatch({ type: 'TOGGLE_SELECT', userId: user.id })}
-                      className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-700"
-                    />
-                  </td>
-                  <td className="px-4 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-neutral-900 dark:text-zinc-100">
-                        {user.username || '未设置'}
+      <div className="overflow-hidden rounded-lg border border-neutral-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-neutral-200 dark:divide-zinc-700">
+            <thead className="bg-neutral-50 dark:bg-zinc-800">
+              <tr>
+                <th scope="col" className="px-6 py-4 text-left">
+                  <input
+                    type="checkbox"
+                    checked={state.selectedUsers.size === state.users.length && state.users.length > 0}
+                    onChange={(e) => dispatch({ type: e.target.checked ? 'SELECT_ALL' : 'CLEAR_SELECTION' })}
+                    className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                  />
+                </th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
+                <th scope="col" className="relative px-6 py-4"><span className="sr-only">操作</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200 dark:divide-zinc-700">
+              {state.users.map((user) => {
+                const roleConfig = getRoleConfig(user.role);
+                return (
+                  <tr key={user.id} className="hover:bg-neutral-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={state.selectedUsers.has(user.id)}
+                        onChange={() => dispatch({ type: 'TOGGLE_SELECT', userId: user.id })}
+                        className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-1 text-neutral-400 dark:text-zinc-500">
+                          {user.githubLinked && <TbBrandGithub className="w-4 h-4" />}
+                          {user.googleLinked && <TbBrandGoogle className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                            {user.username || '未设置用户名'}
+                          </div>
+                          <div className="text-sm text-neutral-500 dark:text-zinc-400">{user.email}</div>
+                        </div>
                       </div>
-                      <div className="text-sm text-neutral-500 dark:text-zinc-400">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${roleInfo.style}`}>
-                      {roleInfo.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-col gap-1">
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        user.verified
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      }`}>
-                        {user.verified ? '已验证' : '未验证'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleConfig.style}`}>
+                        {roleConfig.icon}
+                        {roleConfig.label}
                       </span>
-                      {user.totpEnabled && (
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                          2FA
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          user.verified
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
+                          {user.verified ? (
+                            <>
+                              <TbMailCheck className="w-3 h-3" />
+                              已验证
+                            </>
+                          ) : (
+                            <>
+                              <TbMail className="w-3 h-3" />
+                              未验证
+                            </>
+                          )}
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-neutral-500 dark:text-zinc-400">
-                    {new Date(user.createdAt).toLocaleDateString('zh-CN')}
-                  </td>
-                  <td className="px-4 py-4 text-right text-sm">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEditUser(user)}
-                      >
-                        编辑
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => dispatch({ showDeleteConfirm: user.id })}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        {user.totpEnabled && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                            <TbShieldCheck className="w-3 h-3" />
+                            2FA
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-neutral-600 dark:text-zinc-400">
+                      {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditUser(user)}
+                          className="h-8 px-3"
+                        >
+                          <TbEdit className="w-4 h-4 mr-1" />
+                          编辑
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="error"
+                          onClick={() => dispatch({ showDeleteConfirm: user.id })}
+                          className="h-8 px-3"
+                        >
+                          <TbTrash className="w-4 h-4 mr-1" />
+                          删除
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* 分页集成到表格底部 */}
+        {state.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 bg-neutral-50 dark:bg-zinc-800/50 border-t border-neutral-200 dark:border-zinc-700">
+            <div className="text-sm text-neutral-600 dark:text-zinc-400">
+              共 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.totalUsers}</span> 个用户，
+              第 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.currentPage}</span> / 
+              <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.totalPages}</span> 页
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={state.currentPage <= 1}
+                onClick={() => dispatch({ currentPage: state.currentPage - 1 })}
+                className="h-8"
+              >
+                上一页
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={state.currentPage >= state.totalPages}
+                onClick={() => dispatch({ currentPage: state.currentPage + 1 })}
+                className="h-8"
+              >
+                下一页
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
-  }, [state.users, state.loading, state.error, state.selectedUsers, getRoleLabel, handleEditUser]);
+  }, [state.users, state.loading, state.error, state.selectedUsers, getRoleConfig, handleEditUser]);
 
-  // 渲染分页
-  const renderPagination = useMemo(() => {
-    if (state.totalPages <= 1) return null;
 
-    return (
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-neutral-500 dark:text-zinc-400">
-          共 {state.totalUsers} 个用户，第 {state.currentPage} / {state.totalPages} 页
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={state.currentPage <= 1}
-            onClick={() => dispatch({ currentPage: state.currentPage - 1 })}
-          >
-            上一页
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={state.currentPage >= state.totalPages}
-            onClick={() => dispatch({ currentPage: state.currentPage + 1 })}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
-    );
-  }, [state.currentPage, state.totalPages, state.totalUsers]);
 
   return (
     <div className="space-y-6">
-      <Section title="用户管理">
-        <p className="text-sm text-neutral-500 dark:text-zinc-400">
+      {/* 页面标题 */}
+      <div className="space-y-2">
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+          用户管理
+        </h3>
+        <p className="text-sm text-neutral-600 dark:text-zinc-400">
           管理系统用户，控制角色权限和账户状态
         </p>
+      </div>
 
-        {/* 消息提示 */}
-        {message && (
-          <div className={`rounded-lg p-4 ${
-            message.type === 'success'
-              ? 'bg-green-50 text-green-700 dark:bg-green-900/50 dark:text-green-200'
-              : 'bg-red-50 text-red-700 dark:bg-red-900/50 dark:text-red-200'
-          }`}>
-            {message.text}
-          </div>
-        )}
+      {/* 消息提示 */}
+      {message && (
+        <div className={`rounded-lg p-4 ${
+          message.type === 'success'
+            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800'
+            : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800'
+        }`}>
+          {message.text}
+        </div>
+      )}
 
-        {/* 搜索和筛选 */}
-        <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-          <form onSubmit={handleSearch} className="flex gap-4">
-            <div className="flex-1">
-              <Input
+      {/* 搜索和筛选 */}
+      <div className="rounded-lg border border-neutral-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="px-6 py-4 border-b border-neutral-200 dark:border-zinc-700">
+          <h4 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">搜索与筛选</h4>
+        </div>
+        <div className="p-6 space-y-4">
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="flex-1 relative">
+              <TbSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
+              <input
                 type="text"
                 placeholder="搜索用户名或邮箱..."
                 value={state.searchQuery}
                 onChange={(e) => dispatch({ searchQuery: e.target.value })}
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
               />
             </div>
-            <Button type="submit" disabled={state.loading}>
+            <Button 
+              type="submit" 
+              disabled={state.loading}
+              size="sm"
+              className="px-4"
+            >
+              <TbSearch className="w-4 h-4 mr-2" />
               搜索
             </Button>
           </form>
 
-          <div className="flex gap-4">
-            <select
-              value={state.roleFilter}
-              onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '' })}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
-            >
-              <option value="">所有角色</option>
-              <option value="user">普通用户</option>
-              <option value="admin">管理员</option>
-              <option value="super_admin">超级管理员</option>
-            </select>
+          <div className="flex gap-3">
+            <div className="relative">
+              <TbFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 dark:text-zinc-500 w-4 h-4" />
+              <select
+                value={state.roleFilter}
+                onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '' })}
+                className="pl-10 pr-8 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 appearance-none focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+              >
+                <option value="">所有角色</option>
+                <option value="user">普通用户</option>
+                <option value="admin">管理员</option>
+                <option value="super_admin">超级管理员</option>
+              </select>
+            </div>
 
             <select
               value={state.verifiedFilter.toString()}
               onChange={(e) => dispatch({ verifiedFilter: e.target.value === '' ? '' : e.target.value === 'true' })}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+              className="px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
             >
               <option value="">所有状态</option>
               <option value="true">已验证</option>
@@ -475,91 +598,100 @@ export default function UserManagement() {
             </select>
           </div>
         </div>
+      </div>
 
-        {/* 批量操作 */}
-        {state.selectedUsers.size > 0 && (
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+      {/* 批量操作 */}
+      {state.selectedUsers.size > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-neutral-600 dark:text-zinc-400">
-                已选择 {state.selectedUsers.size} 个用户
+                已选择 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.selectedUsers.size}</span> 个用户
               </span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => handleBatchOperation('verify')}
+                  className="h-8"
                 >
+                  <TbMailCheck className="w-4 h-4 mr-1" />
                   批量验证
                 </Button>
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => handleBatchOperation('unverify')}
+                  className="h-8"
                 >
+                  <TbMail className="w-4 h-4 mr-1" />
                   取消验证
                 </Button>
                 <Button
                   size="sm"
-                  variant="danger"
+                  variant="error"
                   onClick={() => handleBatchOperation('delete')}
+                  className="h-8"
                 >
+                  <TbTrash className="w-4 h-4 mr-1" />
                   批量删除
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* 用户表格 */}
-        {renderUserTable}
-
-        {/* 分页 */}
-        {renderPagination}
-      </Section>
+      {/* 用户表格 */}
+      {renderUserTable}
 
       {/* 编辑用户模态框 */}
-      {state.editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-zinc-900">
-            <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-zinc-100">
-              编辑用户
-            </h3>
-            <form onSubmit={handleSaveUser} className="space-y-4">
+      <ConfirmModal
+        isOpen={!!state.editingUser}
+        onClose={() => dispatch({ editingUser: null })}
+        onConfirm={handleSaveUser}
+        title="编辑用户信息"
+        message={
+          state.editingUser && (
+            <form className="space-y-4" onSubmit={handleSaveUser}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                  邮箱
+                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
+                  邮箱地址
                 </label>
-                <Input
+                <input
                   type="email"
                   value={state.editingUser.email}
                   onChange={(e) => dispatch({
                     editingUser: { ...state.editingUser!, email: e.target.value }
                   })}
                   required
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
+                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
                   用户名
                 </label>
-                <Input
+                <input
                   type="text"
                   value={state.editingUser.username}
                   onChange={(e) => dispatch({
                     editingUser: { ...state.editingUser!, username: e.target.value }
                   })}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+                  placeholder="可选"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                  角色
+                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
+                  用户角色
                 </label>
                 <select
                   value={state.editingUser.role}
                   onChange={(e) => dispatch({
                     editingUser: { ...state.editingUser!, role: e.target.value as UserRole }
                   })}
-                  className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-950 dark:border-zinc-600 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
                 >
                   {state.availableRoles.map(role => (
                     <option key={role.value} value={role.value}>
@@ -576,56 +708,49 @@ export default function UserManagement() {
                   onChange={(e) => dispatch({
                     editingUser: { ...state.editingUser!, verified: e.target.checked }
                   })}
-                  className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-700"
+                  className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
                 />
                 <label htmlFor="verified" className="ml-2 text-sm text-neutral-700 dark:text-zinc-300">
                   邮箱已验证
                 </label>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => dispatch({ editingUser: null })}
-                >
-                  取消
-                </Button>
-                <Button type="submit">
-                  保存
-                </Button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+          )
+        }
+        type="default"
+        confirmText="保存更改"
+        cancelText="取消"
+      />
 
       {/* 删除确认模态框 */}
-      {state.showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 dark:bg-zinc-900">
-            <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-zinc-100">
-              确认删除
-            </h3>
-            <p className="mb-4 text-sm text-neutral-600 dark:text-zinc-400">
-              确定要删除这个用户吗？此操作无法撤销。
+      <ConfirmModal
+        isOpen={!!state.showDeleteConfirm}
+        onClose={() => dispatch({ showDeleteConfirm: null })}
+        onConfirm={() => {
+          if (state.showDeleteConfirm) {
+            return handleDeleteUser(state.showDeleteConfirm);
+          }
+        }}
+        title="确认删除用户"
+        message={
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-600 dark:text-zinc-400">
+              您确定要删除这个用户吗？此操作将会：
             </p>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => dispatch({ showDeleteConfirm: null })}
-              >
-                取消
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleDeleteUser(state.showDeleteConfirm!)}
-              >
-                删除
-              </Button>
-            </div>
+            <ul className="text-sm text-neutral-600 dark:text-zinc-400 space-y-1 list-disc list-inside">
+              <li>永久删除用户账户</li>
+              <li>清除所有相关数据</li>
+              <li>用户将无法再次登录</li>
+            </ul>
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              此操作无法撤销，请谨慎操作。
+            </p>
           </div>
-        </div>
-      )}
+        }
+        type="danger"
+        confirmText="确认删除"
+        cancelText="取消"
+      />
     </div>
   );
 }
