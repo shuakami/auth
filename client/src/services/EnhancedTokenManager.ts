@@ -53,6 +53,12 @@ export class EnhancedTokenManager {
   }
 
   private init() {
+    // 确保只在浏览器环境中执行
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      console.log('[EnhancedTokenManager] Skipping initialization on server.');
+      return;
+    }
+
     console.log('[EnhancedTokenManager] 初始化增强token管理器');
     
     this.setupVisibilityListener();
