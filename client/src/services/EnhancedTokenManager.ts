@@ -23,7 +23,7 @@ export class EnhancedTokenManager {
   private refreshTimer: NodeJS.Timeout | null = null;
   private isRefreshing = false;
   private lastActivity = Date.now();
-  private isVisible = !document.hidden;
+  private isVisible: boolean;
   
   // 配置选项
   private readonly config = {
@@ -42,6 +42,8 @@ export class EnhancedTokenManager {
   } = {};
 
   private constructor() {
+    // Initialize isVisible with a server-safe check to prevent build errors
+    this.isVisible = typeof document !== 'undefined' && !document.hidden;
     this.init();
   }
 
