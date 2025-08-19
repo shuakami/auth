@@ -1,7 +1,7 @@
 /**
  * 用户OAuth服务 - 处理OAuth账号绑定和管理
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 
 export class UserOAuthService {
   /**
@@ -17,7 +17,7 @@ export class UserOAuthService {
       }
 
       // 检查GitHub ID是否已被其他用户使用
-      const { rows: existingUsers } = await pool.query(
+      const { rows: existingUsers } = await smartQuery(
         'SELECT id FROM users WHERE github_id = $1 AND id != $2',
         [githubId, userId]
       );
@@ -27,7 +27,7 @@ export class UserOAuthService {
       }
 
       // 更新用户的GitHub ID
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET github_id = $1, updated_at = NOW() WHERE id = $2',
         [githubId, userId]
       );
@@ -58,7 +58,7 @@ export class UserOAuthService {
       }
 
       // 检查Google ID是否已被其他用户使用
-      const { rows: existingUsers } = await pool.query(
+      const { rows: existingUsers } = await smartQuery(
         'SELECT id FROM users WHERE google_id = $1 AND id != $2',
         [googleId, userId]
       );
@@ -68,7 +68,7 @@ export class UserOAuthService {
       }
 
       // 更新用户的Google ID
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2',
         [googleId, userId]
       );
@@ -98,7 +98,7 @@ export class UserOAuthService {
       }
 
       // 检查用户是否设置了密码（确保有其他登录方式）
-      const { rows: userRows } = await pool.query(
+      const { rows: userRows } = await smartQuery(
         'SELECT password_hash, google_id FROM users WHERE id = $1',
         [userId]
       );
@@ -113,7 +113,7 @@ export class UserOAuthService {
       }
 
       // 解绑GitHub
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET github_id = NULL, updated_at = NOW() WHERE id = $1',
         [userId]
       );
@@ -143,7 +143,7 @@ export class UserOAuthService {
       }
 
       // 检查用户是否设置了密码（确保有其他登录方式）
-      const { rows: userRows } = await pool.query(
+      const { rows: userRows } = await smartQuery(
         'SELECT password_hash, github_id FROM users WHERE id = $1',
         [userId]
       );
@@ -158,7 +158,7 @@ export class UserOAuthService {
       }
 
       // 解绑Google
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET google_id = NULL, updated_at = NOW() WHERE id = $1',
         [userId]
       );
@@ -187,7 +187,7 @@ export class UserOAuthService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT github_id, google_id, password_hash FROM users WHERE id = $1',
         [userId]
       );

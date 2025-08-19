@@ -1,7 +1,7 @@
 /**
  * Token安全服务 - 处理token安全检测和防护措施
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 
 export class TokenSecurityService {
   /**
@@ -11,7 +11,7 @@ export class TokenSecurityService {
    */
   async detectTokenReuse(parentId) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT id, user_id, created_at, device_info 
          FROM refresh_tokens 
          WHERE parent_id = $1 AND revoked = FALSE`,
@@ -56,7 +56,7 @@ export class TokenSecurityService {
       const windowStart = new Date(Date.now() - timeWindow);
       
       // 查询时间窗口内的Token活动
-      const { rows: recentTokens } = await pool.query(
+      const { rows: recentTokens } = await smartQuery(
         `SELECT device_info, COUNT(*) as token_count, 
                 MIN(created_at) as first_seen, MAX(created_at) as last_seen
          FROM refresh_tokens 
@@ -183,7 +183,7 @@ export class TokenSecurityService {
    * @private
    */
   async _revokeAllUserTokens(userId, context) {
-    const result = await pool.query(
+    const result = await smartQuery(
       'UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE',
       [userId]
     );

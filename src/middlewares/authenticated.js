@@ -1,5 +1,5 @@
 import { verifyAccessToken, verifyRefreshToken } from '../auth/jwt.js';
-import { pool } from '../db/index.js';
+import { smartQuery } from '../db/index.js';
 
 /**
  * Access Token认证中间件，替换原Session认证
@@ -31,8 +31,8 @@ export function ensureAuth(req, res, next) {
       try {
         const rtPayload = verifyRefreshToken(refreshToken); // 仅解码获取 JTI
         if (rtPayload && rtPayload.jti) {
-          // 使用条件更新，仅当 last_used_at 为 NULL 或 超过 5 分钟前才更新
-          await pool.query(
+          // 使用智能查询，自动处理连接池和初始化
+          await smartQuery(
             `UPDATE refresh_tokens 
              SET last_used_at = CURRENT_TIMESTAMP 
              WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < (CURRENT_TIMESTAMP - INTERVAL '5 minutes'))`,

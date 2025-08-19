@@ -2,7 +2,7 @@
  * Refresh Token核心服务 - 处理token的生成、验证、轮换等核心操作
  */
 import { v4 as uuidv4 } from 'uuid';
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import { signRefreshToken, verifyRefreshToken } from '../../auth/jwt.js';
 import { encrypt, decrypt } from '../../auth/cryptoUtils.js';
 
@@ -123,7 +123,7 @@ export class RefreshTokenService {
    */
   async revokeToken(tokenId, reason = '') {
     try {
-      await pool.query(
+      await smartQuery(
         'UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1',
         [tokenId]
       );
@@ -142,7 +142,7 @@ export class RefreshTokenService {
    */
   async revokeAllUserTokens(userId) {
     try {
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1',
         [userId]
       );
@@ -195,7 +195,7 @@ export class RefreshTokenService {
    * @private
    */
   async _storeToken(tokenData, parentId) {
-    await pool.query(
+    await smartQuery(
       `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -227,7 +227,7 @@ export class RefreshTokenService {
    * @private
    */
   async _getTokenFromDB(tokenId) {
-    const { rows } = await pool.query(
+    const { rows } = await smartQuery(
       'SELECT * FROM refresh_tokens WHERE id = $1',
       [tokenId]
     );

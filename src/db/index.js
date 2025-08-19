@@ -132,10 +132,37 @@ export function getPool() {
   return _pool;
 }
 
-// 为了向后兼容，导出pool getter
+// 🔥 强制性解决方案：让所有pool调用都自动使用智能连接
 export const pool = new Proxy({}, {
   get(target, prop) {
     const actualPool = getPool();
+    
+    // 如果是query方法，自动使用smartQuery
+    if (prop === 'query') {
+      return async (text, params) => {
+        try {
+          await ensureInitialized(); // 确保数据库已初始化
+          return await actualPool.query(text, params);
+        } catch (error) {
+          dbLog('error', 'Pool query failed', {
+            error: error.message,
+            code: error.code,
+            query: text.substring(0, 100) + '...'
+          });
+          throw error;
+        }
+      };
+    }
+    
+    // 如果是connect方法，自动使用smartConnect
+    if (prop === 'connect') {
+      return async () => {
+        await ensureInitialized(); // 确保数据库已初始化
+        return await actualPool.connect();
+      };
+    }
+    
+    // 其他属性直接返回
     const value = actualPool[prop];
     return typeof value === 'function' ? value.bind(actualPool) : value;
   }

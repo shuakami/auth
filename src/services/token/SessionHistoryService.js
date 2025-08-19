@@ -1,7 +1,7 @@
 /**
  * 会话历史服务 - 处理会话历史数据聚合和查询，优化性能
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import { decrypt } from '../../auth/cryptoUtils.js';
 
 export class SessionHistoryService {
@@ -88,7 +88,7 @@ export class SessionHistoryService {
       query += ` ORDER BY login_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
 
-      const { rows } = await pool.query(query, params);
+      const { rows } = await smartQuery(query, params);
 
       // 解密和格式化数据
       const formattedHistory = rows.map(row => this._formatHistoryRecord(row));
@@ -116,7 +116,7 @@ export class SessionHistoryService {
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            DATE(login_at) as login_date,
            COUNT(*) as total_attempts,
@@ -150,7 +150,7 @@ export class SessionHistoryService {
    */
   async _getActiveSessions(userId) {
     const now = new Date();
-    const { rows } = await pool.query(
+    const { rows } = await smartQuery(
       `SELECT id, device_info, created_at, last_used_at, expires_at, revoked
        FROM refresh_tokens
        WHERE user_id = $1 AND revoked = FALSE AND expires_at > $2
@@ -171,7 +171,7 @@ export class SessionHistoryService {
     const deviceInfos = sessions.map(s => s.device_info);
     
     // 使用 IN 查询批量获取所有历史数据
-    const { rows } = await pool.query(
+    const { rows } = await smartQuery(
       `SELECT login_at, ip_enc, fingerprint_enc, user_agent, location, success, fail_reason
        FROM login_history
        WHERE user_id = $1 AND user_agent = ANY($2) AND success = TRUE

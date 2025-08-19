@@ -1,7 +1,7 @@
 /**
  * 会话管理服务 - 处理用户会话的查询和管理
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 
 export class SessionService {
   /**
@@ -12,7 +12,7 @@ export class SessionService {
   async getActiveSessions(userId) {
     try {
       const now = new Date();
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT id, device_info, created_at, last_used_at, expires_at, revoked
          FROM refresh_tokens
          WHERE user_id = $1 AND revoked = FALSE AND expires_at > $2
@@ -36,7 +36,7 @@ export class SessionService {
    */
   async getSessionDetails(sessionId) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT * FROM refresh_tokens WHERE id = $1`,
         [sessionId]
       );
@@ -57,7 +57,7 @@ export class SessionService {
   async updateLastUsed(sessionId) {
     try {
       const now = new Date();
-      await pool.query(
+      await smartQuery(
         'UPDATE refresh_tokens SET last_used_at = $1 WHERE id = $2',
         [now, sessionId]
       );
@@ -76,7 +76,7 @@ export class SessionService {
    */
   async revokeSession(sessionId, reason = '') {
     try {
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND revoked = FALSE',
         [sessionId]
       );
@@ -105,7 +105,7 @@ export class SessionService {
    */
   async revokeOtherSessions(userId, currentSessionId) {
     try {
-      const result = await pool.query(
+      const result = await smartQuery(
         `UPDATE refresh_tokens 
          SET revoked = TRUE 
          WHERE user_id = $1 AND id != $2 AND revoked = FALSE`,
@@ -128,7 +128,7 @@ export class SessionService {
    */
   async getSessionStats(userId) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            COUNT(*) as total_sessions,
            COUNT(CASE WHEN revoked = FALSE AND expires_at > NOW() THEN 1 END) as active_sessions,
@@ -167,7 +167,7 @@ export class SessionService {
   async cleanupExpiredSessions(batchSize = 1000) {
     try {
       const now = new Date();
-      const result = await pool.query(
+      const result = await smartQuery(
         `DELETE FROM refresh_tokens 
          WHERE expires_at < $1 
          LIMIT $2`,
@@ -193,7 +193,7 @@ export class SessionService {
    */
   async getSessionsByDevice(userId) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT device_info, 
                 COUNT(*) as session_count,
                 MAX(created_at) as latest_session,

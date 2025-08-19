@@ -4,7 +4,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import crypto from 'crypto';
 
 export class BackupCodeService {
@@ -39,7 +39,7 @@ export class BackupCodeService {
       // 生成新的备份码
       const codes = this._generateSecureBackupCodes(count);
 
-      const client = await pool.connect();
+      const client = await smartConnect();
       try {
         await client.query('BEGIN');
 
@@ -124,7 +124,7 @@ export class BackupCodeService {
         throw new Error('备份码格式无效');
       }
 
-      const client = await pool.connect();
+      const client = await smartConnect();
       try {
         await client.query('BEGIN');
 
@@ -219,7 +219,7 @@ export class BackupCodeService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE',
         [userId]
       );
@@ -243,7 +243,7 @@ export class BackupCodeService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT COUNT(*) as count FROM backup_codes WHERE user_id = $1 AND used = FALSE',
         [userId]
       );
@@ -267,7 +267,7 @@ export class BackupCodeService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            COUNT(*) as total_generated,
            COUNT(CASE WHEN used = FALSE THEN 1 END) as available,
@@ -305,7 +305,7 @@ export class BackupCodeService {
       }
 
       // 查询现有数据库结构中的字段
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT id, used, used_at FROM backup_codes WHERE user_id = $1 ORDER BY id DESC LIMIT $2',
         [userId, limit]
       );
@@ -338,7 +338,7 @@ export class BackupCodeService {
       const cleanupDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
       // 清理很久以前使用的备份码（由于没有expires_at字段，基于used_at清理）
-      const result = await pool.query(
+      const result = await smartQuery(
         `DELETE FROM backup_codes 
          WHERE used = TRUE 
          AND used_at < $1 

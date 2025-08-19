@@ -2,7 +2,7 @@
  * 用户服务
  * 提供用户管理的核心功能，包含缓存和验证逻辑
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import { validateEmail } from '../../utils/validation.js';
 
 export class UserService {
@@ -33,7 +33,7 @@ export class UserService {
         this.cache.delete(cacheKey);
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT * FROM users WHERE email = $1',
         [normalizedEmail]
       );
@@ -77,7 +77,7 @@ export class UserService {
         this.cache.delete(cacheKey);
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT * FROM users WHERE id = $1',
         [id]
       );
@@ -110,7 +110,7 @@ export class UserService {
       if (!username) return null;
 
       const normalizedUsername = username.toLowerCase().trim();
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT * FROM users WHERE LOWER(username) = $1',
         [normalizedUsername]
       );
@@ -132,7 +132,7 @@ export class UserService {
     try {
       if (!githubId) return null;
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT * FROM users WHERE github_id = $1',
         [githubId]
       );
@@ -154,7 +154,7 @@ export class UserService {
     try {
       if (!googleId) return null;
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT * FROM users WHERE google_id = $1',
         [googleId]
       );
@@ -211,7 +211,7 @@ export class UserService {
       }
 
       // 创建用户
-      await pool.query(
+      await smartQuery(
         `INSERT INTO users (id, email, username, password_hash, github_id, google_id, verified, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
         [id, normalizedEmail, username, passwordHash, githubId, googleId, verified]
@@ -267,7 +267,7 @@ export class UserService {
       }
 
       // 更新邮箱
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2',
         [normalizedEmail, userId]
       );
@@ -315,7 +315,7 @@ export class UserService {
       }
 
       // 更新用户名
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2',
         [newUsername, userId]
       );
@@ -353,7 +353,7 @@ export class UserService {
         throw new Error('用户不存在');
       }
 
-      const client = await pool.connect();
+      const client = await smartConnect();
       try {
         await client.query('BEGIN');
 
@@ -397,7 +397,7 @@ export class UserService {
         throw new Error('用户ID是必填字段');
       }
 
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET verified = $1, updated_at = NOW() WHERE id = $2',
         [verified, userId]
       );
@@ -430,7 +430,7 @@ export class UserService {
         throw new Error('用户ID和密码哈希是必填字段');
       }
 
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
         [passwordHash, userId]
       );
@@ -462,7 +462,7 @@ export class UserService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            u.created_at,
            u.updated_at,
@@ -540,7 +540,7 @@ export class UserService {
       let dbUsers = [];
       if (uncachedIds.length > 0) {
         const placeholders = uncachedIds.map((_, i) => `$${i + 1}`).join(',');
-        const { rows } = await pool.query(
+        const { rows } = await smartQuery(
           `SELECT * FROM users WHERE id IN (${placeholders})`,
           uncachedIds
         );
@@ -618,7 +618,7 @@ export class UserService {
         throw new Error('无效的角色值');
       }
 
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2',
         [role, userId]
       );
@@ -681,7 +681,7 @@ export class UserService {
       const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
       // 查询用户列表
-      const { rows: users } = await pool.query(
+      const { rows: users } = await smartQuery(
         `SELECT 
            id, email, username, role, verified, totp_enabled, 
            github_id IS NOT NULL as github_linked,
@@ -695,7 +695,7 @@ export class UserService {
       );
 
       // 查询总数
-      const { rows: countResult } = await pool.query(
+      const { rows: countResult } = await smartQuery(
         `SELECT COUNT(*) as total FROM users ${whereClause}`,
         params
       );
@@ -758,7 +758,7 @@ export class UserService {
         paramIndex++;
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            id, email, username, role, verified, totp_enabled,
            created_at, updated_at

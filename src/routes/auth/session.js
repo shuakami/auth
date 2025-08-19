@@ -1,7 +1,7 @@
 import express from 'express';
 import * as RefreshTokenService from '../../services/refreshTokenService.js';
 import { ensureAuth } from '../../middlewares/authenticated.js';
-import { pool } from '../../db/index.js'; // 直接导入 pool
+import { smartQuery, smartConnect } from '../../db/index.js';
 
 const router = express.Router();
 
@@ -167,7 +167,7 @@ router.delete('/session/:id', ensureAuth, async (req, res) => {
   try {
     // 检查该会话是否存在且属于当前用户
     // 使用直接导入的 pool
-    const { rows } = await pool.query(
+    const { rows } = await smartQuery(
       `SELECT user_id FROM refresh_tokens WHERE id = $1`,
       [sessionId]
     );

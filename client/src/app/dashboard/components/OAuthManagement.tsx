@@ -767,49 +767,43 @@ export default function OAuthManagement() {
                 
                 {state.activeSettingsTab === 'guide' && (
                   <div className="text-sm text-neutral-700 dark:text-zinc-300">
-                    <p className="mb-4 text-base">按照以下步骤将 OAuth2/OIDC 集成到您的应用中。</p>
-                    
-                    {/* 步骤 1 */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold mb-2">步骤 1: 将用户重定向到授权 URL</h4>
-                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                        要开始授权流程，请将用户重定向到以下 URL。您的应用需要动态构建此 URL。
+                    <div className="text-center py-8">
+                      <BookOpen className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold mb-2">完整集成指南</h4>
+                      <p className="text-neutral-600 dark:text-zinc-400 mb-6">
+                        我们为您准备了详细的OAuth2/OIDC集成文档，包含完整的代码示例、安全最佳实践和故障排除指南。
                       </p>
-                      <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
-                        <span className="text-green-600">GET</span> {`${window.location.origin}/oauth/authorize?`}<br/>
-                        &nbsp;&nbsp;client_id=<span className="text-orange-500">{state.editingApp.clientId}</span><br/>
-                        &nbsp;&nbsp;&response_type=code<br/>
-                        &nbsp;&nbsp;&scope=<span className="text-orange-500">{state.editingApp.scopes.join(' ')}</span><br/>
-                        &nbsp;&nbsp;&redirect_uri=YOUR_REDIRECT_URI
-                      </div>
-                    </div>
-
-                    {/* 步骤 2 */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold mb-2">步骤 2: 交换授权码以获取访问令牌</h4>
-                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                        用户授权后，我们会将他们重定向回您提供的 `redirect_uri` 并附上一个 `code` 参数。使用此 `code` 向令牌端点发出 `POST` 请求以获取访问令牌。
-                      </p>
-                      <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
-                        <span className="text-purple-600">POST</span> {`${window.location.origin}/oauth/token`}<br/>
-                        Content-Type: application/x-www-form-urlencoded<br/><br/>
-                        grant_type=authorization_code<br/>
-                        code=AUTHORIZATION_CODE_FROM_CALLBACK<br/>
-                        client_id=<span className="text-orange-500">{state.editingApp.clientId}</span><br/>
-                        client_secret=YOUR_CLIENT_SECRET<br/>
-                        redirect_uri=YOUR_REDIRECT_URI
-                      </div>
+                      <a
+                        href="/oauth/integration-guide"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                      >
+                        <BookOpen className="w-5 h-5" />
+                        查看完整集成指南
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
                     </div>
                     
-                    {/* 步骤 3 */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold mb-2">步骤 3: 使用访问令牌获取用户信息</h4>
-                      <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-2">
-                        使用上一步中获取的 `access_token`，向 `userinfo` 端点发出请求以获取用户信息。
-                      </p>
-                       <div className="rounded bg-neutral-100 dark:bg-zinc-800 p-3 text-xs font-mono text-neutral-700 dark:text-zinc-300 overflow-x-auto">
-                        <span className="text-green-600">GET</span> {`${window.location.origin}/oauth/userinfo`}<br/>
-                        Authorization: Bearer YOUR_ACCESS_TOKEN
+                    <div className="mt-6 grid gap-4 md:grid-cols-2 text-xs">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                        <h5 className="font-medium text-blue-900 dark:text-blue-200 mb-2">快速参考</h5>
+                        <div className="space-y-1 text-blue-800 dark:text-blue-300">
+                          <div>• 授权端点: <code>/oauth/authorize</code></div>
+                          <div>• 令牌端点: <code>/oauth/token</code></div>
+                          <div>• 用户信息: <code>/oauth/userinfo</code></div>
+                          <div>• Client ID: <code>{state.editingApp.clientId}</code></div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                        <h5 className="font-medium text-amber-900 dark:text-amber-200 mb-2">包含内容</h5>
+                        <div className="space-y-1 text-amber-800 dark:text-amber-300">
+                          <div>• 完整的OAuth2流程详解</div>
+                          <div>• 多种编程语言示例</div>
+                          <div>• PKCE和安全最佳实践</div>
+                          <div>• 故障排除和调试指南</div>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as User from '../services/userService.js';
 import { sendVerifyEmail } from '../mail/resend.js';
 import { signEmailToken, verifyEmailToken } from './jwt.js';
-import { pool } from '../db/index.js';
+import { smartQuery } from '../db/index.js';
 import { validatePassword } from '../utils/passwordPolicy.js';
 import { validateUsername } from '../utils/usernamePolicy.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
@@ -139,7 +139,7 @@ export async function verifyEmail(req, res, next) {
     }
 
     // 更新验证状态
-    const result = await pool.query(
+    const result = await smartQuery(
       "UPDATE users SET verified=TRUE WHERE id=$1",
       [payload.id]
     );

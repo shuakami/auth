@@ -4,7 +4,7 @@
  */
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import * as User from '../userService.js';
 import { sendResetPasswordEmail } from '../../mail/resend.js';
 import { PUBLIC_BASE_URL } from '../../config/env.js';
@@ -84,7 +84,7 @@ export class PasswordResetService {
         return null;
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT r.*, u.id as user_id, u.email, u.username 
          FROM password_reset_tokens r
          JOIN users u ON r.user_id = u.id
@@ -106,7 +106,7 @@ export class PasswordResetService {
       }
 
       // 更新验证次数
-      await pool.query(
+      await smartQuery(
         'UPDATE password_reset_tokens SET verification_count = verification_count + 1 WHERE id = $1',
         [resetRecord.id]
       );
@@ -166,7 +166,7 @@ export class PasswordResetService {
       // 4. 更新密码
       const passwordHash = await bcrypt.hash(newPassword, 12); // 使用更高的安全等级
       
-      const client = await pool.connect();
+      const client = await smartConnect();
       try {
         await client.query('BEGIN');
 
@@ -217,7 +217,7 @@ export class PasswordResetService {
    */
   async getResetHistory(userId, limit = 10) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT created_at, expires_at, used, used_at, request_ip, used_ip
          FROM password_reset_tokens
          WHERE user_id = $1
@@ -247,7 +247,7 @@ export class PasswordResetService {
    */
   async cleanupExpiredTokens() {
     try {
-      const result = await pool.query(
+      const result = await smartQuery(
         'DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR (used = TRUE AND used_at < NOW() - INTERVAL \'7 days\')'
       );
 
@@ -276,7 +276,7 @@ export class PasswordResetService {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
       // 检查用户请求频率
-      const { rows: userRequests } = await pool.query(
+      const { rows: userRequests } = await smartQuery(
         'SELECT COUNT(*) as count, MAX(created_at) as latest FROM password_reset_tokens WHERE user_id = $1 AND created_at > $2',
         [userId, oneHourAgo]
       );
@@ -296,7 +296,7 @@ export class PasswordResetService {
 
       // 检查IP请求频率（如果提供了IP）
       if (clientIP) {
-        const { rows: ipRequests } = await pool.query(
+        const { rows: ipRequests } = await smartQuery(
           'SELECT COUNT(*) as count FROM password_reset_tokens WHERE request_ip = $1 AND created_at > $2',
           [clientIP, oneHourAgo]
         );
@@ -341,13 +341,13 @@ export class PasswordResetService {
    */
   async _storeToken(userId, token, expiresAt, clientIP) {
     // 先使旧的未使用令牌失效
-    await pool.query(
+    await smartQuery(
       'UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE',
       [userId]
     );
 
     // 插入新令牌
-    await pool.query(
+    await smartQuery(
       `INSERT INTO password_reset_tokens (user_id, token, expires_at, request_ip, verification_count) 
        VALUES ($1, $2, $3, $4, 0)`,
       [userId, token, expiresAt, clientIP]
@@ -361,7 +361,7 @@ export class PasswordResetService {
    * @private
    */
   async _invalidateToken(tokenId) {
-    await pool.query(
+    await smartQuery(
       'UPDATE password_reset_tokens SET used = TRUE WHERE id = $1',
       [tokenId]
     );

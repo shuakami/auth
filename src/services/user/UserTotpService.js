@@ -1,7 +1,7 @@
 /**
  * 用户TOTP服务 - 处理用户的二步验证相关操作
  */
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 
 export class UserTotpService {
   /**
@@ -16,7 +16,7 @@ export class UserTotpService {
         throw new Error('用户ID和TOTP密钥是必填字段');
       }
 
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET totp_secret = $1, updated_at = NOW() WHERE id = $2',
         [secret, userId]
       );
@@ -46,7 +46,7 @@ export class UserTotpService {
       }
 
       // 检查用户是否已设置TOTP密钥
-      const { rows: userRows } = await pool.query(
+      const { rows: userRows } = await smartQuery(
         'SELECT totp_secret FROM users WHERE id = $1',
         [userId]
       );
@@ -60,7 +60,7 @@ export class UserTotpService {
         throw new Error('请先设置TOTP密钥');
       }
 
-      const result = await pool.query(
+      const result = await smartQuery(
         'UPDATE users SET totp_enabled = TRUE, updated_at = NOW() WHERE id = $1',
         [userId]
       );
@@ -89,7 +89,7 @@ export class UserTotpService {
         throw new Error('用户ID是必填字段');
       }
 
-      const client = await pool.connect();
+      const client = await smartConnect();
       try {
         await client.query('BEGIN');
 
@@ -134,7 +134,7 @@ export class UserTotpService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT totp_secret FROM users WHERE id = $1',
         [userId]
       );
@@ -159,7 +159,7 @@ export class UserTotpService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         'SELECT totp_enabled FROM users WHERE id = $1',
         [userId]
       );
@@ -184,7 +184,7 @@ export class UserTotpService {
         throw new Error('用户ID是必填字段');
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT u.totp_enabled, u.totp_secret,
                 COUNT(bc.id) as backup_codes_count
          FROM users u

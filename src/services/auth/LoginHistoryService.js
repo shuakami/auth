@@ -3,7 +3,7 @@
  * 提供登录历史记录、查询、统计和分析功能
  */
 import { v4 as uuidv4 } from 'uuid';
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import { encrypt, decrypt } from '../../auth/cryptoUtils.js';
 
 export class LoginHistoryService {
@@ -31,7 +31,7 @@ export class LoginHistoryService {
       const fingerprintEnc = fingerprint ? encrypt(fingerprint) : null;
       const locationJson = location ? JSON.stringify(location) : null;
 
-      await pool.query(
+      await smartQuery(
         `INSERT INTO login_history (
           id, user_id, login_at, ip_enc, fingerprint_enc, user_agent, 
           location, success, fail_reason, login_method, device_type
@@ -106,7 +106,7 @@ export class LoginHistoryService {
       params.push(limit, offset);
 
       // 执行查询
-      const { rows } = await pool.query(query, params);
+      const { rows } = await smartQuery(query, params);
 
       // 格式化结果
       const formattedHistory = rows.map(row => this._formatHistoryRecord(row, includeLocation));
@@ -184,7 +184,7 @@ export class LoginHistoryService {
       const windowStart = new Date(Date.now() - timeWindow);
 
       // 获取时间窗口内的登录数据
-      const { rows: recentLogins } = await pool.query(
+      const { rows: recentLogins } = await smartQuery(
         `SELECT login_at, ip_enc, user_agent, location, success, fail_reason, login_method
          FROM login_history
          WHERE user_id = $1 AND login_at >= $2
@@ -253,7 +253,7 @@ export class LoginHistoryService {
     try {
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-      const result = await pool.query(
+      const result = await smartQuery(
         `DELETE FROM login_history 
          WHERE login_at < $1 
          AND id IN (
@@ -363,7 +363,7 @@ export class LoginHistoryService {
         params.push(filters.loginMethod);
       }
 
-      const { rows } = await pool.query(query, params);
+      const { rows } = await smartQuery(query, params);
       return parseInt(rows[0].count);
 
     } catch (error) {
@@ -381,7 +381,7 @@ export class LoginHistoryService {
    */
   async _getBasicStats(userId, startDate) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT 
            COUNT(*) as total_attempts,
            COUNT(CASE WHEN success = TRUE THEN 1 END) as successful_logins,
@@ -424,7 +424,7 @@ export class LoginHistoryService {
    */
   async _getLocationStats(userId, startDate) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT location, COUNT(*) as count
          FROM login_history
          WHERE user_id = $1 AND login_at >= $2 AND success = TRUE AND location IS NOT NULL
@@ -463,7 +463,7 @@ export class LoginHistoryService {
    */
   async _getDeviceStats(userId, startDate) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT user_agent, login_method, device_type, COUNT(*) as count,
                 MAX(login_at) as last_used
          FROM login_history
@@ -509,7 +509,7 @@ export class LoginHistoryService {
           break;
       }
 
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT ${dateFormat} as time_bucket,
                 COUNT(*) as total_attempts,
                 COUNT(CASE WHEN success = TRUE THEN 1 END) as successful_logins,
@@ -543,7 +543,7 @@ export class LoginHistoryService {
    */
   async _getFailureAnalysis(userId, startDate) {
     try {
-      const { rows } = await pool.query(
+      const { rows } = await smartQuery(
         `SELECT fail_reason, COUNT(*) as count
          FROM login_history
          WHERE user_id = $1 AND login_at >= $2 AND success = FALSE AND fail_reason IS NOT NULL
@@ -577,7 +577,7 @@ export class LoginHistoryService {
     const anomalies = [];
     
     // 获取用户历史常用IP
-    const { rows: historicalIPs } = await pool.query(
+    const { rows: historicalIPs } = await smartQuery(
       `SELECT ip_enc, COUNT(*) as usage_count
        FROM login_history
        WHERE user_id = $1 AND success = TRUE AND login_at < NOW() - INTERVAL '7 days'

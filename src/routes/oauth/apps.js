@@ -4,7 +4,7 @@
  */
 import express from 'express';
 import { requireRole, ROLES } from '../../middlewares/permissions.js';
-import { pool } from '../../db/index.js';
+import { smartQuery, smartConnect } from '../../db/index.js';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -31,7 +31,7 @@ function generateClientSecret() {
  */
 router.get('/', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await smartQuery(`
       SELECT 
         id,
         name,
@@ -84,7 +84,7 @@ router.get('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(`
+    const result = await smartQuery(`
       SELECT 
         id,
         name,
@@ -197,7 +197,7 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
     const clientSecret = generateClientSecret();
 
     // 插入数据库
-    const result = await pool.query(`
+    const result = await smartQuery(`
       INSERT INTO oauth_applications (
         name, 
         description, 
@@ -269,7 +269,7 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
     const { name, description, redirectUris, scopes, isActive } = req.body;
 
     // 验证应用是否存在
-    const existingApp = await pool.query(
+    const existingApp = await smartQuery(
       'SELECT id FROM oauth_applications WHERE id = $1',
       [id]
     );
@@ -355,7 +355,7 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
     updateValues.push(id);
 
     // 执行更新
-    const result = await pool.query(`
+    const result = await smartQuery(`
       UPDATE oauth_applications 
       SET ${updateFields.join(', ')}
       WHERE id = $${valueIndex}
@@ -402,7 +402,7 @@ router.delete('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
     const { id } = req.params;
 
     // 删除应用
-    const result = await pool.query(
+    const result = await smartQuery(
       'DELETE FROM oauth_applications WHERE id = $1 RETURNING id',
       [id]
     );
@@ -437,7 +437,7 @@ router.post('/:id/regenerate-secret', requireRole(ROLES.ADMIN), async (req, res)
     const newClientSecret = generateClientSecret();
 
     // 更新数据库
-    const result = await pool.query(`
+    const result = await smartQuery(`
       UPDATE oauth_applications 
       SET 
         client_secret = $1,
