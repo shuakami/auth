@@ -83,7 +83,7 @@ export class RefreshTokenService {
   }
 
   /**
-   * 轮换 Refresh Token
+   * 轮换 Refresh Token (使用事务确保原子性)
    * @param {string} oldToken 旧Token
    * @param {string} deviceInfo 设备信息
    * @returns {Promise<Object>}
@@ -95,23 +95,58 @@ export class RefreshTokenService {
       throw new Error(`Token轮换失败: ${validation.reason}`);
     }
 
+    const client = await smartConnect();
+    
     try {
-      // 立即吊销旧Token
-      await this.revokeToken(validation.dbToken.id, '轮换');
+      // 开始事务
+      await client.query('BEGIN');
       
-      // 生成新Token
-      const newToken = await this.createToken(
-        validation.dbToken.user_id,
-        deviceInfo,
-        validation.dbToken.id
+      // 生成新Token数据
+      const tokenData = this._generateTokenData(
+        validation.dbToken.user_id, 
+        deviceInfo, 
+        this.DEFAULT_EXPIRES_IN
       );
-
-      console.log(`[RefreshToken] Token轮换成功: ${validation.dbToken.id} -> ${newToken.id}`);
-      return newToken;
+      
+      // 在事务中：1) 吊销旧Token，2) 创建新Token
+      await client.query(
+        'UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1',
+        [validation.dbToken.id]
+      );
+      
+      await client.query(
+        `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          tokenData.id,
+          tokenData.userId,
+          tokenData.encryptedToken,
+          tokenData.deviceInfo,
+          validation.dbToken.id, // parentId
+          tokenData.expiresAt,
+          tokenData.createdAt
+        ]
+      );
+      
+      // 提交事务
+      await client.query('COMMIT');
+      
+      console.log(`[RefreshToken] Token轮换成功 (事务): ${validation.dbToken.id} -> ${tokenData.id}`);
+      
+      return {
+        token: tokenData.token,
+        id: tokenData.id,
+        expiresAt: tokenData.expiresAt
+      };
 
     } catch (error) {
-      console.error('[RefreshToken] Token轮换失败:', error);
+      // 回滚事务
+      await client.query('ROLLBACK');
+      console.error('[RefreshToken] Token轮换失败 (事务回滚):', error);
       throw new Error('Token轮换失败');
+    } finally {
+      // 释放连接
+      client.release();
     }
   }
 
