@@ -115,8 +115,8 @@ export class RefreshTokenService {
       );
       
       await client.query(
-        `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
         [
           tokenData.id,
           tokenData.userId,
@@ -231,8 +231,8 @@ export class RefreshTokenService {
    */
   async _storeToken(tokenData, parentId) {
     await smartQuery(
-      `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
       [
         tokenData.id,
         tokenData.userId,
