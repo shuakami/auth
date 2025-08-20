@@ -3,6 +3,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { fetchCurrentUser } from '@/services/api';
 import { logout as logoutApi } from '@/services/api';
+import { tokenManager } from '@/services/EnhancedTokenManager';
 
 // 定义用户类型 (与 /me 接口返回的 user 对象对应)
 interface User {
@@ -86,10 +87,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = (userData: User) => {
     setUser(userData);
+    // 重新启动token自动刷新机制
+    tokenManager.restartAutoRefresh();
   };
 
   const logout = async () => {
     try {
+      // 立即停止token自动刷新，防止退登后被自动重新登录
+      tokenManager.stopAutoRefresh();
+      
       await logoutApi();
     } catch (e) {
       // 即使失败也强制清理本地状态

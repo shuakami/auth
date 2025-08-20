@@ -217,13 +217,13 @@ export class EnhancedTokenManager {
    * 处理刷新失败
    */
   private handleRefreshFailure() {
-    console.error('[EnhancedTokenManager] 所有刷新尝试均失败，可能需要重新登录');
+    console.error('[EnhancedTokenManager] 所有刷新尝试均失败，停止自动刷新');
+    
+    // 停止自动刷新，防止无限重试
+    this.stopAutoRefresh();
     
     // 触发过期回调
     this.listeners.onTokenExpired?.();
-    
-    // 清除过期时间
-    this.accessTokenExp = null;
   }
 
   /**
@@ -310,14 +310,38 @@ export class EnhancedTokenManager {
   }
 
   /**
-   * 清理资源
+   * 停止自动刷新（用于退登时）
    */
-  private cleanup() {
+  public stopAutoRefresh() {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = null;
     }
     
+    this.isRefreshing = false;
+    this.accessTokenExp = null;
+    
+    console.log('[EnhancedTokenManager] 自动刷新已停止');
+  }
+
+  /**
+   * 重新启动自动刷新（用于重新登录时）
+   */
+  public restartAutoRefresh() {
+    // 先停止现有的定时器
+    this.stopAutoRefresh();
+    
+    // 重新启动定时器
+    this.startPeriodicRefresh();
+    
+    console.log('[EnhancedTokenManager] 自动刷新已重新启动');
+  }
+
+  /**
+   * 清理资源
+   */
+  private cleanup() {
+    this.stopAutoRefresh();
     console.log('[EnhancedTokenManager] 资源已清理');
   }
 
