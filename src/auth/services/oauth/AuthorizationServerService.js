@@ -10,6 +10,7 @@ import { pool } from '../../../db/index.js';
 import { URL } from 'url';
 import crypto from 'crypto';
 import { signAccessToken, signIdToken } from '../../jwt.js';
+import { validateRefreshToken, rotateRefreshToken } from '../../../services/refreshTokenService.js';
 
 const AUTHORIZATION_CODE_LIFETIME = 600; // 10 minutes in seconds
 
@@ -213,6 +214,78 @@ export class AuthorizationServerService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * 使用刷新令牌获取新的访问令牌和ID令牌
+   * @param {string} refreshTokenString - 客户端提供的刷新令牌
+   * @param {string} clientId - 客户端ID
+   * @param {string} clientSecret - 客户端密钥
+   * @returns {Promise<object>} 新的令牌集合
+   */
+  async refreshAccessToken(refreshTokenString, clientId, clientSecret) {
+    // 1. 验证客户端
+    const clientApp = await this.getClientById(clientId);
+    if (!clientApp) {
+      throw new Error('invalid_client: 客户端不存在');
+    }
+    if (clientApp.app_type === 'web' && clientApp.client_secret !== clientSecret) {
+      throw new Error('invalid_client: 客户端密钥错误');
+    }
+
+    // 2. 验证刷新令牌
+    const { valid, dbToken, payload, reason } = await validateRefreshToken(refreshTokenString);
+    if (!valid) {
+      // 安全起见，如果检测到重放攻击，则吊销整个令牌家族
+      if (reason === 'Token has been used' && dbToken?.parent_id) {
+        await detectTokenReuse(dbToken.parent_id);
+      }
+      throw new Error(`invalid_grant: ${reason || '刷新令牌无效'}`);
+    }
+
+    // 检查刷新令牌是否属于该客户端
+    if (payload.client_id !== clientId) {
+      throw new Error('invalid_grant: 刷新令牌不属于此客户端');
+    }
+    
+    // 3. 轮换刷新令牌
+    const { newToken: newRefreshToken } = await rotateRefreshToken(refreshTokenString, 'OAuth Client Rotated');
+
+    // 4. 生成新的访问令牌和ID令牌
+    const { rows: userRows } = await pool.query(
+      'SELECT id, email, username FROM users WHERE id = $1',
+      [payload.uid]
+    );
+    if (userRows.length === 0) {
+      throw new Error('invalid_grant: 用户不存在');
+    }
+    const user = userRows[0];
+    const scopes = payload.scope;
+
+    const newAccessToken = signAccessToken({
+      uid: user.id,
+      client_id: clientId,
+      scope: scopes,
+      type: 'access_token'
+    }, '1h');
+
+    const newIdToken = signIdToken({
+      iss: 'https://auth.sdjz.wiki',
+      sub: user.id,
+      aud: clientId,
+      email: user.email,
+      username: user.username,
+      iat: Math.floor(Date.now() / 1000)
+    }, '1h');
+    
+    return {
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken,
+      id_token: newIdToken,
+      token_type: 'Bearer',
+      expires_in: 3600,
+      scope: scopes
+    };
   }
 
   /**

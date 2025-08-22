@@ -39,8 +39,8 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
       'code'
     ],
     grant_types_supported: [
-      'authorization_code'
-      // 'refresh_token' // TODO: Muss noch implementiert werden
+      'authorization_code',
+      'refresh_token'
     ],
     subject_types_supported: [
       'public'
@@ -255,11 +255,11 @@ router.post('/token', async (req, res) => {
         });
       }
 
-      // TODO: 实现refresh token逻辑
-      return res.status(501).json({ 
-        error: 'unsupported_grant_type', 
-        error_description: 'Refresh token grant not yet implemented' 
-      });
+      const tokenResponse = await authService.refreshAccessToken(
+        refresh_token, client_id, client_secret
+      );
+      
+      return res.json(tokenResponse);
 
     } else {
       return res.status(400).json({ 
