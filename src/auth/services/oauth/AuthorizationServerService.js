@@ -172,17 +172,24 @@ export class AuthorizationServerService {
       
       // 7. 生成ID令牌（OIDC）
       const { rows: userRows } = await client.query(
-        'SELECT id, email, username FROM users WHERE id = $1',
+        'SELECT u.id, u.email, u.username, r.name as role FROM users u LEFT JOIN user_roles ur ON u.id = ur.user_id LEFT JOIN roles r ON ur.role_id = r.id WHERE u.id = $1',
         [authCode.user_id]
       );
       
-      const user = userRows[0];
+      const user = {
+        id: userRows[0].id,
+        email: userRows[0].email,
+        username: userRows[0].username,
+        roles: userRows.map(row => row.role).filter(Boolean) // 提取所有角色
+      };
+
       const idTokenPayload = {
         iss: 'https://auth.sdjz.wiki',
         sub: user.id,
         aud: clientId,
         email: user.email,
         username: user.username,
+        roles: user.roles, // 添加角色
         iat: Math.floor(Date.now() / 1000)
         // exp 将由 signIdToken 通过 expiresIn 参数设置
       };
@@ -205,7 +212,8 @@ export class AuthorizationServerService {
         id_token: idToken,
         token_type: 'Bearer',
         expires_in: 3600,
-        scope: authCode.scopes
+        scope: authCode.scopes,
+        roles: user.roles
       };
       
     } catch (error) {
@@ -253,13 +261,18 @@ export class AuthorizationServerService {
 
     // 4. 生成新的访问令牌和ID令牌
     const { rows: userRows } = await pool.query(
-      'SELECT id, email, username FROM users WHERE id = $1',
+      'SELECT u.id, u.email, u.username, r.name as role FROM users u LEFT JOIN user_roles ur ON u.id = ur.user_id LEFT JOIN roles r ON ur.role_id = r.id WHERE u.id = $1',
       [payload.uid]
     );
     if (userRows.length === 0) {
       throw new Error('invalid_grant: 用户不存在');
     }
-    const user = userRows[0];
+    const user = {
+      id: userRows[0].id,
+      email: userRows[0].email,
+      username: userRows[0].username,
+      roles: userRows.map(row => row.role).filter(Boolean)
+    };
     const scopes = payload.scope;
 
     const newAccessToken = signAccessToken({
@@ -275,6 +288,7 @@ export class AuthorizationServerService {
       aud: clientId,
       email: user.email,
       username: user.username,
+      roles: user.roles,
       iat: Math.floor(Date.now() / 1000)
     }, '1h');
     
@@ -284,7 +298,8 @@ export class AuthorizationServerService {
       id_token: newIdToken,
       token_type: 'Bearer',
       expires_in: 3600,
-      scope: scopes
+      scope: scopes,
+      roles: user.roles
     };
   }
 
