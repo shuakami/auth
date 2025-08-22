@@ -5,7 +5,7 @@ import authRouter from './routes/auth.js';
 import adminUsersRouter from './routes/admin/users.js';
 import adminRolesRouter from './routes/admin/roles.js';
 import oauthAppsRouter from './routes/oauth/apps.js';
-import oauthProviderRouter from './routes/oauth_provider.js'; // 导入新的路由
+import oauthProviderRouter, { discoveryRouter } from './routes/oauth_provider.js'; // 导入新的路由
 import { setupDocs } from './middlewares/docs.js';
 import { ensureAuth } from './middlewares/authenticated.js';
 
@@ -38,7 +38,10 @@ app.use('/api/admin/roles', ensureAuth, adminRolesRouter);
 
 /* OAuth API 路由 */
 app.use('/api/oauth/apps', ensureAuth, oauthAppsRouter);
-app.use('/api/oauth', oauthProviderRouter); // 注册新的路由
+app.use('/api/oauth', oauthProviderRouter); // 保持现有的OAuth路由
+
+// 将 OIDC Discovery 端点直接挂载在根目录下
+app.use('/', discoveryRouter);
 
 /* 全局错误处理 */
 app.use((err, _req, res, _next) => {

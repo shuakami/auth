@@ -10,7 +10,63 @@ import { pool } from '../db/index.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
 
 const router = express.Router();
+const discoveryRouter = express.Router(); // 为 OIDC Discovery 创建一个新的 router
 const authService = new AuthorizationServerService();
+
+/**
+ * GET /.well-known/openid-configuration
+ * @description
+ * Gibt das OIDC Discovery-Dokument für Frontend-Anwendungen zurück.
+ * Dieses Dokument enthält Metadaten über den OIDC-Provider.
+ */
+discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
+  const issuer = 'https://auth.sdjz.wiki'; // 使用硬编码的 URL
+  const configuration = {
+    issuer: issuer,
+    authorization_endpoint: `${issuer}/api/oauth/authorize`,
+    token_endpoint: `${issuer}/api/oauth/token`,
+    userinfo_endpoint: `${issuer}/api/oauth/userinfo`,
+    jwks_uri: `${issuer}/api/oauth/jwks.json`, // Muss noch implementiert werden
+    scopes_supported: [
+      'openid',
+      'profile',
+      'email',
+      'offline_access'
+    ],
+    response_types_supported: [
+      'code',
+      'token',
+      'id_token',
+      'code token',
+      'code id_token',
+    ],
+    grant_types_supported: [
+      'authorization_code',
+      'refresh_token',
+      'implicit'
+    ],
+    subject_types_supported: [
+      'public'
+    ],
+    id_token_signing_alg_values_supported: [
+      'RS256'
+    ],
+    token_endpoint_auth_methods_supported: [
+      'client_secret_post',
+      'client_secret_basic'
+    ],
+    claims_supported: [
+      'sub',
+      'iss',
+      'aud',
+      'exp',
+      'iat',
+      'email',
+      'username'
+    ]
+  };
+  res.json(configuration);
+});
 
 /**
  * GET /oauth/authorize
@@ -258,4 +314,4 @@ router.get('/userinfo', async (req, res) => {
   }
 });
 
-export default router;
+export { router as default, discoveryRouter };
