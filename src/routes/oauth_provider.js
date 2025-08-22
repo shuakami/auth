@@ -26,7 +26,7 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
     authorization_endpoint: `${issuer}/api/oauth/authorize`,
     token_endpoint: `${issuer}/api/oauth/token`,
     userinfo_endpoint: `${issuer}/api/oauth/userinfo`,
-    jwks_uri: `${issuer}/api/oauth/jwks.json`, // Muss noch implementiert werden
+    jwks_uri: `${issuer}/api/oauth/jwks.json`, // TODO: Muss noch implementiert werden
     scopes_supported: [
       'openid',
       'profile',
@@ -34,16 +34,11 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
       'offline_access'
     ],
     response_types_supported: [
-      'code',
-      'token',
-      'id_token',
-      'code token',
-      'code id_token',
+      'code'
     ],
     grant_types_supported: [
-      'authorization_code',
-      'refresh_token',
-      'implicit'
+      'authorization_code'
+      // 'refresh_token' // TODO: Muss noch implementiert werden
     ],
     subject_types_supported: [
       'public'
@@ -52,8 +47,7 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
       'RS256'
     ],
     token_endpoint_auth_methods_supported: [
-      'client_secret_post',
-      'client_secret_basic'
+      'client_secret_post'
     ],
     claims_supported: [
       'sub',
