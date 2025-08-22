@@ -1,9 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '@/services/api';
+import { login, verify2FA } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { AUTH_CONSTANTS, ERROR_MESSAGES, type TwoFAMode } from '@/constants/auth';
-import { useOAuth } from './useOAuth';
+import { AUTH_CONSTANTS, ERROR_MESSAGES, SUCCESS_MESSAGES, type TwoFAMode } from '@/constants/auth';
 
 interface LoginCredentials {
   token?: string;
@@ -124,103 +123,41 @@ export const useLogin = () => {
     try {
       const resp = await login(loginState.email, loginState.password);
       
-      // 需要2FA验证
-      if (resp.status === 206 || resp.data?.error === 'TOTP_REQUIRED') {
+      if (resp.data?.error === 'TOTP_REQUIRED') {
         setLoginState(prev => ({ ...prev, show2fa: true }));
-        setTwoFAState(prev => ({ 
-          ...prev, 
-          code: '', 
-          mode: 'totp',
-          message: '',
-          messageType: 'error'
-        }));
-      } else if (resp.status >= 400 || resp.data?.error) {
-        // 处理登录错误
-        const errMsg = resp.data?.message || resp.data?.error || ERROR_MESSAGES.LOGIN_FAILED;
-        if (resp.data?.error === 'email_not_verified') {
-          setError(ERROR_MESSAGES.EMAIL_NOT_VERIFIED);
-        } else {
-          setError(errMsg);
-        }
       } else {
-        // 登录成功
         await handleLoginSuccess();
       }
-    } catch (err: unknown) {
-      console.error('[useLogin] 登录过程出错:', err);
-      let errorMessage = ERROR_MESSAGES.UNKNOWN_ERROR;
-      
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const response = (err as { response?: { data?: { message?: string; error?: string }; status?: number } }).response;
-        if (response?.data?.error === 'email_not_verified') {
-          errorMessage = ERROR_MESSAGES.EMAIL_NOT_VERIFIED;
-        } else if (response?.status === 401 && response?.data?.error === 'Invalid credentials') {
-          errorMessage = ERROR_MESSAGES.INVALID_CREDENTIALS;
-        } else if (response?.data?.message || response?.data?.error) {
-          errorMessage = response.data.message || response.data.error || errorMessage;
-        }
-      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.LOGIN_FAILED;
       setError(errorMessage);
     } finally {
       setLoginState(prev => ({ ...prev, loading: false }));
     }
-  }, [loginState.email, loginState.password, setError, handleLoginSuccess]);
+  }, [loginState.email, loginState.password, handleLoginSuccess, setError]);
 
   const handle2FASubmit = useCallback(async () => {
     setTwoFAState(prev => ({ ...prev, loading: true, message: '', messageType: 'error' }));
 
     try {
-      const credentials: LoginCredentials = twoFAState.mode === 'totp' 
-        ? { token: twoFAState.code } 
-        : { backupCode: twoFAState.code };
-      
-      const resp = await login(loginState.email, loginState.password, credentials);
+      await verify2FA({
+        token: loginState.email, // 临时用email字段传递token
+        totp: twoFAState.mode === 'totp' ? twoFAState.code : undefined,
+        backupCode: twoFAState.mode === 'backup' ? twoFAState.code : undefined,
+      });
 
-      if (resp.status === 200) {
-        // 2FA验证成功
-        setTwoFAState(prev => ({ 
-          ...prev, 
-          message: '验证成功，正在登录...', 
-          messageType: 'info' 
-        }));
-        setLoginState(prev => ({ ...prev, show2fa: false }));
-        
-        const loggedInUser = await checkAuth();
-        if (loggedInUser) {
-          router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-          console.log('[useLogin] 2FA success, user found. Initiating navigation towards /dashboard.');
-        } else {
-          setError(ERROR_MESSAGES.TWO_FA_SUCCESS_NO_USER);
-        }
-      } else {
-        // 2FA验证失败
-        const errorMsg = resp.data?.error || 
-          (twoFAState.mode === 'totp' ? ERROR_MESSAGES.TOTP_INVALID : ERROR_MESSAGES.BACKUP_CODE_INVALID);
-        setTwoFAState(prev => ({ ...prev, message: errorMsg }));
-      }
-    } catch (err: unknown) {
-      console.error('[useLogin] 2FA 验证出错:', err);
-      let errorMessage = ERROR_MESSAGES.TWO_FA_ERROR;
-      
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const response = (err as { response?: { data?: { error?: string } } }).response;
-        if (response?.data?.error && typeof response.data.error === 'string') {
-          errorMessage = response.data.error;
-        }
-      }
-      setTwoFAState(prev => ({ ...prev, message: errorMessage }));
-    } finally {
-      setTwoFAState(prev => ({ ...prev, loading: false }));
+      setTwoFAState(prev => ({
+        ...prev,
+        message: SUCCESS_MESSAGES.TWO_FA_VERIFICATION_SUCCESS,
+        messageType: 'info'
+      }));
+      await handleLoginSuccess();
+
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.TWO_FA_ERROR;
+      setTwoFAState(prev => ({ ...prev, loading: false, message: errorMessage }));
     }
-  }, [
-    loginState.email, 
-    loginState.password, 
-    twoFAState.code, 
-    twoFAState.mode, 
-    checkAuth, 
-    router, 
-    setError
-  ]);
+  }, [loginState.email, twoFAState.mode, twoFAState.code, handleLoginSuccess]);
 
   return {
     // Login state

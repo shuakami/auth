@@ -70,24 +70,6 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
           onError(data.error || 'OAuth登录失败');
         }
       }
-      // 兼容旧的消息格式
-      else if (typeof data === 'string') {
-        const oauthMessages = Object.values(AUTH_CONSTANTS.OAUTH_MESSAGES);
-        if ((oauthMessages as string[]).includes(data)) {
-          // This part of the logic is now handled by handleOAuthSuccessWithToken
-          // Keeping it for backward compatibility if old messages are still received
-          // However, the new handleOAuthSuccessWithToken prioritizes returnUrl
-          // So, this might need adjustment depending on how old messages are handled
-          // For now, we'll keep it as is, but the new handleOAuthSuccessWithToken
-          // will likely override this for new messages.
-          // If you want to strictly remove this, you'd need to remove the
-          // `handleOAuthSuccess` function and its usage.
-          // For now, we'll keep it as is, but the new `handleOAuthSuccessWithToken`
-          // will likely override this for new messages.
-          // If you want to strictly remove this, you'd need to remove the
-          // `handleOAuthSuccess` function and its usage.
-        }
-      }
     };
 
     window.addEventListener('message', handler);
