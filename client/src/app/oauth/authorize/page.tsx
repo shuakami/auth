@@ -40,7 +40,7 @@ const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode, rig
 const LeftContent = ({ clientName }: { clientName: string | null }) => (
     <div className="hidden lg:block text-center lg:text-left">
         <Image
-            src="/assets/images/logo/logo-text-black.png"
+            src="/assets/images/logo/logo-text-white.png"
             alt="Logo"
             width={150}
             height={40}
@@ -48,7 +48,7 @@ const LeftContent = ({ clientName }: { clientName: string | null }) => (
             priority
         />
         <Image
-            src="/assets/images/logo/logo-text-white.png"
+            src="/assets/images/logo/logo-text-black.png"
             alt="Logo"
             width={150}
             height={40}
@@ -211,7 +211,7 @@ function AuthorizePageContent() {
         <AuthLayout
             leftContent={<LeftContent clientName={params.client_name} />}
             rightContent={
-                <div className="mt-10 lg:-mt-5 w-full max-w-md mx-auto">
+                <div className="mt-10 lg:mt-5 w-full max-w-md mx-auto">
                     {/* 小屏幕标题 */}
                     <div className="text-center lg:hidden mb-8">
                         <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 block dark:hidden" />
