@@ -16,6 +16,7 @@ export const {
   APP_KEY,
   COOKIE_DOMAIN,
   TOTP_ISSUER,
+  NODE_ENV,
   SUPER_ADMIN_ID
 } = process.env;
 
