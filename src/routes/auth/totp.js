@@ -8,7 +8,7 @@ import { generateAndSaveBackupCodes }       from '../../auth/backupCodes.js';
 import { authLimiter }                      from '../../middlewares/rateLimit.js';
 import * as User                            from '../../services/userService.js';
 import bcrypt                               from 'bcryptjs';
-import { verifyAccessToken, signAccessToken, verifyTempToken } from '../../auth/jwt.js';
+import { verifyAccessToken, signAccessToken } from '../../auth/jwt.js';
 import { createRefreshToken } from '../../services/refreshTokenService.js';
 import { NODE_ENV } from '../../config/env.js';
 
@@ -92,15 +92,15 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
         } catch (e) { /* 忽略无效token */ }
       }
     }
-    const { token, totp, backupCode } = req.body;
-    // 优先支持OAuth临时token
-    if (token) {
-      let realPayload = null;
+    const { totp, backupCode, tempToken } = req.body;
+    // 如果是临时Token（找回密码、绑定新TOTP设备）
+    if (tempToken) {
       try {
-        realPayload = verifyAccessToken(token);
-      } catch (e) { /* token无效，自动fallback */ }
-      if (realPayload && realPayload.uid && realPayload.type === '2fa_challenge') {
-        const user = await User.findById(realPayload.uid);
+        const payload = verifyAccessToken(tempToken);
+        if (!payload || !payload.uid || payload.type !== '2fa_challenge') {
+          return res.status(401).json({ error: '无效或过期的临时Token' });
+        }
+        const user = await User.findById(payload.uid);
         if (!user || !user.totp_enabled) {
           return res.status(401).json({ error: '用户未开启2FA' });
         }
@@ -137,8 +137,9 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
           maxAge: 30 * 24 * 60 * 60 * 1000
         });
         return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });
+      } catch (e) {
+        return res.status(401).json({ error: '无效或过期的临时Token' });
       }
-      // token校验失败，自动fallback到accessToken分支
     }
     // 否则走原有AccessToken流程
     if (!req.user || !req.user.id) return res.status(401).json({ error: '未授权，缺少Access Token' });
