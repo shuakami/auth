@@ -142,6 +142,54 @@ export class OAuthController {
   }
 
   /**
+   * 处理临时token交换
+   * @param {Object} req Express请求对象
+   * @param {Object} res Express响应对象
+   */
+  async handleTokenExchange(req, res) {
+    try {
+      const { tempToken } = req.body;
+      
+      if (!tempToken) {
+        return res.status(400).json({ error: '缺少临时token' });
+      }
+
+      // 1. 验证临时token
+      const payload = this.oauth2FAService.verify2FAToken(tempToken);
+      if (!payload) {
+        return res.status(401).json({ error: '无效或过期的临时token' });
+      }
+
+      // 2. 检查token类型
+      if (!payload.provider || !payload.provider.endsWith('_success')) {
+        return res.status(401).json({ error: '无效的token类型' });
+      }
+
+      // 3. 获取用户信息
+      const User = await import('../../services/userService.js');
+      const user = await User.findById(payload.uid);
+      if (!user) {
+        return res.status(401).json({ error: '用户不存在' });
+      }
+
+      // 4. 生成并设置正式的cookie
+      const tokenInfo = await this.oauth2FAService.tokenService.generateAndSetTokens(user, req, res);
+      
+      console.log(`[OAuth] 临时token交换成功，用户 ${user.id} 已登录`);
+      
+      res.json({
+        ok: true,
+        tokenType: tokenInfo.tokenType,
+        expiresIn: tokenInfo.expiresIn
+      });
+
+    } catch (error) {
+      console.error('[OAuth] 临时token交换失败:', error);
+      res.status(500).json({ error: '临时token交换失败' });
+    }
+  }
+
+  /**
    * 获取支持的OAuth提供商列表
    * @returns {string[]}
    */

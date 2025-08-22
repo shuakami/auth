@@ -2,6 +2,7 @@
  * Token服务 - 处理访问令牌和刷新令牌的生成与设置
  */
 import { signAccessToken } from '../jwt.js';
+import { NODE_ENV } from '../../config/env.js';
 
 export class TokenService {
   /**
@@ -42,10 +43,11 @@ export class TokenService {
    * @private
    */
   _setTokenCookies(res, accessToken, refreshToken) {
+    const isProduction = NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/' // 确保cookie在整个域名下都可用，解决OAuth弹窗cookie无法访问问题
     };
 

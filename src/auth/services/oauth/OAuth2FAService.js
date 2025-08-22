@@ -60,11 +60,14 @@ export class OAuth2FAService {
   async handleDirectLogin(user, req, res, provider) {
     console.log(`[OAuth] 用户 ${user.id} ${provider}登录成功，无需2FA`);
     
-    // 生成并设置令牌（确保设置在主域名下）
-    await this.tokenService.generateAndSetTokens(user, req, res);
+    // 不在弹窗中设置cookie，而是生成临时token传递给前端
+    const tempToken = this.generateChallenge2FAToken(user, `${provider}_success`);
     
-    // 返回成功页面重定向URL
-    return `${PUBLIC_BASE_URL}/login/${provider}-callback`;
+    // 将临时token作为URL参数传递给前端回调页面
+    const callbackUrl = new URL(`${PUBLIC_BASE_URL}/login/${provider}-callback`);
+    callbackUrl.searchParams.set('temp_token', tempToken);
+    
+    return callbackUrl.toString();
   }
 
   /**

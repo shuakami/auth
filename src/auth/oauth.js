@@ -32,4 +32,9 @@ router.post('/2fa/verify', (req, res) => {
   oauthController.handle2FAVerification(req, res);
 });
 
+// 临时token交换
+router.post('/exchange-token', (req, res) => {
+  oauthController.handleTokenExchange(req, res);
+});
+
 export default router;

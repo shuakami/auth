@@ -11,7 +11,23 @@ const LoadingSpinner = () => (
 export default function GoogleCallbackPage() {
   useEffect(() => {
     if (window.opener) {
-      window.opener.postMessage('google-login-success', window.location.origin);
+      // 从URL中获取临时token
+      const urlParams = new URLSearchParams(window.location.search);
+      const tempToken = urlParams.get('temp_token');
+      
+      if (tempToken) {
+        // 将临时token传递给主窗口
+        window.opener.postMessage({
+          type: 'google-login-success',
+          tempToken: tempToken
+        }, window.location.origin);
+      } else {
+        // 如果没有token，说明登录失败
+        window.opener.postMessage({
+          type: 'google-login-error',
+          error: 'No temp token received'
+        }, window.location.origin);
+      }
     }
     setTimeout(() => window.close(), 300);
   }, []);

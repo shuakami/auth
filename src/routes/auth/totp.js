@@ -8,8 +8,9 @@ import { generateAndSaveBackupCodes }       from '../../auth/backupCodes.js';
 import { authLimiter }                      from '../../middlewares/rateLimit.js';
 import * as User                            from '../../services/userService.js';
 import bcrypt                               from 'bcryptjs';
-import { verifyAccessToken, signAccessToken } from '../../auth/jwt.js';
+import { verifyAccessToken, signAccessToken, verifyTempToken } from '../../auth/jwt.js';
 import { createRefreshToken } from '../../services/refreshTokenService.js';
+import { NODE_ENV } from '../../config/env.js';
 
 const router = express.Router();
 
@@ -119,17 +120,19 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
         // 校验通过，签发正式Token
         const accessTokenJwt = signAccessToken({ uid: user.id });
         const { token: refreshTokenJwt } = await createRefreshToken(user.id, req.headers['user-agent'], null);
+        
+        const isProduction = NODE_ENV === 'production';
         res.cookie('accessToken', accessTokenJwt, {
           httpOnly: true,
-          secure: true,
-          sameSite: 'none',
+          secure: isProduction,
+          sameSite: isProduction ? 'none' : 'lax',
           path: '/', // 确保cookie在整个域名下都可用
           maxAge: 10 * 60 * 1000
         });
         res.cookie('refreshToken', refreshTokenJwt, {
           httpOnly: true,
-          secure: true,
-          sameSite: 'none',
+          secure: isProduction,
+          sameSite: isProduction ? 'none' : 'lax',
           path: '/', // 确保cookie在整个域名下都可用
           maxAge: 30 * 24 * 60 * 60 * 1000
         });

@@ -2,6 +2,8 @@ import express from 'express';
 import * as RefreshTokenService from '../../services/refreshTokenService.js';
 import { ensureAuth } from '../../middlewares/authenticated.js';
 import { smartQuery, smartConnect } from '../../db/index.js';
+import { signAccessToken } from '../../auth/jwt.js';
+import { NODE_ENV } from '../../config/env.js';
 
 const router = express.Router();
 
@@ -56,13 +58,13 @@ router.post('/refresh', async (req, res) => {
     if (!valid) {
       // 针对不同reason返回不同错误码
       if (reason === 'Token超出最大生存期') {
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
+        res.clearCookie('accessToken', { path: '/' });
+        res.clearCookie('refreshToken', { path: '/' });
         return res.status(403).json({ error: 'Refresh Token超出最大生存期，请重新登录', code: 'refresh_token_expired' });
       }
       if (reason === 'Token已吊销' || reason === 'Token不存在' || reason === 'Token已过期' || reason === 'Token解密失败' || reason === 'Token不匹配') {
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
+        res.clearCookie('accessToken', { path: '/' });
+        res.clearCookie('refreshToken', { path: '/' });
         return res.status(401).json({ error: '无效或已失效的Refresh Token', code: 'refresh_token_invalid' });
       }
       return res.status(400).json({ error: reason || '无效的Refresh Token' });
@@ -73,30 +75,31 @@ router.post('/refresh', async (req, res) => {
       if (reused) {
         // 盗用，吊销所有相关Token并强制下线
         await RefreshTokenService.revokeAllRefreshTokensForUser(dbToken.user_id);
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
+        res.clearCookie('accessToken', { path: '/' });
+        res.clearCookie('refreshToken', { path: '/' });
         return res.status(403).json({ error: '检测到Refresh Token被盗用，已强制下线，请重新登录', code: 'refresh_token_compromised' });
       }
     }
     // 正常轮换
     const { token: newRefreshToken } = await RefreshTokenService.rotateRefreshToken(refreshToken, deviceInfo);
-    const { signAccessToken } = await import('../../auth/jwt.js');
     const accessToken = signAccessToken({ uid: dbToken.user_id });
     // 解析exp
     const decoded = await import('jsonwebtoken').then(m => m.decode(accessToken));
     const exp = decoded && decoded.exp ? decoded.exp : Math.floor(Date.now() / 1000) + 1800; // 30分钟 = 1800秒
+    
+    const isProduction = NODE_ENV === 'production';
     // 用httpOnly Cookie下发新Token（30分钟，与JWT过期时间匹配）
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/', // 确保cookie在整个域名下都可用
       maxAge: 30 * 60 * 1000
     });
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/', // 确保cookie在整个域名下都可用
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
