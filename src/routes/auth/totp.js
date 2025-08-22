@@ -123,12 +123,14 @@ router.post('/2fa/verify', authLimiter, async (req, res, next) => {
           httpOnly: true,
           secure: true,
           sameSite: 'none',
+          path: '/', // 确保cookie在整个域名下都可用
           maxAge: 10 * 60 * 1000
         });
         res.cookie('refreshToken', refreshTokenJwt, {
           httpOnly: true,
           secure: true,
           sameSite: 'none',
+          path: '/', // 确保cookie在整个域名下都可用
           maxAge: 30 * 24 * 60 * 60 * 1000
         });
         return res.json({ ok: true, tokenType: 'Bearer', expiresIn: 600 });

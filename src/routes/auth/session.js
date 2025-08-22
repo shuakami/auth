@@ -28,8 +28,8 @@ router.post('/logout', async (req, res) => {
   }
   await RefreshTokenService.revokeRefreshTokenById(dbToken.id, '用户主动登出');
   // 清除Cookie
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/' });
   res.json({ ok: true, message: '登出成功，Token已吊销' });
 });
 
@@ -90,12 +90,14 @@ router.post('/refresh', async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
+      path: '/', // 确保cookie在整个域名下都可用
       maxAge: 30 * 60 * 1000
     });
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
+      path: '/', // 确保cookie在整个域名下都可用
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     // 响应体返回exp，便于前端Silent Refresh

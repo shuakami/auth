@@ -60,7 +60,7 @@ export class OAuth2FAService {
   async handleDirectLogin(user, req, res, provider) {
     console.log(`[OAuth] 用户 ${user.id} ${provider}登录成功，无需2FA`);
     
-    // 生成并设置令牌
+    // 生成并设置令牌（确保设置在主域名下）
     await this.tokenService.generateAndSetTokens(user, req, res);
     
     // 返回成功页面重定向URL

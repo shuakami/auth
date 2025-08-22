@@ -13,7 +13,24 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
 
   // OAuth 成功处理
   const handleOAuthSuccess = useCallback(async () => {
-    const user = await checkAuth();
+    // 添加延迟和重试机制，解决cookie设置时间延迟问题
+    let user = null;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (attempts < maxAttempts) {
+      // 短暂延迟，让cookie有时间设置
+      if (attempts > 0) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      user = await checkAuth();
+      if (user) break;
+      
+      attempts++;
+      console.log(`[useOAuth] OAuth auth check attempt ${attempts}/${maxAttempts}`);
+    }
+    
     if (user) {
       // 检查是否有 returnUrl 参数
       const urlParams = new URLSearchParams(window.location.search);
@@ -29,6 +46,7 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
         console.log('[useOAuth] OAuth success, user found. Initiating navigation towards /dashboard.');
       }
     } else {
+      console.error('[useOAuth] Failed to authenticate after OAuth success, attempts:', attempts);
       onError(ERROR_MESSAGES.OAUTH_SUCCESS_NO_USER);
     }
   }, [checkAuth, router, onError]);

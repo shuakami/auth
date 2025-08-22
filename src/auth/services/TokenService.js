@@ -45,7 +45,8 @@ export class TokenService {
     const cookieOptions = {
       httpOnly: true,
       secure: true,
-      sameSite: 'none'
+      sameSite: 'none',
+      path: '/' // 确保cookie在整个域名下都可用，解决OAuth弹窗cookie无法访问问题
     };
 
     // 设置访问令牌Cookie（30分钟，与JWT过期时间匹配）
