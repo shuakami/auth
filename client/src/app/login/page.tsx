@@ -133,13 +133,14 @@ export default function LoginPage() {
     close2FA,
     handleLoginSubmit,
     handle2FASubmit,
+    setError,
   } = useLogin();
 
   // 使用 OAuth hook
   const { loginWithGitHub, loginWithGoogle } = useOAuth({
     onError: (errorMessage: string) => {
-      // 这里可以设置错误，但由于我们的 useLogin hook 没有直接暴露 setError
-      // 我们可以考虑在未来版本中改进这个API
+      // 当OAuth流程出错时，在UI上显示错误信息
+      setError(errorMessage);
       console.error('[LoginPage] OAuth error:', errorMessage);
     },
   });

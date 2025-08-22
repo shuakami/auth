@@ -1,7 +1,7 @@
 /**
  * OAuth 2FA服务 - 处理OAuth登录中的2FA流程
  */
-import { signAccessToken } from '../../jwt.js';
+import { signAccessToken, verifyAccessToken } from '../../jwt.js';
 import { TokenService } from '../TokenService.js';
 import { PUBLIC_BASE_URL } from '../../../config/env.js';
 
@@ -77,7 +77,6 @@ export class OAuth2FAService {
    */
   verify2FAToken(token) {
     try {
-      const { verifyAccessToken } = require('../../jwt.js');
       const payload = verifyAccessToken(token);
       
       if (!payload || !payload.uid || payload.type !== '2fa_challenge') {
