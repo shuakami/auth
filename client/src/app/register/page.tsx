@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, type ReactNode, type FormEvent } from 'react';
+import { useState, type ReactNode, type FormEvent, Suspense } from 'react';
 import { register, resendVerifyEmail } from '@/services/api';
 import Link from 'next/link';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import Image from 'next/image';
 import Footer from '../dashboard/components/Footer';
+import LoadingIndicator from '@/components/ui/LoadingIndicator';
 
 const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rightContent: ReactNode }) => (
   <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
@@ -44,7 +45,7 @@ const LeftContent = ({ title, description }: { title: string; description: strin
   </div>
 );
 
-export default function RegisterPage() {
+function RegisterContent() {
   useAutoRedirectIfAuthenticated();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -255,5 +256,17 @@ export default function RegisterPage() {
         </div>
       }
     />
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-[#09090b]">
+        <LoadingIndicator />
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 } 
