@@ -133,17 +133,9 @@ export default function LoginPage() {
     close2FA,
     handleLoginSubmit,
     handle2FASubmit,
-    setError,
+    loginWithGitHub,
+    loginWithGoogle,
   } = useLogin();
-
-  // 使用 OAuth hook
-  const { loginWithGitHub, loginWithGoogle } = useOAuth({
-    onError: (errorMessage: string) => {
-      // 当OAuth流程出错时，在UI上显示错误信息
-      setError(errorMessage);
-      console.error('[LoginPage] OAuth error:', errorMessage);
-    },
-  });
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">

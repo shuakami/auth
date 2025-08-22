@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { login } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { AUTH_CONSTANTS, ERROR_MESSAGES, type TwoFAMode } from '@/constants/auth';
+import { useOAuth } from './useOAuth';
 
 interface LoginCredentials {
   token?: string;
@@ -221,6 +222,11 @@ export const useLogin = () => {
     setError
   ]);
 
+  const { loginWithGitHub, loginWithGoogle } = useOAuth({
+    onError: setError,
+    onSuccess: handleLoginSuccess,
+  });
+
   return {
     // Login state
     email: loginState.email,
@@ -247,5 +253,7 @@ export const useLogin = () => {
     close2FA,
     handleLoginSubmit,
     handle2FASubmit,
+    loginWithGitHub,
+    loginWithGoogle,
   };
 };

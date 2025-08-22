@@ -5,51 +5,22 @@ import { AUTH_CONSTANTS, ERROR_MESSAGES } from '@/constants/auth';
 
 interface UseOAuthProps {
   onError: (error: string) => void;
+  onSuccess: () => void;
 }
 
-export const useOAuth = ({ onError }: UseOAuthProps) => {
+export const useOAuth = ({ onError, onSuccess }: UseOAuthProps) => {
   const router = useRouter();
   const { checkAuth } = useAuth();
 
-  // OAuth 成功处理
+  // 这个函数现在只用于旧的postMessage格式，作为后备
   const handleOAuthSuccess = useCallback(async () => {
-    // 添加延迟和重试机制，解决cookie设置时间延迟问题
-    let user = null;
-    let attempts = 0;
-    const maxAttempts = 5;
-    
-    while (attempts < maxAttempts) {
-      // 短暂延迟，让cookie有时间设置
-      if (attempts > 0) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      
-      user = await checkAuth();
-      if (user) break;
-      
-      attempts++;
-      console.log(`[useOAuth] OAuth auth check attempt ${attempts}/${maxAttempts}`);
-    }
-    
+    const user = await checkAuth();
     if (user) {
-      // 检查是否有 returnUrl 参数
-      const urlParams = new URLSearchParams(window.location.search);
-      const returnUrl = urlParams.get('returnUrl');
-      
-      if (returnUrl) {
-        // 如果有 returnUrl，重定向到该URL
-        console.log('[useOAuth] OAuth success, redirecting to returnUrl:', returnUrl);
-        window.location.href = returnUrl;
-      } else {
-        // 默认重定向到 dashboard
-        router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-        console.log('[useOAuth] OAuth success, user found. Initiating navigation towards /dashboard.');
-      }
+      onSuccess();
     } else {
-      console.error('[useOAuth] Failed to authenticate after OAuth success, attempts:', attempts);
       onError(ERROR_MESSAGES.OAUTH_SUCCESS_NO_USER);
     }
-  }, [checkAuth, router, onError]);
+  }, [checkAuth, onSuccess, onError]);
 
   // 使用临时token进行OAuth成功处理
   const handleOAuthSuccessWithToken = useCallback(async (tempToken: string) => {
@@ -71,28 +42,14 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
         throw new Error(errorData.error || 'Token交换失败');
       }
 
-      // 交换成功后，检查认证状态
-      const user = await checkAuth();
-      if (user) {
-        // 检查是否有 returnUrl 参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const returnUrl = urlParams.get('returnUrl');
-        
-        if (returnUrl) {
-          console.log('[useOAuth] OAuth成功，重定向到returnUrl:', returnUrl);
-          window.location.href = returnUrl;
-        } else {
-          router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-          console.log('[useOAuth] OAuth成功，重定向到dashboard');
-        }
-      } else {
-        throw new Error('Token交换成功但无法获取用户信息');
-      }
+      // 交换成功后，调用通用的成功处理器
+      onSuccess();
+
     } catch (error: any) {
       console.error('[useOAuth] OAuth token交换失败:', error);
       onError(error.message || 'OAuth登录失败');
     }
-  }, [checkAuth, router, onError]);
+  }, [onSuccess, onError]);
 
   // OAuth 消息监听
   useEffect(() => {
@@ -114,7 +71,7 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
       // 兼容旧的消息格式
       else if (typeof data === 'string') {
         const oauthMessages = Object.values(AUTH_CONSTANTS.OAUTH_MESSAGES);
-        if (oauthMessages.includes(data as any)) {
+        if ((oauthMessages as string[]).includes(data)) {
           handleOAuthSuccess();
         }
       }
