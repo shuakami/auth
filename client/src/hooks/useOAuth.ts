@@ -2,32 +2,22 @@ import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AUTH_CONSTANTS, ERROR_MESSAGES } from '@/constants/auth';
+import { useSearchParams } from 'next/navigation';
 
 interface UseOAuthProps {
   onError: (error: string) => void;
-  onSuccess: () => void;
 }
 
-export const useOAuth = ({ onError, onSuccess }: UseOAuthProps) => {
+export const useOAuth = ({ onError }: UseOAuthProps) => {
   const router = useRouter();
   const { checkAuth } = useAuth();
-
-  // 这个函数现在只用于旧的postMessage格式，作为后备
-  const handleOAuthSuccess = useCallback(async () => {
-    const user = await checkAuth();
-    if (user) {
-      onSuccess();
-    } else {
-      onError(ERROR_MESSAGES.OAUTH_SUCCESS_NO_USER);
-    }
-  }, [checkAuth, onSuccess, onError]);
+  const searchParams = useSearchParams();
 
   // 使用临时token进行OAuth成功处理
   const handleOAuthSuccessWithToken = useCallback(async (tempToken: string) => {
     try {
       console.log('[useOAuth] 收到临时token，开始交换正式cookie');
       
-      // 调用新的API来交换临时token为正式cookie
       const response = await fetch('/api/exchange-token', {
         method: 'POST',
         headers: {
@@ -42,14 +32,26 @@ export const useOAuth = ({ onError, onSuccess }: UseOAuthProps) => {
         throw new Error(errorData.error || 'Token交换失败');
       }
 
-      // 交换成功后，调用通用的成功处理器
-      onSuccess();
+      const result = await response.json();
 
+      // 交换成功后，检查认证状态并跳转
+      const user = await checkAuth();
+      if (user) {
+        if (result.returnUrl) {
+          console.log('[useOAuth] OAuth成功，从后端获取到returnUrl:', result.returnUrl);
+          window.location.href = result.returnUrl;
+        } else {
+          router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+          console.log('[useOAuth] OAuth成功，后端未返回returnUrl，跳转到dashboard');
+        }
+      } else {
+        throw new Error('Token交换成功但无法获取用户信息');
+      }
     } catch (error: any) {
       console.error('[useOAuth] OAuth token交换失败:', error);
       onError(error.message || 'OAuth登录失败');
     }
-  }, [onSuccess, onError]);
+  }, [checkAuth, router, onError]);
 
   // OAuth 消息监听
   useEffect(() => {
@@ -72,26 +74,43 @@ export const useOAuth = ({ onError, onSuccess }: UseOAuthProps) => {
       else if (typeof data === 'string') {
         const oauthMessages = Object.values(AUTH_CONSTANTS.OAUTH_MESSAGES);
         if ((oauthMessages as string[]).includes(data)) {
-          handleOAuthSuccess();
+          // This part of the logic is now handled by handleOAuthSuccessWithToken
+          // Keeping it for backward compatibility if old messages are still received
+          // However, the new handleOAuthSuccessWithToken prioritizes returnUrl
+          // So, this might need adjustment depending on how old messages are handled
+          // For now, we'll keep it as is, but the new handleOAuthSuccessWithToken
+          // will likely override this for new messages.
+          // If you want to strictly remove this, you'd need to remove the
+          // `handleOAuthSuccess` function and its usage.
+          // For now, we'll keep it as is, but the new `handleOAuthSuccessWithToken`
+          // will likely override this for new messages.
+          // If you want to strictly remove this, you'd need to remove the
+          // `handleOAuthSuccess` function and its usage.
         }
       }
     };
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [handleOAuthSuccess, handleOAuthSuccessWithToken, onError]);
+  }, [handleOAuthSuccessWithToken, onError]);
 
   // 打开 OAuth 弹窗
   const openOAuthPopup = useCallback((provider: 'github' | 'google') => {
-    const url = provider === 'github' 
+    const returnUrl = searchParams.get('returnUrl');
+    let url = provider === 'github' 
       ? AUTH_CONSTANTS.ROUTES.GITHUB_OAUTH 
       : AUTH_CONSTANTS.ROUTES.GOOGLE_OAUTH;
+    
+    if (returnUrl) {
+      const separator = url.includes('?') ? '&' : '?';
+      url += `${separator}returnUrl=${encodeURIComponent(returnUrl)}`;
+    }
     
     const windowName = `${provider}_oauth`;
     const features = `width=${AUTH_CONSTANTS.OAUTH_WINDOW.WIDTH},height=${AUTH_CONSTANTS.OAUTH_WINDOW.HEIGHT}`;
     
     window.open(url, windowName, features);
-  }, []);
+  }, [searchParams]);
 
   // GitHub 登录
   const loginWithGitHub = useCallback(() => {

@@ -55,6 +55,28 @@ export class GitHubOAuthService extends OAuthServiceBase {
   /**
    * 获取GitHub用户信息
    * @param {string} accessToken 访问令牌
+   * @returns {Promise<Object>} 用户信息
+   */
+  async getOAuthUserInfo(code, state) {
+    try {
+      // 1. 交换授权码获取访问令牌
+      const accessToken = await this.exchangeCodeForToken(code);
+      if (!accessToken) {
+        throw new Error(`${this.providerName}授权失败`);
+      }
+
+      // 2. 获取用户信息
+      const userInfo = await this.getUserInfo(accessToken);
+      return this.normalizeUserInfo(userInfo);
+    } catch (error) {
+      console.error(`[OAuth] 获取 ${this.providerName} 用户信息失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取GitHub用户信息
+   * @param {string} accessToken 访问令牌
    * @returns {Promise<Object>} GitHub用户信息
    */
   async getUserInfo(accessToken) {

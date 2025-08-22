@@ -25,13 +25,14 @@ export class OAuth2FAService {
    * @param {string} provider OAuth提供商
    * @returns {string} 临时令牌
    */
-  generateChallenge2FAToken(user, provider) {
+  generateChallenge2FAToken(user, provider, returnUrl = null) {
     console.log(`[OAuth-2FA] 为用户 ${user.id} 生成${provider} 2FA挑战令牌`);
     
     return signAccessToken({ 
       uid: user.id, 
       type: '2fa_challenge', 
-      provider 
+      provider,
+      returnUrl,
     });
   }
 
@@ -39,10 +40,20 @@ export class OAuth2FAService {
    * 处理需要2FA的OAuth用户
    * @param {Object} user 用户对象
    * @param {string} provider OAuth提供商
+   * @param {string} state OAuth state参数
    * @returns {string} 重定向URL
    */
-  handle2FARequired(user, provider) {
-    const temp2FAToken = this.generateChallenge2FAToken(user, provider);
+  handle2FARequired(user, provider, state) {
+    let returnUrl = null;
+    if (state) {
+      try {
+        const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+        returnUrl = stateData.returnUrl;
+      } catch (e) {
+        console.error('[OAuth-2FA] 解析state失败:', e);
+      }
+    }
+    const temp2FAToken = this.generateChallenge2FAToken(user, provider, returnUrl);
     const redirectUrl = `${PUBLIC_BASE_URL}/2fa-required?token=${temp2FAToken}`;
     
     console.log(`[OAuth-2FA] 重定向用户 ${user.id} 到2FA验证页面`);
@@ -55,13 +66,24 @@ export class OAuth2FAService {
    * @param {Object} req Express请求对象
    * @param {Object} res Express响应对象
    * @param {string} provider OAuth提供商
+   * @param {string} state OAuth state参数
    * @returns {string} 重定向URL
    */
-  async handleDirectLogin(user, req, res, provider) {
+  async handleDirectLogin(user, req, res, provider, state) {
     console.log(`[OAuth] 用户 ${user.id} ${provider}登录成功，无需2FA`);
+
+    let returnUrl = null;
+    if (state) {
+      try {
+        const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+        returnUrl = stateData.returnUrl;
+      } catch (e) {
+        console.error('[OAuth] 解析state失败:', e);
+      }
+    }
     
     // 不在弹窗中设置cookie，而是生成临时token传递给前端
-    const tempToken = this.generateChallenge2FAToken(user, `${provider}_success`);
+    const tempToken = this.generateChallenge2FAToken(user, `${provider}_success`, returnUrl);
     
     // 将临时token作为URL参数传递给前端回调页面
     const callbackUrl = new URL(`${PUBLIC_BASE_URL}/login/${provider}-callback`);

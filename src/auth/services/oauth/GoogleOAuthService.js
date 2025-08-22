@@ -42,7 +42,7 @@ export class GoogleOAuthService extends OAuthServiceBase {
     });
 
     if (!response.data.access_token) {
-      throw new Error('Google令牌获取失败');
+      throw new Error(`Google令牌获取失败: ${response.data.error}`);
     }
 
     return response.data.access_token;

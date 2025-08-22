@@ -16,7 +16,13 @@ export class OAuthServiceBase {
    * @returns {string} 授权URL
    */
   generateAuthUrl(options = {}) {
-    const state = uuidv4();
+    const { returnUrl, ...restOptions } = options;
+    const stateData = {
+      id: uuidv4(),
+      returnUrl: returnUrl || null,
+    };
+    const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
+    
     const redirectUri = `${PUBLIC_BASE_URL}/api/${this.providerName}/callback`;
     
     console.log(`[OAuth] ${this.providerName} 授权请求 redirect_uri:`, redirectUri);
@@ -25,7 +31,7 @@ export class OAuthServiceBase {
       ...this.getAuthParams(),
       redirect_uri: redirectUri,
       state,
-      ...options
+      ...restOptions
     };
 
     const queryString = new URLSearchParams(params).toString();
@@ -72,7 +78,7 @@ export class OAuthServiceBase {
    * @param {string} code 授权码
    * @returns {Promise<Object>} 标准化的用户信息
    */
-  async getOAuthUserInfo(code) {
+  async getOAuthUserInfo(code, state) {
     try {
       // 1. 交换访问令牌
       const accessToken = await this.exchangeCodeForToken(code);

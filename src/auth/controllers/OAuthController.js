@@ -28,7 +28,8 @@ export class OAuthController {
   async initiateAuth(provider, req, res) {
     try {
       const oauthService = this._getOAuthService(provider);
-      const authUrl = oauthService.generateAuthUrl();
+      const { returnUrl } = req.query;
+      const authUrl = oauthService.generateAuthUrl({ returnUrl });
       
       console.log(`[OAuth] 发起${provider}授权，重定向到:`, authUrl);
       res.redirect(authUrl);
@@ -46,7 +47,7 @@ export class OAuthController {
    * @param {Object} res Express响应对象
    */
   async handleCallback(provider, req, res) {
-    const { code } = req.query;
+    const { code, state } = req.query;
     
     if (!code) {
       return res.status(400).send('缺少code');
@@ -57,19 +58,19 @@ export class OAuthController {
 
       // 1. 获取用户信息
       const oauthService = this._getOAuthService(provider);
-      const normalizedUserInfo = await oauthService.getOAuthUserInfo(code);
+      const normalizedUserInfo = await oauthService.getOAuthUserInfo(code, state);
 
       // 2. 处理用户绑定
       const user = await this.userBindingService.handleUserBinding(normalizedUserInfo);
 
       // 3. 检查2FA状态
       if (this.oauth2FAService.requires2FA(user)) {
-        const redirectUrl = this.oauth2FAService.handle2FARequired(user, provider);
+        const redirectUrl = this.oauth2FAService.handle2FARequired(user, provider, state);
         return res.redirect(redirectUrl);
       }
 
       // 4. 直接登录（无需2FA）
-      const redirectUrl = await this.oauth2FAService.handleDirectLogin(user, req, res, provider);
+      const redirectUrl = await this.oauth2FAService.handleDirectLogin(user, req, res, provider, state);
       return res.redirect(redirectUrl);
 
     } catch (error) {
@@ -180,7 +181,8 @@ export class OAuthController {
       res.json({
         ok: true,
         tokenType: tokenInfo.tokenType,
-        expiresIn: tokenInfo.expiresIn
+        expiresIn: tokenInfo.expiresIn,
+        returnUrl: payload.returnUrl || null,
       });
 
     } catch (error) {

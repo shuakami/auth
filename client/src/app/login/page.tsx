@@ -4,6 +4,7 @@ import { memo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLogin } from '@/hooks/useLogin';
+import { useOAuth } from '@/hooks/useOAuth';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import LoginForm from '@/components/Auth/LoginForm';
 import OAuthButtons from '@/components/Auth/OAuthButtons';
@@ -133,9 +134,13 @@ function LoginContent() {
     close2FA,
     handleLoginSubmit,
     handle2FASubmit,
-    loginWithGitHub,
-    loginWithGoogle,
+    setError,
   } = useLogin();
+
+  // 使用 OAuth hook
+  const { loginWithGitHub, loginWithGoogle } = useOAuth({
+    onError: setError,
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
