@@ -1,16 +1,16 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLogin } from '@/hooks/useLogin';
-import { useOAuth } from '@/hooks/useOAuth';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import LoginForm from '@/components/Auth/LoginForm';
 import OAuthButtons from '@/components/Auth/OAuthButtons';
 import TwoFactorModal from '@/components/Auth/TwoFactorModal';
 import Footer from '../dashboard/components/Footer';
 import { AUTH_CONSTANTS } from '@/constants/auth';
+import LoadingIndicator from '@/components/ui/LoadingIndicator';
 
 // Logo 组件
 const LogoSection = memo(function LogoSection({ 
@@ -109,8 +109,8 @@ const RegisterLink = memo(function RegisterLink() {
   );
 });
 
-// 主登录页面组件
-export default function LoginPage() {
+// 将登录页面的核心逻辑和UI移入此组件
+function LoginContent() {
   // 自动重定向已认证用户
   useAutoRedirectIfAuthenticated();
 
@@ -203,5 +203,18 @@ export default function LoginPage() {
         onModeToggle={toggle2FAMode}
       />
     </div>
+  );
+}
+
+// 主登录页面组件现在负责提供 Suspense 边界
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-[#09090b]">
+        <LoadingIndicator />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
