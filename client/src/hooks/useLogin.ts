@@ -4,6 +4,7 @@ import { login } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { AUTH_CONSTANTS, ERROR_MESSAGES, type TwoFAMode } from '@/constants/auth';
 import { useOAuth } from './useOAuth';
+import { useSearchParams } from 'next/navigation';
 
 interface LoginCredentials {
   token?: string;
@@ -29,6 +30,8 @@ interface TwoFAState {
 export const useLogin = () => {
   const router = useRouter();
   const { checkAuth } = useAuth();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
   
   const [loginState, setLoginState] = useState<LoginState>({
     email: '',
@@ -100,9 +103,7 @@ export const useLogin = () => {
     const loggedInUser = await checkAuth();
     if (loggedInUser) {
       // 检查是否有 returnUrl 参数
-      const urlParams = new URLSearchParams(window.location.search);
-      const returnUrl = urlParams.get('returnUrl');
-      
+      console.log(`[useLogin] Checking for returnUrl. Found: "${returnUrl}"`);
       if (returnUrl) {
         // 如果有 returnUrl，重定向到该URL
         console.log('[useLogin] Login success, redirecting to returnUrl:', returnUrl);
@@ -110,12 +111,12 @@ export const useLogin = () => {
       } else {
         // 默认重定向到 dashboard
         router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-        console.log('[useLogin] Login success, user found. Initiating navigation towards /dashboard.');
+        console.log('[useLogin] Login success, no returnUrl. Redirecting to dashboard.');
       }
     } else {
       setError(ERROR_MESSAGES.LOGIN_SUCCESS_NO_USER);
     }
-  }, [checkAuth, router, setError]);
+  }, [checkAuth, router, setError, returnUrl]);
 
   const handleLoginSubmit = useCallback(async () => {
     setLoginState(prev => ({ ...prev, loading: true, error: '' }));
