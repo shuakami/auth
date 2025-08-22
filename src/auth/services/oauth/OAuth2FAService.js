@@ -77,9 +77,10 @@ export class OAuth2FAService {
    */
   verify2FAToken(token) {
     try {
+      // 确保使用顶层导入的 verifyAccessToken 函数
       const payload = verifyAccessToken(token);
       
-      if (!payload || !payload.uid || payload.type !== '2fa_challenge') {
+      if (!payload || !payload.uid || (payload.type !== '2fa_challenge' && !payload.provider?.endsWith('_success'))) {
         return null;
       }
       
