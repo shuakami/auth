@@ -12,6 +12,9 @@
     "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\""
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "@prisma/adapter-neon": "^6.14.0",
+    "@prisma/client": "^6.14.0",
     "@scalar/api-reference": "^1.28.23",
     "axios": "^1.9.0",
     "basic-auth": "^2.0.1",
@@ -39,6 +42,7 @@
     "resend": "^4.4.0",
     "speakeasy": "^2.0.0",
     "uuid": "^9.0.1",
+    "ws": "^8.18.3",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {

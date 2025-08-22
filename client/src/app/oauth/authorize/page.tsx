@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, Suspense, memo, type ReactNode } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Shield, Check, X, LogIn, User, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
@@ -25,29 +25,62 @@ async function postConsent(data: any) {
 
 // --- 新的UI组件 ---
 
-const AuthLayout = ({ children }: { children: ReactNode }) => (
-  <div className="flex min-h-screen flex-col bg-neutral-50 dark:bg-neutral-900">
-    <main className="flex-grow flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        {children}
-      </div>
-    </main>
-    <Footer />
-  </div>
+const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode, rightContent: ReactNode }) => (
+    <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
+        <main className="flex-grow flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+            <div className="w-full max-w-6xl mx-auto lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-24 items-center">
+                {leftContent}
+                {rightContent}
+            </div>
+        </main>
+        <Footer />
+    </div>
 );
 
+const LeftContent = ({ clientName }: { clientName: string | null }) => (
+    <div className="hidden lg:block text-center lg:text-left">
+        <Image
+            src="/assets/images/logo/logo-text-black.png"
+            alt="Logo"
+            width={150}
+            height={40}
+            className="mx-auto lg:mx-0 mb-6 block dark:hidden"
+            priority
+        />
+        <Image
+            src="/assets/images/logo/logo-text-white.png"
+            alt="Logo"
+            width={150}
+            height={40}
+            className="mx-auto lg:mx-0 mb-6 hidden dark:block"
+            priority
+        />
+        <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl">
+            授权访问您的账户
+        </h1>
+        <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
+            <span className="font-semibold text-neutral-800 dark:text-neutral-200">{clientName || '一个应用'}</span> 正请求获取您账户数据的权限。
+        </p>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+            请在继续操作前仔细核对请求的权限。
+        </p>
+    </div>
+);
+
+
 const ScopeIcon = memo(function ScopeIcon({ scope }: { scope: string }) {
+  const iconClass = "w-5 h-5 text-neutral-500 dark:text-neutral-400 mr-3 flex-shrink-0 mt-0.5";
   switch (scope) {
     case 'openid':
-      return <User className="w-5 h-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" />;
+      return <User className={iconClass} />;
     case 'profile':
-      return <Shield className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />;
+      return <Shield className={iconClass} />;
     case 'email':
-      return <Mail className="w-5 h-5 text-purple-500 mr-3 flex-shrink-0 mt-0.5" />;
+      return <Mail className={iconClass} />;
     case 'phone':
-      return <Phone className="w-5 h-5 text-orange-500 mr-3 flex-shrink-0 mt-0.5" />;
+      return <Phone className={iconClass} />;
     default:
-      return <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />;
+      return <Check className={iconClass} />;
   }
 });
 
@@ -56,8 +89,7 @@ const ErrorDisplay = ({ error }: { error: string }) => {
   const isMissingRedirectUri = error.includes('redirect_uri');
 
   return (
-    <div className="text-center px-4 py-10">
-      <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto text-center">
         <X className="w-16 h-16 mx-auto text-red-500 mb-4" />
         <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">授权失败</h1>
         <p className="mt-2 text-neutral-600 dark:text-neutral-400 mb-6">{error}</p>
@@ -102,14 +134,12 @@ const ErrorDisplay = ({ error }: { error: string }) => {
                 查看集成指南
             </Button>
         </div>
-      </div>
     </div>
   );
 };
 
 
 function AuthorizePageContent() {
-    const router = useRouter();
     const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -168,77 +198,100 @@ function AuthorizePageContent() {
 
     if (error) {
         return (
-          <AuthLayout>
-            <ErrorDisplay error={error} />
-          </AuthLayout>
+            <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
+                <main className="flex-grow flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+                    <ErrorDisplay error={error} />
+                </main>
+                <Footer />
+            </div>
         );
     }
     
     return (
-      <AuthLayout>
-        <div className="w-full max-w-md mx-auto bg-white dark:bg-neutral-950 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 p-8">
-            <div className="text-center">
-                <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 dark:hidden" />
-                <Image src="/assets/images/logo/logo-white.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 hidden dark:block" />
-                
-                <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
-                    授权请求
-                </h1>
-                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">{params.client_name}</span> 想要访问您的账户
-                </p>
-            </div>
+        <AuthLayout
+            leftContent={<LeftContent clientName={params.client_name} />}
+            rightContent={
+                <div className="mt-10 lg:mt-0 w-full max-w-md mx-auto">
+                    {/* 小屏幕标题 */}
+                    <div className="text-center lg:hidden mb-8">
+                        <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 block dark:hidden" />
+                        <Image src="/assets/images/logo/logo-white.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 hidden dark:block" />
+                        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                            授权请求
+                        </h1>
+                        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">{params.client_name}</span> 想要访问您的账户
+                        </p>
+                    </div>
 
-            <div className="my-6 space-y-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 p-4">
-                <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">将授予以下权限：</h2>
-                <ul className="space-y-3">
-                    {scopes.map(s => (
-                        <li key={s} className="flex items-start">
-                            <ScopeIcon scope={s} />
-                            <div>
-                                <span className="text-neutral-800 dark:text-neutral-200 text-sm font-medium">
-                                    {scopeDescriptions[s]?.title || `访问 ${s} 信息`}
-                                </span>
-                                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-0.5">
-                                    {scopeDescriptions[s]?.description || '提供基础权限'}
-                                </p>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            
-            <p className="text-xs text-center text-neutral-500 dark:text-neutral-600 mb-6">
-                授权后，您将被重定向到: <br />
-                <span className="font-mono text-blue-500 dark:text-blue-400 break-all text-[11px]">{params.redirect_uri}</span>
-            </p>
+                    <div className="space-y-6">
+                         {/* 大屏幕标题 */}
+                        <div className="hidden lg:block">
+                            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                审查权限
+                            </h2>
+                            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                授权 <span className="font-semibold text-neutral-700 dark:text-neutral-300">{params.client_name}</span> 访问您的数据。
+                            </p>
+                        </div>
+                        
+                        <div className="space-y-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 p-4">
+                            <h3 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">将授予以下权限：</h3>
+                            <ul className="space-y-3">
+                                {scopes.map(s => (
+                                    <li key={s} className="flex items-start">
+                                        <ScopeIcon scope={s} />
+                                        <div>
+                                            <span className="text-neutral-800 dark:text-neutral-200 text-sm font-medium">
+                                                {scopeDescriptions[s]?.title || `访问 ${s} 信息`}
+                                            </span>
+                                            <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-0.5">
+                                                {scopeDescriptions[s]?.description || '提供基础权限'}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        
+                        <p className="text-xs text-center text-neutral-500 dark:text-neutral-600">
+                            授权后，您将被重定向到: <br />
+                            <span className="font-mono text-blue-500 dark:text-blue-400 break-all text-[11px]">{params.redirect_uri}</span>
+                        </p>
 
-            <div className="flex flex-col space-y-3">
-                <Button onClick={() => handleConsent('allow')} disabled={loading} size="lg" className="w-full">
-                    {loading ? <LoadingIndicator /> : (
-                        <>
-                            <LogIn className="w-4 h-4 mr-2" />
-                            授权并继续
-                        </>
-                    )}
-                </Button>
-                <Button onClick={() => handleConsent('deny')} disabled={loading} variant="ghost" size="lg" className="w-full">
-                    取消
-                </Button>
-            </div>
-            
-            <p className="text-xs text-center text-neutral-400 dark:text-neutral-700 mt-6">
-                您可以在账户设置中随时撤销授权。
-            </p>
-        </div>
-      </AuthLayout>
+                        <div className="flex flex-col space-y-3 pt-2">
+                            <Button
+                                onClick={() => handleConsent('allow')}
+                                disabled={loading}
+                                size="lg"
+                                className="w-full bg-[#0582FF] text-white shadow-sm hover:bg-[#006ADF] dark:bg-[#3898FF] dark:hover:bg-[#5CAEFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0582FF] dark:focus-visible:outline-[#3898FF]"
+                            >
+                                {loading ? <LoadingIndicator /> : (
+                                    <>
+                                        <LogIn className="w-4 h-4 mr-2" />
+                                        授权并继续
+                                    </>
+                                )}
+                            </Button>
+                            <Button onClick={() => handleConsent('deny')} disabled={loading} variant="ghost" size="lg" className="w-full">
+                                取消
+                            </Button>
+                        </div>
+                        
+                        <p className="text-xs text-center text-neutral-500 dark:text-neutral-700 pt-2">
+                            您可以在账户设置中随时撤销授权。
+                        </p>
+                    </div>
+                </div>
+            }
+        />
     );
 }
 
 export default function AuthorizePage() {
     return (
         <Suspense fallback={
-            <div className="flex items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900">
+            <div className="flex items-center justify-center min-h-screen bg-white dark:bg-[#09090b]">
                 <LoadingIndicator />
             </div>
         }>
