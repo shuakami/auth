@@ -60,8 +60,10 @@ GET /api/oauth/authorize?
 
 用户授权后，我们会携带 \`code\` 和 \`state\` 参数重定向回您的 \`redirect_uri\`。您的后端服务需要用此 \`code\` 向令牌端点发起请求。
 
+下面是一个使用 \`client_secret_post\` 方式的示例 (将凭据放在请求体中):
+
 \`\`\`bash
-curl --request POST 'https://your-auth-server.com/api/oauth/token' \\
+curl --request POST 'https://auth.sdjz.wiki/api/oauth/token' \\
 --header 'Content-Type: application/x-www-form-urlencoded' \\
 --data-urlencode 'grant_type=authorization_code' \\
 --data-urlencode 'code=CODE_FROM_CALLBACK' \\
@@ -71,7 +73,9 @@ curl --request POST 'https://your-auth-server.com/api/oauth/token' \\
 --data-urlencode 'code_verifier=PKCE_CODE_VERIFIER'
 \`\`\`
 
-成功后，您将收到包含 \`access_token\` 和 \`refresh_token\` 的 JSON 响应。
+> **提示**: 我们同样支持更标准的 \`client_secret_basic\` 认证方式，即将凭据放在 \`Authorization\` 请求头中。详情请参考 [API 端点参考](#api-端点参考)。
+
+成功后，您将收到包含 \`access_token\`、\`id_token\` 和 \`refresh_token\` 的 JSON 响应。
 
 ---
 
@@ -79,12 +83,30 @@ curl --request POST 'https://your-auth-server.com/api/oauth/token' \\
 
 我们的认证系统基于模块化和分层设计，确保高可用、高安全和易于扩展。
 
-![架构图](https://your-image-url/architecture.png "我们的系统由客户端、认证服务器、资源服务器和数据库层组成。")
-
 - **认证服务器**: 系统的核心，处理用户认证、授权请求、令牌签发与验证。
 - **令牌服务**: 负责 Access Token 和 Refresh Token 的生命周期管理，包括生成、轮换和吊销。
 - **用户服务**: 管理用户身份信息和第三方账号绑定。
 - **安全服务**: 提供 2FA、设备指纹、会话监控等高级安全功能。
+
+---
+
+## OIDC Discovery
+
+为了简化客户端配置，我们的服务支持 OIDC Discovery 规范。您可以通过访问“发现文档”端点来自动获取所有必要的端点 URL 和服务能力信息。
+
+\`GET /.well-known/openid-configuration\`
+
+该端点会返回一个 JSON 文档，其中包含了所有关键元数据，例如：
+- \`issuer\`: 签发者 URL
+- \`authorization_endpoint\`: 授权端点 URL
+- \`token_endpoint\`: 令牌端点 URL
+- \`userinfo_endpoint\`: 用户信息端点 URL
+- \`jwks_uri\`: 用于验证令牌签名的公钥集 (JWKS) URL
+- \`scopes_supported\`: 支持的权限范围
+- \`response_types_supported\`: 支持的响应类型
+- \`grant_types_supported\`: 支持的授权类型
+
+我们强烈建议客户端在启动时动态获取此配置，而不是硬编码端点 URL。
 
 ---
 
@@ -147,6 +169,18 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
 
 所有 API 端点都遵循 RESTful 设计原则和标准的 HTTP 响应码。
 
+### OIDC 发现端点
+
+\`GET /.well-known/openid-configuration\`
+
+返回一个 JSON 对象，其中包含了关于我们 OIDC 提供者的所有配置信息和端点 URL。客户端应使用此端点来自动配置。
+
+### JSON Web Key Set (JWKS) 端点
+
+\`GET /api/oauth/jwks.json\`
+
+返回 JSON Web Key Set (JWKS)，其中包含用于验证 \`ID Token\` 签名的公钥。
+
 ### 授权端点
 
 \`GET /api/oauth/authorize\`
@@ -158,7 +192,7 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
 | \`response_type\` | string | 必须为 \`code\`。 | **是** |
 | \`client_id\` | string | 您的应用 Client ID。 | **是** |
 | \`redirect_uri\` | string | 授权后的回调 URL。必须与您应用设置中注册的 URL 完全匹配。 | **是** |
-| \`scope\` | string | 以空格分隔的权限范围列表 (e.g., \`openid profile email\`)。 | **是** |
+| \`scope\` | string | 以空格分隔的权限范围列表 (e.g., \`openid profile email\`)。要获取 Refresh Token，必须包含 \`offline_access\` 范围。 | **是** |
 | \`state\` | string | 用于防止 CSRF 攻击的随机字符串。认证服务器将原样返回此值。 | **推荐** |
 | \`code_challenge\`| string | PKCE 流程中的挑战码。 | **推荐** |
 | \`code_challenge_method\` | string | 必须为 \`S256\`。 | **推荐** |
@@ -167,7 +201,27 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
 
 \`POST /api/oauth/token\`
 
-此端点用于交换授权码获取令牌，或使用刷新令牌获取新的访问令牌。请求体必须为 \`application/x-www-form-urlencoded\` 格式。
+此端点用于交换授权码获取令牌，或使用刷新令牌获取新的访问令牌。
+
+**客户端认证**
+
+我们支持两种客户端认证方式：
+1.  **\`client_secret_post\` (默认)**: 在 \`application/x-www-form-urlencoded\` 请求体中包含 \`client_id\` 和 \`client_secret\`。
+2.  **\`client_secret_basic\`**: 使用 HTTP Basic Authentication。将 \`client_id\` 和 \`client_secret\` 使用 Base64 编码后放入 \`Authorization\` 请求头。
+
+**示例: 使用 client_secret_basic**
+\`\`\`bash
+# 将 client_id:client_secret 编码
+AUTH_HEADER=$(echo -n "YOUR_CLIENT_ID:YOUR_CLIENT_SECRET" | base64)
+
+curl --request POST 'https://auth.sdjz.wiki/api/oauth/token' \\
+--header "Authorization: Basic $AUTH_HEADER" \\
+--header 'Content-Type: application/x-www-form-urlencoded' \\
+--data-urlencode 'grant_type=authorization_code' \\
+--data-urlencode 'code=CODE_FROM_CALLBACK' \\
+--data-urlencode 'redirect_uri=YOUR_REDIRECT_URI' \\
+--data-urlencode 'code_verifier=PKCE_CODE_VERIFIER'
+\`\`\`
 
 **授权码交换**
 
@@ -176,8 +230,8 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
 | \`grant_type\` | string | 必须为 \`authorization_code\`。 |
 | \`code\` | string | 从授权端点回调中获取的授权码。 |
 | \`redirect_uri\` | string | 必须与发起授权请求时使用的 \`redirect_uri\` 相同。 |
-| \`client_id\` | string | 您的应用 Client ID。 |
-| \`client_secret\` | string | 您的应用 Client Secret (仅用于 Web 服务器应用)。 |
+| \`client_id\` | string | 您的应用 Client ID (如果使用 \`client_secret_basic\` 则不需要)。 |
+| \`client_secret\` | string | 您的应用 Client Secret (如果使用 \`client_secret_basic\` 则不需要)。 |
 | \`code_verifier\` | string | PKCE 流程中的原始验证码。 |
 
 **刷新令牌**
@@ -186,8 +240,8 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
 | :--- | :--- | :--- |
 | \`grant_type\` | string | 必须为 \`refresh_token\`。 |
 | \`refresh_token\` | string | 用于获取新访问令牌的刷新令牌。 |
-| \`client_id\` | string | 您的应用 Client ID。 |
-| \`client_secret\` | string | 您的应用 Client Secret (仅用于 Web 服务器应用)。 |
+| \`client_id\` | string | 您的应用 Client ID (如果使用 \`client_secret_basic\` 则不需要)。 |
+| \`client_secret\` | string | 您的应用 Client Secret (如果使用 \`client_secret_basic\` 则不需要)。 |
 
 
 **成功响应**
@@ -198,7 +252,7 @@ const response = await fetch(\`\${AUTH_SERVER}/token\`, {
   "refresh_token": "def502005c0e1b...",
   "id_token": "eyJ0eXAiOiJKV1Qi...",
   "token_type": "Bearer",
-  "expires_in": 600,
+  "expires_in": 3600,
   "scope": "openid profile email"
 }
 \`\`\`
@@ -220,9 +274,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 \`\`\`json
 {
   "sub": "user_unique_identifier",
-  "name": "张三",
   "username": "zhangsan",
-  "picture": "https://example.com/avatar.jpg",
   "email": "zhangsan@example.com",
   "email_verified": true
 }
@@ -238,14 +290,14 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 
 - **格式**: JWT (JSON Web Token)，使用 RS256 算法签名。
 - **用途**: 作为访问受保护资源（例如 \`/userinfo\` API）的凭证。
-- **生命周期**: **短暂** (推荐 10-15 分钟)，以降低泄露风险。
+- **生命周期**: **短暂** (推荐 1 小时)，以降低泄露风险。
 - **存储**: 应存储在客户端的内存中，避免使用 Local Storage。
 
 ### Refresh Token
 
 - **格式**: 不透明的加密字符串。
 - **用途**: 在 Access Token 过期后，安全地获取新的 Access Token，而无需用户重新登录。
-- **生命周期**: **较长** (例如 30 天)，但每次使用都会进行**轮换**。
+- **生命周期**: **较长** (例如 15 天)，但每次使用都会进行**轮换**。
 - **安全特性**:
     - **轮换 (Rotation)**: 每次使用后，旧的 Refresh Token 都会失效，并返回一个新的 Refresh Token。
     - **盗用检测**: 如果一个已被使用的 Refresh Token 再次被使用，系统会判定为令牌泄露，并立即吊销该令牌及其所有后代令牌，强制用户下线。
@@ -255,7 +307,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 
 - **格式**: JWT (OIDC 规范)。
 - **用途**: 仅用于在客户端验证用户的身份信息，**不应用于** API 授权。
-- **内容**: 包含用户的唯一标识符(\`sub\`)、签发者(\`iss\`)、客户端ID(\`aud\`)以及用户的基本资料(\`name\`, \`email\`等)。
+- **内容**: 包含用户的唯一标识符(\`sub\`)、签发者(\`iss\`)、客户端ID(\`aud\`)以及用户的基本资料(\`username\`, \`email\`等)。
 
 `;
 
