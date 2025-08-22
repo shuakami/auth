@@ -211,7 +211,7 @@ function AuthorizePageContent() {
         <AuthLayout
             leftContent={<LeftContent clientName={params.client_name} />}
             rightContent={
-                <div className="mt-10 lg:mt-0 w-full max-w-md mx-auto">
+                <div className="mt-10 lg:-mt-5 w-full max-w-md mx-auto">
                     {/* 小屏幕标题 */}
                     <div className="text-center lg:hidden mb-8">
                         <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 block dark:hidden" />
@@ -253,11 +253,6 @@ function AuthorizePageContent() {
                                 ))}
                             </ul>
                         </div>
-                        
-                        <p className="text-xs text-center text-neutral-500 dark:text-neutral-600">
-                            授权后，您将被重定向到: <br />
-                            <span className="font-mono text-blue-500 dark:text-blue-400 break-all text-[11px]">{params.redirect_uri}</span>
-                        </p>
 
                         <div className="flex flex-col space-y-3 pt-2">
                             <Button
@@ -268,7 +263,6 @@ function AuthorizePageContent() {
                             >
                                 {loading ? <LoadingIndicator /> : (
                                     <>
-                                        <LogIn className="w-4 h-4 mr-2" />
                                         授权并继续
                                     </>
                                 )}
