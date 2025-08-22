@@ -8,6 +8,8 @@ import { ensureAuth } from '../middlewares/authenticated.js';
 import { AuthorizationServerService } from '../auth/services/oauth/AuthorizationServerService.js';
 import { pool } from '../db/index.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
+import jose from 'node-jose';
+import { publicKey } from '../auth/jwt.js';
 
 const router = express.Router();
 const discoveryRouter = express.Router(); // 为 OIDC Discovery 创建一个新的 router
@@ -26,7 +28,7 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
     authorization_endpoint: `${issuer}/api/oauth/authorize`,
     token_endpoint: `${issuer}/api/oauth/token`,
     userinfo_endpoint: `${issuer}/api/oauth/userinfo`,
-    jwks_uri: `${issuer}/api/oauth/jwks.json`, // TODO: Muss noch implementiert werden
+    jwks_uri: `${issuer}/api/oauth/jwks.json`,
     scopes_supported: [
       'openid',
       'profile',
@@ -60,6 +62,24 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
     ]
   };
   res.json(configuration);
+});
+
+/**
+ * GET /jwks.json
+ * @description
+ * Gibt den JSON Web Key Set (JWKS) zurück, der die öffentlichen Schlüssel
+ * enthält, die zum Überprüfen der ID-Token-Signaturen verwendet werden.
+ */
+router.get('/jwks.json', async (req, res) => {
+  try {
+    const keystore = jose.JWK.createKeyStore();
+    await keystore.add(publicKey, 'pem', { alg: 'RS256', use: 'sig', kid: 'sdjz-auth-rs256-main' });
+
+    res.json(keystore.toJSON());
+  } catch (error) {
+    console.error('Error generating JWKS:', error);
+    res.status(500).json({ error: 'internal_server_error', error_description: 'Could not generate JWKS' });
+  }
 });
 
 /**

@@ -18,6 +18,8 @@ if (!privateKey || !publicKey) {
   }
 }
 
+export { publicKey }; // 导出公钥
+
 // 生成一次性 Email 验证 Token（15 分钟，兼容第三方，仍用HS256）
 export function signEmailToken(payload) {
   return jwt.sign(payload, SESSION_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
