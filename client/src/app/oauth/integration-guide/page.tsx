@@ -253,7 +253,8 @@ curl --request POST 'https://auth.sdjz.wiki/api/oauth/token' \\
   "id_token": "eyJ0eXAiOiJKV1Qi...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "openid profile email"
+  "scope": "openid profile email roles",
+  "roles": ["user", "admin"]
 }
 \`\`\`
 
@@ -307,7 +308,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN
 
 - **格式**: JWT (OIDC 规范)。
 - **用途**: 仅用于在客户端验证用户的身份信息，**不应用于** API 授权。
-- **内容**: 包含用户的唯一标识符(\`sub\`)、签发者(\`iss\`)、客户端ID(\`aud\`)以及用户的基本资料(\`username\`, \`email\`等)。
+- **内容**: 包含用户的唯一标识符(\`sub\`)、签发者(\`iss\`)、客户端ID(\`aud\`)以及用户的基本资料(\`username\`, \`email\`, \`roles\`等)。
 
 `;
 
