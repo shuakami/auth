@@ -10,6 +10,7 @@ import { pool } from '../db/index.js';
 import { PUBLIC_BASE_URL } from '../config/env.js';
 import jose from 'node-jose';
 import { publicKey } from '../auth/jwt.js';
+import basicAuth from 'basic-auth';
 
 const router = express.Router();
 const discoveryRouter = express.Router(); // 为 OIDC Discovery 创建一个新的 router
@@ -49,7 +50,8 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
       'RS256'
     ],
     token_endpoint_auth_methods_supported: [
-      'client_secret_post'
+      'client_secret_post',
+      'client_secret_basic'
     ],
     claims_supported: [
       'sub',
@@ -214,12 +216,16 @@ router.post('/consent', ensureAuth, async (req, res) => {
  */
 router.post('/token', async (req, res) => {
   try {
+    const credentials = basicAuth(req);
+    
+    // 从请求头 (basic auth) 或请求体中获取客户端凭据
+    const client_id = credentials ? credentials.name : req.body.client_id;
+    const client_secret = credentials ? credentials.pass : req.body.client_secret;
+
     const { 
       grant_type, 
       code, 
       redirect_uri, 
-      client_id, 
-      client_secret, 
       code_verifier,
       refresh_token 
     } = req.body;

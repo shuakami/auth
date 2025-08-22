@@ -14,6 +14,7 @@
   "dependencies": {
     "@scalar/api-reference": "^1.28.23",
     "axios": "^1.9.0",
+    "basic-auth": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "connect-pg-simple": "^8.0.0",
     "cookie-parser": "^1.4.6",
@@ -27,6 +28,7 @@
     "handlebars": "^4.7.8",
     "jsonwebtoken": "^9.0.2",
     "next-themes": "^0.4.6",
+    "node-jose": "^2.2.0",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
