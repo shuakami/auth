@@ -86,22 +86,22 @@ function AuthorizePageContent() {
         const isMissingRedirectUri = error.includes('redirect_uri');
         
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900 text-center px-4">
-                <div className="w-full max-w-2xl">
-                    <X className="w-16 h-16 mx-auto text-red-500 mb-4" />
-                    <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">授权失败</h1>
-                    <p className="mt-2 text-neutral-600 dark:text-neutral-400 mb-6">{error}</p>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 text-center px-4">
+                <div className="w-full max-w-2xl p-8 bg-white dark:bg-gray-950 rounded-lg shadow-md border dark:border-gray-800">
+                    <X className="w-16 h-16 mx-auto text-red-500 mb-6" />
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">授权失败</h1>
+                    <p className="mt-3 text-gray-600 dark:text-gray-400 mb-8">{error}</p>
                     
                     {isWrongEndpointError && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800 text-left mb-6">
-                            <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">正确的OAuth授权流程：</h3>
-                            <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 border border-blue-200 dark:border-blue-700 text-left mb-6">
+                            <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">正确的OAuth授权流程：</h3>
+                            <div className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
                                 <p>1. 应用应该访问后端API端点：</p>
-                                <code className="block bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-xs">
+                                <code className="block bg-blue-100 dark:bg-blue-800/50 px-3 py-2 rounded-md text-xs font-mono">
                                     https://auth.sdjz.wiki/api/oauth/authorize?...
                                 </code>
                                 <p>2. 而不是直接访问前端页面：</p>
-                                <code className="block bg-red-100 dark:bg-red-800 px-2 py-1 rounded text-xs">
+                                <code className="block bg-red-100 dark:bg-red-800/50 px-3 py-2 rounded-md text-xs font-mono">
                                     https://auth.sdjz.wiki/oauth/authorize?...
                                 </code>
                             </div>
@@ -109,9 +109,9 @@ function AuthorizePageContent() {
                     )}
                     
                     {isMissingRedirectUri && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800 text-left mb-6">
-                            <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">缺少必要参数：</h3>
-                            <div className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                        <div className="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-4 border border-amber-200 dark:border-amber-700 text-left mb-6">
+                            <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">缺少必要参数：</h3>
+                            <div className="text-sm text-amber-700 dark:text-amber-300 space-y-2">
                                 <p>OAuth 2.0 授权请求必须包含以下参数：</p>
                                 <ul className="list-disc list-inside space-y-1">
                                     <li><code>client_id</code> - 应用的客户端ID</li>
@@ -124,11 +124,11 @@ function AuthorizePageContent() {
                         </div>
                     )}
                     
-                    <div className="flex gap-3 justify-center">
+                    <div className="flex gap-4 justify-center mt-8">
                         <Button onClick={() => router.push('/')} variant="outline">
                             返回首页
                         </Button>
-                        <Button onClick={() => router.push('/oauth/integration-guide')} className="bg-indigo-600 hover:bg-indigo-700">
+                        <Button onClick={() => router.push('/oauth/integration-guide')} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                             查看集成指南
                         </Button>
                     </div>
@@ -138,56 +138,63 @@ function AuthorizePageContent() {
     }
     
     return (
-        <div className="flex items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900 p-4">
-            <div className="w-full max-w-md mx-auto bg-white dark:bg-neutral-950 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 p-8">
-                <div className="text-center">
-                    <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 dark:hidden" />
-                    <Image src="/assets/images/logo/logo-white.png" alt="Logo" width={48} height={48} className="mx-auto mb-4 hidden dark:block" />
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-black p-4 sm:p-6 lg:p-8">
+            <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-950 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="p-8 text-center bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-800">
+                    <Image src="/assets/images/logo/logo-black.png" alt="Logo" width={56} height={56} className="mx-auto mb-5 dark:hidden" />
+                    <Image src="/assets/images/logo/logo-white.png" alt="Logo" width={56} height={56} className="mx-auto mb-5 hidden dark:block" />
                     
-                    <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
-                        授权 <span className="text-blue-600 dark:text-blue-400 font-extrabold">{params.client_name}</span>
+                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                        授权请求
                     </h1>
-                    <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                        此应用想要访问您的账户信息
+                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">{params.client_name}</span> 想访问您的账户
                     </p>
                 </div>
 
-                <div className="my-6">
-                    <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 mb-3">将授予以下权限：</h2>
-                    <ul className="space-y-3">
+                <div className="p-8">
+                    <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">将授予以下权限：</h2>
+                    <ul className="space-y-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border dark:border-gray-800">
                         {scopes.map(s => (
                             <li key={s} className="flex items-start">
-                                <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                                <span className="text-neutral-700 dark:text-neutral-300 text-sm">
-                                    {scopeDescriptions[s] || `访问 ${s} 信息`}
-                                </span>
+                                <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-1" />
+                                <div className="text-sm">
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{scopeDescriptions[s]?.split('您的')[0] || `访问 ${s}`}</span>
+                                    <p className="text-gray-600 dark:text-gray-400">
+                                        {scopeDescriptions[s]?.split('您的')[1] || `信息`}
+                                    </p>
+                                </div>
                             </li>
                         ))}
                     </ul>
                 </div>
                 
-                <p className="text-xs text-center text-neutral-500 dark:text-neutral-600 mb-6">
-                    授权后，您将被重定向到: <br />
-                    <span className="font-mono text-blue-600 dark:text-blue-400 break-all">{params.redirect_uri}</span>
-                </p>
+                <div className="p-8 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-500 mb-5">
+                        授权后，您将被重定向到: <br />
+                        <code className="text-blue-600 dark:text-blue-400 break-all bg-blue-50 dark:bg-blue-900/30 rounded px-1 py-0.5 mt-1 inline-block">{params.redirect_uri}</code>
+                    </p>
 
-                <div className="flex flex-col space-y-3">
-                    <Button onClick={() => handleConsent('allow')} disabled={loading} size="lg" className="w-full">
-                        {loading ? <LoadingIndicator /> : (
-                            <>
-                                <LogIn className="w-4 h-4 mr-2" />
-                                授权并继续
-                            </>
-                        )}
-                    </Button>
-                    <Button onClick={() => handleConsent('deny')} disabled={loading} variant="ghost" size="lg" className="w-full">
-                        取消
-                    </Button>
+                    <div className="flex flex-col space-y-3">
+                        <Button onClick={() => handleConsent('allow')} disabled={loading} size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold transition-transform transform hover:scale-105">
+                            {loading ? <LoadingIndicator /> : (
+                                <>
+                                    <LogIn className="w-5 h-5 mr-2" />
+                                    授权并继续
+                                </>
+                            )}
+                        </Button>
+                        <Button onClick={() => handleConsent('deny')} disabled={loading} variant="ghost" size="lg" className="w-full text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                            取消
+                        </Button>
+                    </div>
                 </div>
                 
-                <p className="text-xs text-center text-neutral-400 dark:text-neutral-700 mt-6">
-                    您可以在账户设置中随时撤销授权。
-                </p>
+                <div className="p-4 text-center border-t border-gray-200 dark:border-gray-800">
+                    <p className="text-xs text-gray-400 dark:text-gray-600">
+                        您可以在账户设置中随时撤销授权。
+                    </p>
+                </div>
             </div>
         </div>
     );

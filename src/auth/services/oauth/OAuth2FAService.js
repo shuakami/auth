@@ -4,6 +4,8 @@
 import { signAccessToken } from '../../jwt.js';
 import { TokenService } from '../TokenService.js';
 import { PUBLIC_BASE_URL } from '../../../config/env.js';
+import { URL } from 'url';
+
 
 export class OAuth2FAService {
   constructor() {
@@ -55,15 +57,35 @@ export class OAuth2FAService {
    * @param {Object} req Express请求对象
    * @param {Object} res Express响应对象
    * @param {string} provider OAuth提供商
+   * @param {string} [oauthReturnUrl] 可选的返回URL
    * @returns {string} 重定向URL
    */
-  async handleDirectLogin(user, req, res, provider) {
+  async handleDirectLogin(user, req, res, provider, oauthReturnUrl) {
     console.log(`[OAuth] 用户 ${user.id} ${provider}登录成功，无需2FA`);
     
     // 生成并设置令牌
     await this.tokenService.generateAndSetTokens(user, req, res);
+
+    // 如果提供了 oauthReturnUrl，则验证并使用它
+    if (oauthReturnUrl) {
+      try {
+        const publicBaseUrlOrigin = new URL(PUBLIC_BASE_URL).origin;
+        // new URL(path, base) 可以正确处理相对和绝对路径
+        const returnUrlObject = new URL(oauthReturnUrl, PUBLIC_BASE_URL);
+
+        if (returnUrlObject.origin === publicBaseUrlOrigin) {
+          console.log(`[OAuth] 登录成功，重定向到已验证的 returnUrl: ${oauthReturnUrl}`);
+          return oauthReturnUrl;
+        } else {
+          console.warn(`[OAuth] 安全警告: 检测到无效的 returnUrl "${oauthReturnUrl}"，其来源与系统配置不匹配。将回退到默认回调。`);
+        }
+      } catch (error) {
+        console.warn(`[OAuth] 安全警告: 解析 returnUrl "${oauthReturnUrl}" 时出错。将回退到默认回调。`, error);
+      }
+    }
     
-    // 返回成功页面重定向URL
+    // 否则，返回默认的成功页面重定向URL
+    console.log(`[OAuth] 未提供或验证未通过 returnUrl，将重定向到默认回调。`);
     return `${PUBLIC_BASE_URL}/login/${provider}-callback`;
   }
 

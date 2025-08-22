@@ -27,6 +27,12 @@ export class OAuthController {
    */
   async initiateAuth(provider, req, res) {
     try {
+      const { returnUrl } = req.query;
+      if (returnUrl) {
+        req.session.oauthReturnUrl = returnUrl;
+        console.log(`[OAuth] session 中储存了 returnUrl: ${returnUrl}`);
+      }
+
       const oauthService = this._getOAuthService(provider);
       const authUrl = oauthService.generateAuthUrl();
       
@@ -47,6 +53,11 @@ export class OAuthController {
    */
   async handleCallback(provider, req, res) {
     const { code } = req.query;
+    const oauthReturnUrl = req.session.oauthReturnUrl;
+
+    if (oauthReturnUrl) {
+      console.log(`[OAuth] 从 session 中读取了 returnUrl: ${oauthReturnUrl}`);
+    }
     
     if (!code) {
       return res.status(400).send('缺少code');
@@ -69,7 +80,13 @@ export class OAuthController {
       }
 
       // 4. 直接登录（无需2FA）
-      const redirectUrl = await this.oauth2FAService.handleDirectLogin(user, req, res, provider);
+      const redirectUrl = await this.oauth2FAService.handleDirectLogin(user, req, res, provider, oauthReturnUrl);
+      
+      // 清除 session 中的 returnUrl
+      if (req.session.oauthReturnUrl) {
+        delete req.session.oauthReturnUrl;
+      }
+      
       return res.redirect(redirectUrl);
 
     } catch (error) {

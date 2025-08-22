@@ -50,14 +50,22 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
 
   // 打开 OAuth 弹窗
   const openOAuthPopup = useCallback((provider: 'github' | 'google') => {
-    const url = provider === 'github' 
-      ? AUTH_CONSTANTS.ROUTES.GITHUB_OAUTH 
+    const baseUrl = provider === 'github'
+      ? AUTH_CONSTANTS.ROUTES.GITHUB_OAUTH
       : AUTH_CONSTANTS.ROUTES.GOOGLE_OAUTH;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnUrl = urlParams.get('returnUrl');
+
+    const finalUrl = new URL(baseUrl, window.location.origin);
+    if (returnUrl) {
+      finalUrl.searchParams.set('returnUrl', returnUrl);
+    }
     
     const windowName = `${provider}_oauth`;
     const features = `width=${AUTH_CONSTANTS.OAUTH_WINDOW.WIDTH},height=${AUTH_CONSTANTS.OAUTH_WINDOW.HEIGHT}`;
     
-    window.open(url, windowName, features);
+    window.open(finalUrl.toString(), windowName, features);
   }, []);
 
   // GitHub 登录

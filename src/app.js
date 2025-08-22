@@ -6,6 +6,10 @@ import adminUsersRouter from './routes/admin/users.js';
 import adminRolesRouter from './routes/admin/roles.js';
 import oauthAppsRouter from './routes/oauth/apps.js';
 import oauthProviderRouter, { discoveryRouter } from './routes/oauth_provider.js'; // 导入新的路由
+import helmet from 'helmet';
+import session from 'express-session';
+import { NODE_ENV, SESSION_SECRET } from './config/env.js';
+import { pool } from './db/index.js';
 import { setupDocs } from './middlewares/docs.js';
 import { ensureAuth } from './middlewares/authenticated.js';
 
@@ -21,6 +25,18 @@ app.use(express.urlencoded({ extended: true })); // 添加表单数据解析支�
 app.use(cors({
   origin: /^https:\/\/[a-zA-Z0-9.-]+\.sdjz\.wiki$/,
   credentials: true
+}));
+
+// 会话中间件配置
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: NODE_ENV === 'production', // 在生产环境中应为 true
+    httpOnly: true,
+    maxAge: 1000 * 60 * 15 // 15 分钟
+  }
 }));
 
 /* 静态文件 */
