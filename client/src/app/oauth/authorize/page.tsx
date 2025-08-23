@@ -26,7 +26,7 @@ interface User {
 
 // API 调用函数
 async function getMe(): Promise<{ user: User }> {
-  const res = await fetch('/api/auth/me');
+  const res = await fetch('/api/me');
   if (!res.ok) {
     if (res.status === 401) {
       // 如果未登录，返回一个可识别的错误
