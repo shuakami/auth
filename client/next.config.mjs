@@ -61,6 +61,17 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['react-icons']
   },
+  
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'uapis.cn',
+        port: '',
+        pathname: '/api/v1/avatar/gravatar/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig; 
