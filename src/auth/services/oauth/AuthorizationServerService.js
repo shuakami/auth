@@ -192,9 +192,9 @@ export class AuthorizationServerService {
       
       const idToken = signIdToken(idTokenPayload, '1h');
       
-      // 8. 生成refresh token (可选，基于scope)
+      // 8. 生成refresh token (可选，基于scope和客户端配置)
       let refreshToken = null;
-      if (authCode.scopes.includes('offline_access')) {
+      if (clientApp.issue_refresh_token && authCode.scopes.includes('offline_access')) {
         const { createRefreshToken } = await import('../../../services/refreshTokenService.js');
         const result = await createRefreshToken(authCode.user_id, 'OAuth Client', clientId);
         refreshToken = result.token;

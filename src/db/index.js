@@ -480,6 +480,7 @@ export async function init() {
             redirect_uris TEXT NOT NULL,
             scopes TEXT NOT NULL,
             app_type VARCHAR(50) NOT NULL CHECK (app_type IN ('web', 'mobile', 'desktop', 'server')),
+            issue_refresh_token BOOLEAN DEFAULT FALSE,
             is_active BOOLEAN DEFAULT TRUE,
             usage_count INTEGER DEFAULT 0,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
