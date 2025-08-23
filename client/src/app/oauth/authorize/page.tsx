@@ -105,7 +105,7 @@ const LeftContent = ({ clientName, user }: { clientName: string | null; user: Us
             </p>
 
             {user && (
-                 <div className="mt-6 p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800/50 inline-flex items-center gap-4">
+                 <div className="mt-6 flex items-center gap-3">
                     <Image
                         src={`https://uapis.cn/api/v1/avatar/gravatar?email=${encodeURIComponent(user.email)}&s=80&d=mp&r=g`}
                         alt="User Avatar"
@@ -115,11 +115,10 @@ const LeftContent = ({ clientName, user }: { clientName: string | null; user: Us
                     />
                     <div className="text-sm">
                         <p className="font-semibold text-neutral-800 dark:text-neutral-200">{user.username || user.email}</p>
-                        <p className="text-neutral-600 dark:text-neutral-400">{user.email}</p>
                     </div>
                     <a
                         href={buildSwitchAccountUrl()}
-                        className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-3 py-1.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                        className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 px-3 py-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-white/10 transition-colors"
                     >
                         切换账号
                     </a>
