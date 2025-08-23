@@ -371,9 +371,6 @@ function AuthorizePageContent() {
                                     </>
                                 )}
                             </Button>
-                            <Button onClick={() => handleConsent('deny')} disabled={loading} variant="ghost" size="lg" className="w-full">
-                                取消
-                            </Button>
                         </div>
                         
                         <p className="text-xs text-center text-neutral-500 dark:text-neutral-700 pt-2">
