@@ -204,6 +204,7 @@ export default function OAuthManagement() {
         name: state.editingAppForm.name?.trim(),
         description: state.editingAppForm.description?.trim(),
         redirectUris: state.editingAppForm.redirectUris?.split('\n').map(uri => uri.trim()).filter(Boolean),
+        scopes: state.editingAppForm.scopes,
         issueRefreshToken: state.editingAppForm.issueRefreshToken,
       };
 
@@ -393,6 +394,7 @@ export default function OAuthManagement() {
                         name: app.name,
                         description: app.description || '',
                         redirectUris: app.redirectUris.join('\n'),
+                        scopes: app.scopes,
                         issueRefreshToken: app.issueRefreshToken,
                       }
                     })}
@@ -742,13 +744,51 @@ export default function OAuthManagement() {
                       />
                       <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个URI</p>
                     </div>
+
+                    <div className="pt-2">
+                      <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
+                        权限范围
+                      </label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {AVAILABLE_SCOPES.map((scope) => (
+                          <label key={scope.value} className="flex items-center text-sm">
+                            <input
+                              type="checkbox"
+                              checked={state.editingAppForm!.scopes?.includes(scope.value)}
+                              onChange={(e) => {
+                                if (scope.required) return;
+                                const currentScopes = state.editingAppForm!.scopes || [];
+                                const newScopes = e.target.checked
+                                  ? [...currentScopes, scope.value]
+                                  : currentScopes.filter(s => s !== scope.value);
+                                
+                                const isOfflineSelected = newScopes.includes('offline_access');
+                                dispatch({ 
+                                  editingAppForm: { 
+                                    ...state.editingAppForm, 
+                                    scopes: newScopes,
+                                    issueRefreshToken: isOfflineSelected ? state.editingAppForm!.issueRefreshToken : false
+                                  }
+                                });
+                              }}
+                              disabled={scope.required}
+                              className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                            />
+                            <span className="ml-2 text-neutral-700 dark:text-zinc-300">
+                              {scope.label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="pt-4">
-                      <label className={`flex items-center text-sm ${!state.editingApp.scopes.includes('offline_access') ? 'cursor-not-allowed opacity-50' : ''}`}>
+                      <label className={`flex items-center text-sm ${!state.editingAppForm!.scopes?.includes('offline_access') ? 'cursor-not-allowed opacity-50' : ''}`}>
                         <input
                           type="checkbox"
                           checked={state.editingAppForm.issueRefreshToken}
                           onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, issueRefreshToken: e.target.checked }})}
-                          disabled={!state.editingApp.scopes.includes('offline_access')}
+                          disabled={!state.editingAppForm!.scopes?.includes('offline_access')}
                           className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
                         />
                         <span className="ml-2 text-neutral-700 dark:text-zinc-300">
