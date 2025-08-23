@@ -1,7 +1,17 @@
 'use client';
 import { useEffect, useState, Suspense, memo, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Shield, Check, X, LogIn, User, Mail, Phone } from 'lucide-react';
+import {
+  Shield,
+  Check,
+  X,
+  LogIn,
+  User,
+  Mail,
+  Phone,
+  KeyRound,
+  RefreshCw
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import Image from 'next/image';
@@ -79,6 +89,8 @@ const ScopeIcon = memo(function ScopeIcon({ scope }: { scope: string }) {
       return <Mail className={iconClass} />;
     case 'phone':
       return <Phone className={iconClass} />;
+    case 'offline_access':
+      return <RefreshCw className={iconClass} />;
     default:
       return <Check className={iconClass} />;
   }
@@ -189,11 +201,32 @@ function AuthorizePageContent() {
     };
     
     const scopes = params.scope?.split(' ') || [];
-    const scopeDescriptions: { [key: string]: { title: string, description: string } } = {
-        openid: { title: '验证您的身份', description: '使用您的账户进行身份验证。' },
-        profile: { title: '访问基本资料', description: '读取您的昵称、头像等公开信息。' },
-        email: { title: '访问电子邮件', description: '允许应用获取您的电子邮件地址。' },
-        phone: { title: '访问电话号码', description: '允许应用获取您的电话号码。' },
+    const scopeDescriptions: {
+      [key: string]: {
+        title: string,
+        description: string
+      }
+    } = {
+      openid: {
+        title: '验证您的身份',
+        description: '使用您的账户进行身份验证。'
+      },
+      profile: {
+        title: '访问您的基本公开资料',
+        description: '读取您的昵称、头像等您设置为公开的信息。'
+      },
+      email: {
+        title: '访问您的电子邮件地址',
+        description: '允许应用获取您账户绑定的主要电子邮件地址。'
+      },
+      phone: {
+        title: '访问您的电话号码',
+        description: '允许应用获取您账户绑定的主要电话号码。'
+      },
+      offline_access: {
+        title: '保持离线访问权限',
+        description: '应用将可以在您不在线时，继续访问您的数据。'
+      },
     };
 
     if (error) {
@@ -243,10 +276,10 @@ function AuthorizePageContent() {
                                         <ScopeIcon scope={s} />
                                         <div>
                                             <span className="text-neutral-800 dark:text-neutral-200 text-sm font-medium">
-                                                {scopeDescriptions[s]?.title || `访问 ${s} 信息`}
+                                                {scopeDescriptions[s]?.title || `请求 ${s} 权限`}
                                             </span>
                                             <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-0.5">
-                                                {scopeDescriptions[s]?.description || '提供基础权限'}
+                                                {scopeDescriptions[s]?.description || '此为自定义权限，请确认您信任该应用。'}
                                             </p>
                                         </div>
                                     </li>
