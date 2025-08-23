@@ -17,7 +17,27 @@ import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import Image from 'next/image';
 import Footer from '@/app/dashboard/components/Footer';
 
+// 用户信息类型
+interface User {
+  id: string;
+  email: string;
+  username: string;
+}
+
 // API 调用函数
+async function getMe(): Promise<{ user: User }> {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) {
+    if (res.status === 401) {
+      // 如果未登录，返回一个可识别的错误
+      throw new Error('Unauthorized');
+    }
+    const errorData = await res.json();
+    throw new Error(errorData.error || '获取用户信息失败');
+  }
+  return res.json();
+}
+
 async function postConsent(data: any) {
     const res = await fetch('/api/oauth/consent', {
         method: 'POST',
@@ -47,35 +67,67 @@ const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode, rig
     </div>
 );
 
-const LeftContent = ({ clientName }: { clientName: string | null }) => (
-    <div className="hidden lg:block text-center lg:text-left">
-        <Image
-            src="/assets/images/logo/logo-text-white.png"
-            alt="Logo"
-            width={150}
-            height={40}
-            className="mx-auto lg:mx-0 mb-6 block dark:hidden"
-            priority
-        />
-        <Image
-            src="/assets/images/logo/logo-text-black.png"
-            alt="Logo"
-            width={150}
-            height={40}
-            className="mx-auto lg:mx-0 mb-6 hidden dark:block"
-            priority
-        />
-        <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl">
-            授权访问您的账户
-        </h1>
-        <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
-            <span className="font-semibold text-neutral-800 dark:text-neutral-200">{clientName || '一个应用'}</span> 正请求获取您账户数据的权限。
-        </p>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
-            请在继续操作前仔细核对请求的权限。
-        </p>
-    </div>
-);
+const LeftContent = ({ clientName, user }: { clientName: string | null; user: User | null }) => {
+
+    const buildSwitchAccountUrl = () => {
+        const switchUrl = new URL('/account/switch', window.location.origin);
+        // 确保我们将整个授权请求URL作为重定向目标
+        switchUrl.searchParams.set('redirect', window.location.href);
+        return switchUrl.toString();
+    };
+
+    return (
+        <div className="hidden lg:block text-center lg:text-left">
+            <Image
+                src="/assets/images/logo/logo-text-white.png"
+                alt="Logo"
+                width={150}
+                height={40}
+                className="mx-auto lg:mx-0 mb-6 block dark:hidden"
+                priority
+            />
+            <Image
+                src="/assets/images/logo/logo-text-black.png"
+                alt="Logo"
+                width={150}
+                height={40}
+                className="mx-auto lg:mx-0 mb-6 hidden dark:block"
+                priority
+            />
+            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl">
+                授权访问您的账户
+            </h1>
+            <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
+                <span className="font-semibold text-neutral-800 dark:text-neutral-200">{clientName || '一个应用'}</span> 正请求获取您账户数据的权限。
+            </p>
+            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-500">
+                请在继续操作前仔细核对请求的权限。
+            </p>
+
+            {user && (
+                 <div className="mt-6 p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800/50 inline-flex items-center gap-4">
+                    <Image
+                        src={`https://uapis.cn/api/v1/avatar/gravatar?email=${encodeURIComponent(user.email)}&s=80&d=mp&r=g`}
+                        alt="User Avatar"
+                        width={40}
+                        height={40}
+                        className="rounded-full"
+                    />
+                    <div className="text-sm">
+                        <p className="font-semibold text-neutral-800 dark:text-neutral-200">{user.username || user.email}</p>
+                        <p className="text-neutral-600 dark:text-neutral-400">{user.email}</p>
+                    </div>
+                    <a
+                        href={buildSwitchAccountUrl()}
+                        className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-3 py-1.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                    >
+                        切换账号
+                    </a>
+                </div>
+            )}
+        </div>
+    );
+};
 
 
 const ScopeIcon = memo(function ScopeIcon({ scope }: { scope: string }) {
@@ -155,6 +207,7 @@ function AuthorizePageContent() {
     const searchParams = useSearchParams();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [user, setUser] = useState<User | null>(null);
 
     // 从 URL 中提取所有需要的参数
     const params = {
@@ -169,6 +222,24 @@ function AuthorizePageContent() {
     
     // 检查是否有任何关键参数缺失
     const isParamsMissing = !params.client_id || !params.client_name || !params.redirect_uri || !params.scope;
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const { user: fetchedUser } = await getMe();
+                setUser(fetchedUser);
+            } catch (err: any) {
+                if (err.message === 'Unauthorized') {
+                    // 如果用户未登录，这是预期的行为，无需设置错误状态
+                    console.log('用户未登录，授权流程将等待用户操作。');
+                } else {
+                    setError(err.message);
+                }
+            }
+        };
+
+        fetchUser();
+    }, []);
 
     useEffect(() => {
         if (isParamsMissing) {
@@ -242,7 +313,7 @@ function AuthorizePageContent() {
     
     return (
         <AuthLayout
-            leftContent={<LeftContent clientName={params.client_name} />}
+            leftContent={<LeftContent clientName={params.client_name} user={user} />}
             rightContent={
                 <div className="mt-10 lg:mt-5 w-full max-w-md mx-auto">
                     {/* 小屏幕标题 */}

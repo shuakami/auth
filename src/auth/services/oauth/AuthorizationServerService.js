@@ -11,6 +11,7 @@ import { URL } from 'url';
 import crypto from 'crypto';
 import { signAccessToken, signIdToken } from '../../jwt.js';
 import { validateRefreshToken, rotateRefreshToken } from '../../../services/refreshTokenService.js';
+import { TokenServiceController } from '../../../services/token/TokenServiceController.js';
 
 const AUTHORIZATION_CODE_LIFETIME = 600; // 10 minutes in seconds
 
@@ -195,8 +196,8 @@ export class AuthorizationServerService {
       // 8. 生成refresh token (可选，基于scope和客户端配置)
       let refreshToken = null;
       if (clientApp.issue_refresh_token && authCode.scopes.includes('offline_access')) {
-        const { createRefreshToken } = await import('../../../services/token/TokenServiceController.js');
-        const result = await createRefreshToken(authCode.user_id, 'OAuth Client');
+        const tokenController = new TokenServiceController();
+        const result = await tokenController.createRefreshToken(authCode.user_id, 'OAuth Client');
         refreshToken = result.token;
       }
       
