@@ -34,7 +34,8 @@ import {
   updateOAuthApp,
   deleteOAuthApp,
   type OAuthApp,
-  type CreateOAuthAppRequest
+  type CreateOAuthAppRequest,
+  type UpdateOAuthAppRequest
 } from '@/services/oauth';
 
 // 动态导入 ConfirmModal
@@ -61,6 +62,7 @@ interface CreateAppForm {
   type: 'web' | 'mobile' | 'desktop' | 'server';
   redirectUris: string;
   scopes: string[];
+  issueRefreshToken: boolean;
 }
 
 const initialState: OAuthManagementState = {
@@ -82,6 +84,7 @@ const initialForm: CreateAppForm = {
   type: 'web',
   redirectUris: '',
   scopes: ['openid', 'profile', 'email'],
+  issueRefreshToken: false,
 };
 
 type StateAction = Partial<OAuthManagementState> & {
@@ -125,6 +128,7 @@ const AVAILABLE_SCOPES = [
   { value: 'email', label: '邮箱地址', required: false },
   { value: 'phone', label: '手机号码', required: false },
   { value: 'address', label: '地址信息', required: false },
+  { value: 'offline_access', label: '离线访问 (发放Refresh Token)', required: false },
 ];
 
 export default function OAuthManagement() {
@@ -173,6 +177,7 @@ export default function OAuthManagement() {
         type: form.type,
         redirectUris: form.redirectUris.split('\n').map(uri => uri.trim()).filter(Boolean),
         scopes: form.scopes,
+        issueRefreshToken: form.issueRefreshToken,
       };
 
       const result = await createOAuthApp(createRequest);
@@ -195,10 +200,11 @@ export default function OAuthManagement() {
     if (!state.editingApp || !state.editingAppForm) return;
 
     try {
-      const updateRequest = {
+      const updateRequest: UpdateOAuthAppRequest = {
         name: state.editingAppForm.name?.trim(),
         description: state.editingAppForm.description?.trim(),
         redirectUris: state.editingAppForm.redirectUris?.split('\n').map(uri => uri.trim()).filter(Boolean),
+        issueRefreshToken: state.editingAppForm.issueRefreshToken,
       };
 
       await updateOAuthApp(state.editingApp.id, updateRequest);
@@ -387,6 +393,7 @@ export default function OAuthManagement() {
                         name: app.name,
                         description: app.description || '',
                         redirectUris: app.redirectUris.join('\n'),
+                        issueRefreshToken: app.issueRefreshToken,
                       }
                     })}
                     className="h-8 px-3"
@@ -601,7 +608,14 @@ export default function OAuthManagement() {
                         const newScopes = e.target.checked
                           ? [...form.scopes, scope.value]
                           : form.scopes.filter(s => s !== scope.value);
-                        setForm({ ...form, scopes: newScopes });
+
+                        const isOfflineAccessSelected = newScopes.includes('offline_access');
+                        
+                        setForm({ 
+                          ...form, 
+                          scopes: newScopes, 
+                          issueRefreshToken: isOfflineAccessSelected ? form.issueRefreshToken : false 
+                        });
                       }}
                       disabled={scope.required}
                       className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
@@ -613,6 +627,24 @@ export default function OAuthManagement() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div className="pt-2">
+              <label className={`flex items-center text-sm ${!form.scopes.includes('offline_access') ? 'cursor-not-allowed opacity-50' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={form.issueRefreshToken}
+                  onChange={(e) => setForm({ ...form, issueRefreshToken: e.target.checked })}
+                  disabled={!form.scopes.includes('offline_access')}
+                  className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                />
+                <span className="ml-2 text-neutral-700 dark:text-zinc-300">
+                  允许发放 Refresh Token (客户端级开关)
+                </span>
+              </label>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">
+                必须先在上方选择 "离线访问" 权限范围。
+              </p>
             </div>
           </form>
         }
@@ -709,6 +741,23 @@ export default function OAuthManagement() {
                         className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
                       />
                       <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个URI</p>
+                    </div>
+                    <div className="pt-4">
+                      <label className={`flex items-center text-sm ${!state.editingApp.scopes.includes('offline_access') ? 'cursor-not-allowed opacity-50' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={state.editingAppForm.issueRefreshToken}
+                          onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, issueRefreshToken: e.target.checked }})}
+                          disabled={!state.editingApp.scopes.includes('offline_access')}
+                          className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                        />
+                        <span className="ml-2 text-neutral-700 dark:text-zinc-300">
+                          允许发放 Refresh Token
+                        </span>
+                      </label>
+                       <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">
+                        需要 `offline_access` 范围。此设置为客户端级开关。
+                      </p>
                     </div>
                   </form>
                 )}

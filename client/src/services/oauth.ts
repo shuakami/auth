@@ -17,6 +17,7 @@ export interface OAuthApp {
   createdAt: string;
   updatedAt: string;
   usageCount: number;
+  issueRefreshToken: boolean;
 }
 
 // 创建应用请求
@@ -26,6 +27,7 @@ export interface CreateOAuthAppRequest {
   type: 'web' | 'mobile' | 'desktop' | 'server';
   redirectUris: string[];
   scopes: string[];
+  issueRefreshToken: boolean;
 }
 
 // 更新应用请求
@@ -35,6 +37,7 @@ export interface UpdateOAuthAppRequest {
   redirectUris?: string[];
   scopes?: string[];
   isActive?: boolean;
+  issueRefreshToken?: boolean;
 }
 
 /**

@@ -44,7 +44,8 @@ router.get('/', requireRole(ROLES.ADMIN), async (req, res) => {
         is_active,
         created_at,
         updated_at,
-        usage_count
+        usage_count,
+        issue_refresh_token
       FROM oauth_applications 
       ORDER BY created_at DESC
     `);
@@ -61,7 +62,8 @@ router.get('/', requireRole(ROLES.ADMIN), async (req, res) => {
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      usageCount: row.usage_count || 0
+      usageCount: row.usage_count || 0,
+      issueRefreshToken: row.issue_refresh_token
     }));
 
     res.json({
@@ -97,7 +99,8 @@ router.get('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
         is_active,
         created_at,
         updated_at,
-        usage_count
+        usage_count,
+        issue_refresh_token
       FROM oauth_applications 
       WHERE id = $1
     `, [id]);
@@ -121,7 +124,8 @@ router.get('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      usageCount: row.usage_count || 0
+      usageCount: row.usage_count || 0,
+      issueRefreshToken: row.issue_refresh_token
     };
 
     res.json({
@@ -142,7 +146,7 @@ router.get('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
  */
 router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
-    const { name, description, type, redirectUris, scopes } = req.body;
+    const { name, description, type, redirectUris, scopes, issueRefreshToken } = req.body;
 
     // 验证必填字段
     if (!name || !name.trim()) {
@@ -177,7 +181,7 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
     }
 
     // 验证权限范围
-    const validScopes = ['openid', 'profile', 'email', 'phone', 'address'];
+    const validScopes = ['openid', 'profile', 'email', 'phone', 'address', 'offline_access'];
     const scopeArray = Array.isArray(scopes) ? scopes : [];
     for (const scope of scopeArray) {
       if (!validScopes.includes(scope)) {
@@ -208,9 +212,10 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
         app_type, 
         is_active,
         usage_count,
+        issue_refresh_token,
         created_at, 
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, created_at, updated_at
     `, [
       name.trim(),
@@ -221,7 +226,8 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
       JSON.stringify(scopeArray),
       type,
       true,
-      0
+      0,
+      Boolean(issueRefreshToken)
     ]);
 
     const newApp = {
@@ -236,7 +242,8 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
       isActive: true,
       createdAt: result.rows[0].created_at,
       updatedAt: result.rows[0].updated_at,
-      usageCount: 0
+      usageCount: 0,
+      issueRefreshToken: Boolean(issueRefreshToken)
     };
 
     res.status(201).json({
@@ -266,7 +273,7 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
 router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, redirectUris, scopes, isActive } = req.body;
+    const { name, description, redirectUris, scopes, isActive, issueRefreshToken } = req.body;
 
     // 验证应用是否存在
     const existingApp = await smartQuery(
@@ -319,7 +326,7 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
 
     if (scopes !== undefined) {
       // 验证权限范围
-      const validScopes = ['openid', 'profile', 'email', 'phone', 'address'];
+      const validScopes = ['openid', 'profile', 'email', 'phone', 'address', 'offline_access'];
       const scopeArray = Array.isArray(scopes) ? scopes : [];
       
       for (const scope of scopeArray) {
@@ -344,6 +351,11 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
       updateValues.push(Boolean(isActive));
     }
 
+    if (issueRefreshToken !== undefined) {
+      updateFields.push(`issue_refresh_token = $${valueIndex++}`);
+      updateValues.push(Boolean(issueRefreshToken));
+    }
+
     if (updateFields.length === 0) {
       return res.status(400).json({ 
         error: '没有提供要更新的字段' 
@@ -362,7 +374,7 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
       RETURNING 
         id, name, description, client_id, client_secret, 
         redirect_uris, scopes, app_type, is_active, 
-        created_at, updated_at, usage_count
+        created_at, updated_at, usage_count, issue_refresh_token
     `, updateValues);
 
     const row = result.rows[0];
@@ -378,7 +390,8 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      usageCount: row.usage_count || 0
+      usageCount: row.usage_count || 0,
+      issueRefreshToken: row.issue_refresh_token
     };
 
     res.json({
