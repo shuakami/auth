@@ -41,21 +41,34 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Silent Refresh逻辑（现在主要由EnhancedTokenManager处理，但保持向后兼容）
+// Silent Refresh逻辑
 async function silentRefreshIfNeeded() {
+  // 如果正在刷新，则等待刷新完成
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject });
+    }).then(() => {}); // 刷新成功后，此Promise解决
+  }
+
   if (!accessTokenExp) return;
   const now = Math.floor(Date.now() / 1000);
+  
   // 距离过期小于2分钟自动刷新
   if (accessTokenExp - now < 120) {
+    isRefreshing = true; // 加锁
     try {
       const res = await apiClient.post('/refresh');
       if (res.data && res.data.exp) {
         accessTokenExp = res.data.exp;
-        // 同时更新增强token管理器
         tokenManager.updateTokenExpiration(res.data.exp);
+        processQueue(null, 'token_refreshed'); // 刷新成功，处理队列
       }
-    } catch {
-      // 刷新失败，交由拦截器处理
+    } catch (error) {
+      processQueue(error as Error, null); // 刷新失败，拒绝队列
+      // 刷新失败，交由响应拦截器处理后续逻辑（如登出）
+      throw error;
+    } finally {
+      isRefreshing = false; // 解锁
     }
   }
 }
