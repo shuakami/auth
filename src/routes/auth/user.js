@@ -24,11 +24,16 @@ const router = express.Router();
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
 router.get('/me', ensureAuth, async (req, res) => {
-  // 通过Access Token认证，req.user.id为当前用户ID
-  const user = await User.findById(req.user.id);
+  // ensureAuth 中间件已将 token payload 挂载到 req.user
+  const user = await User.findById(req.user.uid);
   if (!user) return res.status(401).json({ error: '未授权' });
+  
   const { password_hash, ...rest } = user;
-  res.json({ user: { ...rest, has_password: !!password_hash } });
+  
+  res.json({ 
+    user: { ...rest, has_password: !!password_hash },
+    exp: req.user.exp // 从 token payload 中返回 exp
+  });
 });
 
 /**

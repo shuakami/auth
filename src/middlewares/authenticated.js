@@ -22,7 +22,7 @@ export function ensureAuth(req, res, next) {
     return res.status(401).json({ error: '无效或过期的Access Token' });
   }
   // 挂载用户信息到req.user
-  req.user = { id: payload.uid };
+  req.user = payload;
 
   // 异步更新 last_used_at
   const refreshToken = req.cookies.refreshToken;
