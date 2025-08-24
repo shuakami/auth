@@ -8,7 +8,84 @@ import { sendVerifyEmail } from '../../mail/resend.js';
 import { PUBLIC_BASE_URL } from '../../config/env.js';
 import { decrypt } from '../cryptoUtils.js';
 
+import { PostLoginTasksService } from './PostLoginTaskService.js';
+
 export class AuthenticationService {
+  constructor() {
+    this.postLoginTasks = new PostLoginTasksService();
+  }
+  
+  /**
+   * 完整的用户认证流程
+   * @param {object} context - 包含 email, password, totpToken, backupCode, deviceInfo, res 的上下文对象
+   * @returns {Promise<object>} 认证结果
+   */
+  async authenticate(context) {
+    const { email, password, totpToken, backupCode, deviceInfo, res, is2faOnly } = context;
+    let user;
+
+    if (is2faOnly) {
+      // 2FA 流程，跳过密码验证，直接查找用户
+      user = await User.findByEmail(email);
+      if (!user) {
+        return { status: 'failed', error: 'User not found for 2FA' };
+      }
+    } else {
+      // 完整登录流程，验证凭据
+      const credsResult = await this.verifyCredentials(email, password);
+      if (!credsResult.success) {
+        return { status: 'failed', error: credsResult.error };
+      }
+      user = credsResult.user;
+    }
+
+    // 2. 检查邮箱验证状态 (两个流程都需要)
+    const emailVerification = await this.checkEmailVerification(user);
+    if (!emailVerification.verified) {
+      return { status: 'failed', error: emailVerification.error, message: emailVerification.message };
+    }
+
+    // 3. 检查是否需要2FA
+    if (!this.requires2FA(user)) {
+      // 不需要2FA，登录成功
+      const { exp } = await this.postLoginTasks.execute(user.id, deviceInfo, res);
+      return { status: 'success', userId: user.id, exp };
+    }
+
+    // 4. 需要2FA，检查是否提供了 token 或 backupCode
+    if (!totpToken && !backupCode) {
+      return { status: '2fa_required' };
+    }
+
+    // 5. 验证2FA
+    const twoFactorResult = await this.verify2FA({ user, totpToken, backupCode });
+    if (!twoFactorResult.success) {
+      return { status: 'failed', error: twoFactorResult.error, reason: twoFactorResult.reason };
+    }
+
+    // 6. 2FA验证通过，登录成功
+    const { exp } = await this.postLoginTasks.execute(user.id, deviceInfo, res);
+    return { status: 'success', userId: user.id, exp };
+  }
+
+  /**
+   * 验证2FA凭据 (TOTP 或 备份码)
+   * @param {object} context - 包含 user, totpToken, backupCode 的对象
+   * @returns {Promise<object>} 验证结果
+   */
+  async verify2FA(context) {
+    const { user, totpToken, backupCode } = context;
+
+    if (totpToken) {
+      return this.verifyTotpToken(user, totpToken);
+    }
+    if (backupCode) {
+      return this.verifyBackupCode(user.id, backupCode);
+    }
+    return { success: false, error: 'No 2FA token or backup code provided' };
+  }
+
+
   /**
    * 验证用户凭据
    * @param {string} email 
