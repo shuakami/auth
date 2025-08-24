@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, verify2FA } from '@/services/api';
+import { login as apiLogin, verify2FA as apiVerify2FA } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { AUTH_CONSTANTS, ERROR_MESSAGES, SUCCESS_MESSAGES, type TwoFAMode } from '@/constants/auth';
 
@@ -27,7 +27,7 @@ interface TwoFAState {
 
 export const useLogin = () => {
   const router = useRouter();
-  const { checkAuth } = useAuth();
+  const { login } = useAuth();
   
   const [loginState, setLoginState] = useState<LoginState>({
     email: '',
@@ -95,38 +95,40 @@ export const useLogin = () => {
     }));
   }, []);
 
-  const handleLoginSuccess = useCallback(async () => {
-    const loggedInUser = await checkAuth();
-    if (loggedInUser) {
-      // 检查是否有 returnUrl 参数
-      const urlParams = new URLSearchParams(window.location.search);
-      const returnUrl = urlParams.get('returnUrl');
-      
-      if (returnUrl) {
-        // 如果有 returnUrl，重定向到该URL
-        console.log('[useLogin] Login success, redirecting to returnUrl:', returnUrl);
-        window.location.href = returnUrl;
-      } else {
-        // 默认重定向到 dashboard
-        router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
-        console.log('[useLogin] Login success, user found. Initiating navigation towards /dashboard.');
-      }
+  const handleLoginSuccess = useCallback(async (user: any) => {
+    // 1. 使用从API返回的用户信息直接登录
+    login(user);
+
+    // 2. 处理重定向
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnUrl = urlParams.get('returnUrl');
+    
+    if (returnUrl) {
+      console.log('[useLogin] Login success, redirecting to returnUrl:', returnUrl);
+      window.location.href = returnUrl;
     } else {
-      setError(ERROR_MESSAGES.LOGIN_SUCCESS_NO_USER);
+      router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+      console.log('[useLogin] Login success, user found. Initiating navigation towards /dashboard.');
     }
-  }, [checkAuth, router, setError]);
+  }, [login, router]);
 
   const handleLoginSubmit = useCallback(async () => {
     setLoginState(prev => ({ ...prev, loading: true, error: '' }));
     setTwoFAState(prev => ({ ...prev, message: '' }));
 
     try {
-      const resp = await login(loginState.email, loginState.password);
+      const resp = await apiLogin(loginState.email, loginState.password);
       
-      if (resp.data?.error === 'TOTP_REQUIRED') {
+      if (resp.status === 401 && resp.data?.error === 'TOTP_REQUIRED') {
         setLoginState(prev => ({ ...prev, show2fa: true }));
+        return;
+      }
+
+      if (resp.status === 200 && resp.data.user) {
+        await handleLoginSuccess(resp.data.user);
       } else {
-        await handleLoginSuccess();
+        const errorMessage = resp.data?.error || ERROR_MESSAGES.LOGIN_FAILED;
+        setError(errorMessage);
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.LOGIN_FAILED;
@@ -140,19 +142,23 @@ export const useLogin = () => {
     setTwoFAState(prev => ({ ...prev, loading: true, message: '', messageType: 'error' }));
 
     try {
-      await verify2FA({
-        token: loginState.email, // 临时用email字段传递token
+      const resp = await apiVerify2FA({
+        email: loginState.email, // 注意：这里用email作为临时凭证
         totp: twoFAState.mode === 'totp' ? twoFAState.code : undefined,
         backupCode: twoFAState.mode === 'backup' ? twoFAState.code : undefined,
       });
 
-      setTwoFAState(prev => ({
-        ...prev,
-        message: SUCCESS_MESSAGES.TWO_FA_VERIFICATION_SUCCESS,
-        messageType: 'info'
-      }));
-      await handleLoginSuccess();
-
+      if (resp.status === 200 && resp.data.user) {
+        setTwoFAState(prev => ({
+          ...prev,
+          message: SUCCESS_MESSAGES.TWO_FA_VERIFICATION_SUCCESS,
+          messageType: 'info'
+        }));
+        await handleLoginSuccess(resp.data.user);
+      } else {
+        const errorMessage = resp.data?.error || ERROR_MESSAGES.TWO_FA_ERROR;
+        setTwoFAState(prev => ({ ...prev, message: errorMessage }));
+      }
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.TWO_FA_ERROR;
       setTwoFAState(prev => ({ ...prev, loading: false, message: errorMessage }));

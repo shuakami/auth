@@ -115,7 +115,8 @@ export const login = async (
   const data: LoginPayload = { email, password };
   if (opts?.token) data.token = opts.token;
   if (opts?.backupCode) data.backupCode = opts.backupCode;
-  return apiClient.post('/login', data, { validateStatus: () => true });
+  // 移除 validateStatus，让axios在4xx/5xx时自然地抛出错误
+  return apiClient.post('/login', data);
 };
 
 export const register = async (email: string, password: string, username?: string | null) => {
@@ -152,7 +153,7 @@ export const setup2FA = async (password: string) => {
   return apiClient.post('/2fa/setup', { password });
 };
 
-export const verify2FA = async (data: { token: string; totp?: string; backupCode?: string }) => {
+export const verify2FA = async (data: { email: string; totp?: string; backupCode?: string }) => {
   return apiClient.post('/2fa/verify', data);
 };
 

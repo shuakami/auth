@@ -2,77 +2,79 @@
  * 登录控制器 - 协调登录流程
  */
 import { AuthenticationService } from '../services/AuthenticationService.js';
-import { 
-  NoTwoFactorLoginStrategy, 
-  TotpLoginStrategy, 
-  BackupCodeLoginStrategy 
-} from '../strategies/LoginStrategies.js';
+import * as User from '../../services/userService.js';
 
 export class LoginController {
   constructor() {
     this.authService = new AuthenticationService();
-    this.strategies = {
-      noTwoFactor: new NoTwoFactorLoginStrategy(),
-      totp: new TotpLoginStrategy(),
-      backupCode: new BackupCodeLoginStrategy()
-    };
   }
 
-  /**
-   * 处理登录请求
-   * @param {Object} req Express请求对象
-   * @param {Object} res Express响应对象
-   * @returns {Promise<void>}
-   */
   async handleLogin(req, res) {
     const { email, password, token, backupCode } = req.body;
+    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
+    
+    const context = {
+      email,
+      password,
+      totpToken: token,
+      backupCode,
+      deviceInfo,
+      res,
+    };
 
-    // 1. 验证基本凭据
-    const credentialResult = await this.authService.verifyCredentials(email, password);
-    if (!credentialResult.success) {
-      return res.status(401).json({ error: credentialResult.error });
+    try {
+      const result = await this.authService.authenticate(context);
+      
+      if (result.status === 'success') {
+        // 登录成功，返回用户信息
+        const user = await User.findById(result.userId);
+        if (!user) {
+          return res.status(404).json({ error: 'User not found after login' });
+        }
+        const { password_hash, ...rest } = user;
+        return res.status(200).json({ 
+          ok: true, 
+          message: '登录成功', 
+          exp: result.exp,
+          user: { ...rest, has_password: !!password_hash } 
+        });
+      } else if (result.status === '2fa_required') {
+        return res.status(401).json({ error: 'TOTP_REQUIRED' });
+      } else {
+        // 其他失败情况
+        return res.status(401).json({ error: result.error || '认证失败' });
+      }
+    } catch (error) {
+      console.error('[LoginController] Authentication error:', error);
+      return res.status(500).json({ error: '服务器内部错误' });
     }
-
-    const { user } = credentialResult;
-    console.log('[LOGIN] 查询到用户信息:', user);
-
-    // 2. 检查邮箱验证状态
-    const emailVerificationResult = await this.authService.checkEmailVerification(user);
-    if (!emailVerificationResult.verified) {
-      return res.status(403).json({
-        error: emailVerificationResult.error,
-        message: emailVerificationResult.message,
-        emailSent: emailVerificationResult.emailSent
-      });
-    }
-
-    // 3. 处理2FA验证
-    if (this.authService.requires2FA(user)) {
-      return this._handle2FALogin(req, res, user, { token, backupCode });
-    }
-
-    // 4. 无2FA登录
-    return this.strategies.noTwoFactor.execute(req, res, user);
   }
 
-  /**
-   * 处理2FA登录
-   * @param {Object} req 
-   * @param {Object} res 
-   * @param {Object} user 
-   * @param {Object} options
-   * @returns {Promise<void>}
-   * @private
-   */
-  async _handle2FALogin(req, res, user, { token, backupCode }) {
-    console.log(`[2FA] 用户 ${user.id} 检测到 totp_secret，强制要求2FA校验`);
+  async handle2FAVerification(req, res) {
+    const { email, totp, backupCode } = req.body;
+    const deviceInfo = req.headers['user-agent'] || 'Unknown Device';
 
-    // 优先尝试备份码
-    if (backupCode) {
-      return this.strategies.backupCode.execute(req, res, user, backupCode);
+    try {
+      const result = await this.authService.verify2FA({ email, totpToken: totp, backupCode, deviceInfo, res });
+
+      if (result.status === 'success') {
+        const user = await User.findById(result.userId);
+        if (!user) {
+          return res.status(404).json({ error: 'User not found after 2FA verification' });
+        }
+        const { password_hash, ...rest } = user;
+        return res.status(200).json({ 
+          ok: true, 
+          message: '2FA验证成功',
+          exp: result.exp,
+          user: { ...rest, has_password: !!password_hash }
+        });
+      } else {
+        return res.status(401).json({ error: result.error || '2FA验证失败' });
+      }
+    } catch (error) {
+      console.error('[LoginController] 2FA verification error:', error);
+      return res.status(500).json({ error: '服务器内部错误' });
     }
-
-    // 使用TOTP令牌
-    return this.strategies.totp.execute(req, res, user, token);
   }
 }
