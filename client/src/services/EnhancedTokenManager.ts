@@ -165,16 +165,12 @@ export class EnhancedTokenManager {
       try {
         console.log(`[EnhancedTokenManager] 执行token刷新 (尝试 ${retries + 1}/${this.config.maxRetries})`);
         
-        const response = await fetch('/api/refresh', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        // 动态导入以避免循环依赖
+        const apiClient = (await import('./api')).default;
+        const response = await apiClient.post('/api/refresh');
 
-        if (response.ok) {
-          const data = await response.json();
+        if (response.status === 200) {
+          const data = response.data;
           
           if (data.exp && data.expiresIn) {
             this.updateTokenExpiration(data.exp);
@@ -191,12 +187,21 @@ export class EnhancedTokenManager {
             return true;
           }
         } else {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = response.data;
           throw new Error(`HTTP ${response.status}: ${errorData.error || 'Unknown error'}`);
         }
       } catch (error) {
         retries++;
         console.error(`[EnhancedTokenManager] ❌ Token刷新失败 (尝试 ${retries}/${this.config.maxRetries}):`, error);
+        
+        // @ts-expect-error
+        const statusCode = error.response?.status;
+        if (statusCode === 401 || statusCode === 403) {
+          console.error('[EnhancedTokenManager] 收到 401/403 错误，可能是Refresh Token已失效，将停止重试。');
+          this.listeners.onRefreshFailed?.(error as Error);
+          this.handleRefreshFailure();
+          break; // 立即中断重试
+        }
         
         if (retries < this.config.maxRetries) {
           console.log(`[EnhancedTokenManager] ${this.config.retryDelay / 1000}秒后重试...`);
