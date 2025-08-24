@@ -17,10 +17,66 @@ if (typeof window !== 'undefined' && window.__SESSION_EXPIRED_SHOWN__ === undefi
 // 后端 API 的基础 URL (相对于前端)
 const API_BASE_URL = '/api';
 
+// 全局维护AccessToken过期时间
+let accessTokenExp: number | null = null;
+
 // 创建 Axios 实例，配置 Cookie 传递
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  withCredentials: true, // 确保跨域请求
+});
+
+// --- Refresh Token Retry Logic State ---
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Silent Refresh逻辑
+async function silentRefreshIfNeeded() {
+  // 如果正在刷新，则等待刷新完成
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject });
+    }).then(() => {}); // 刷新成功后，此Promise解决
+  }
+
+  if (!accessTokenExp) return;
+  const now = Math.floor(Date.now() / 1000);
+  
+  // 距离过期小于2分钟自动刷新
+  if (accessTokenExp - now < 120) {
+    isRefreshing = true; // 加锁
+    try {
+      const res = await apiClient.post('/refresh');
+      if (res.data && res.data.exp) {
+        accessTokenExp = res.data.exp;
+        tokenManager.updateTokenExpiration(res.data.exp);
+        processQueue(null, 'token_refreshed'); // 刷新成功，处理队列
+      }
+    } catch (error) {
+      processQueue(error as Error, null); // 刷新失败，拒绝队列
+      // 刷新失败，交由响应拦截器处理后续逻辑（如登出）
+      throw error;
+    } finally {
+      isRefreshing = false; // 解锁
+    }
+  }
+}
+
+// 请求拦截器：每次请求前自动Silent Refresh
+apiClient.interceptors.request.use(async (config) => {
+  await silentRefreshIfNeeded();
+  return config;
 });
 
 // 添加一个自定义接口来扩展 AxiosRequestConfig
@@ -28,11 +84,12 @@ interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-// 响应拦截器：处理401/403，并委托给EnhancedTokenManager
+// 响应拦截器：处理401/403和exp维护，并实现 Refresh Token Retry
 apiClient.interceptors.response.use(
   res => {
-    // 登录或刷新成功后，响应体中会包含exp，需要更新给TokenManager
     if (res.data && typeof res.data.exp === 'number') {
+      accessTokenExp = res.data.exp;
+      // 同时更新增强token管理器
       tokenManager.updateTokenExpiration(res.data.exp);
     }
     return res;
@@ -40,49 +97,92 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as CustomInternalAxiosRequestConfig | undefined;
 
+    // 检查是否有响应、响应状态和请求配置
     if (!error.response || !originalRequest) {
       return Promise.reject(error);
     }
 
     const status = error.response.status;
+    const code = (error.response.data as unknown as { code?: string })?.code;
     const url = originalRequest.url;
 
-    // 如果是刷新接口本身失败，或已经重试过，则直接拒绝
+    // 如果是刷新接口本身失败，或已重试过，则直接拒绝或处理特定错误
     if (url === '/refresh' || originalRequest._retry) {
-      return Promise.reject(error);
+        if ((status === 401 && code === 'refresh_token_invalid') ||
+            (status === 403 && code === 'refresh_token_compromised') ||
+            (status === 403 && code === 'refresh_token_expired')) {
+          try {
+            await apiClient.post('/logout');
+          } catch {}
+          if (code === 'refresh_token_compromised') {
+            if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+              window.__SESSION_EXPIRED_SHOWN__ = true;
+            }
+            return Promise.reject(error); 
+          }
+        }
+        return Promise.reject(error);
     }
 
     // 处理 Access Token 过期 (普通 401)
     if (status === 401) {
-      console.log('[API Interceptor] 捕获到401错误，尝试通过TokenManager刷新...');
-      originalRequest._retry = true;
-
-      try {
-        const refreshed = await tokenManager.manualRefresh();
-        if (refreshed) {
-          console.log('[API Interceptor] TokenManager刷新成功，重试原始请求:', originalRequest.url);
-          return apiClient(originalRequest);
-        } else {
-          console.error('[API Interceptor] TokenManager报告刷新失败，将执行登出。');
-          // 如果刷新失败，执行登出
-          await apiClient.post('/logout');
-          // 根据需要重定向到登录页面
-          if (typeof window !== 'undefined') {
-             window.location.href = '/login';
-          }
-          return Promise.reject(new Error('Session expired, please login again.'));
-        }
-      } catch (refreshError) {
-        console.error('[API Interceptor] TokenManager刷新过程中抛出异常:', refreshError);
-         // 如果刷新失败，执行登出
-        await apiClient.post('/logout');
-        if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-        }
-        return Promise.reject(refreshError);
+      if (isRefreshing) {
+        // 如果正在刷新，将请求加入队列
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+        .then(() => apiClient(originalRequest)) // 刷新成功后重试
+        .catch(err => Promise.reject(err)); // 刷新失败
       }
+
+      // 标记正在刷新，并设置重试标志
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      return new Promise((resolve, reject) => {
+        apiClient.post('/refresh')
+          .then(res => {
+            if (res.data && res.data.exp) {
+              accessTokenExp = res.data.exp; // 更新过期时间
+              // 同时更新增强token管理器
+              tokenManager.updateTokenExpiration(res.data.exp);
+            }
+            processQueue(null, 'token_refreshed'); // 处理队列
+            resolve(apiClient(originalRequest)); // 重试原始请求
+          })
+          .catch((refreshError) => {
+            processQueue(refreshError, null); // 拒绝队列中的请求
+            try {
+              // Refresh 失败，执行登出
+              apiClient.post('/logout'); 
+            } catch {}
+            if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+              window.__SESSION_EXPIRED_SHOWN__ = true;
+            }
+            reject(refreshError);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
     }
     
+    // 处理其他特定错误
+    if (status === 403 && code === 'refresh_token_compromised') {
+        try { await apiClient.post('/logout'); } catch {} 
+        if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+          window.__SESSION_EXPIRED_SHOWN__ = true;
+        }
+        return Promise.reject(error);
+    }
+     if (status === 403 && code === 'refresh_token_expired') {
+        try { await apiClient.post('/logout'); } catch {} 
+        if (typeof window !== 'undefined' && !window.__SESSION_EXPIRED_SHOWN__) {
+          window.__SESSION_EXPIRED_SHOWN__ = true;
+        }
+        return Promise.reject(error);
+    }
+
     // 其他所有错误直接拒绝
     return Promise.reject(error);
   }

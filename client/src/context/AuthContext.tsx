@@ -54,10 +54,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.data.user) {
         currentUser = response.data.user;
         setUser(currentUser); // 更新状态
-        // 激活 EnhancedTokenManager
-        if (response.data.exp) {
-          tokenManager.updateTokenExpiration(response.data.exp);
-        }
       } else {
         setUser(null); // 更新状态
       }
@@ -89,12 +85,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = (userData: User, exp?: number) => {
+  const login = (userData: User) => {
     setUser(userData);
-    // 登录成功后，立即更新过期时间
-    if (exp) {
-      tokenManager.updateTokenExpiration(exp);
-    }
     // 重新启动token自动刷新机制
     tokenManager.restartAutoRefresh();
   };
