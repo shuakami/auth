@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { fetchCurrentUser } from '@/services/api';
-import { logout as logoutApi } from '@/services/api';
+import { logout as logoutApi, setLoggingOut } from '@/services/api';
 import { tokenManager } from '@/services/EnhancedTokenManager';
 
 // 定义用户类型 (与 /me 接口返回的 user 对象对应)
@@ -86,23 +86,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = (userData: User) => {
+    // 清除登出状态
+    setLoggingOut(false);
+    
     setUser(userData);
     // 重新启动token自动刷新机制
     tokenManager.restartAutoRefresh();
   };
 
   const logout = async () => {
+    // 立即标记为登出状态，阻止任何认证检查
+    setLoggingOut(true);
+    
     try {
-      // 立即停止token自动刷新，防止退登后被自动重新登录
+      // 停止token自动刷新，防止退登后被自动重新登录
       tokenManager.stopAutoRefresh();
       
+      // 立即清理本地用户状态
+      setUser(null);
+      
+      // 调用登出API
       await logoutApi();
     } catch (e) {
-      // 即使失败也强制清理本地状态
+      // 即使API失败也要完成本地清理
       console.error('Logout API failed:', e);
+    } finally {
+      // 无论如何都要跳转到登录页
+      window.location.href = '/login';
     }
-    setUser(null);
-    window.location.href = '/login';
   };
 
   return (
