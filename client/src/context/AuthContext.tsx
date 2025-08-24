@@ -82,15 +82,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 组件加载时检查认证状态
   useEffect(() => {
-    // 仅当路径不是登录/注册等页面时才检查
-    if (typeof window !== 'undefined') {
-      const publicPaths = ['/login', '/register', '/verify', '/forgot', '/reset'];
-      if (!publicPaths.some(path => window.location.pathname.startsWith(path))) {
-        checkAuth();
-      } else {
-        setInitialLoading(false);
-      }
-    }
+    // 移除路径检查，应用加载时总是检查认证状态，以确定初始的 isAuthenticated 状态。
+    // 这修复了已登录用户被重定向到登录页后卡住的问题。
+    checkAuth();
   }, []);
 
   const login = (userData: User) => {
