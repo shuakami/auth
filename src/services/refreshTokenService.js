@@ -15,8 +15,8 @@ const tokenController = new TokenServiceController();
  * @param {number} expiresIn 过期秒数，默认15天
  * @returns {Promise<{token: string, id: string, expiresAt: Date}>}
  */
-export async function createRefreshToken(userId, deviceInfo, parentId = null, expiresIn = 60 * 60 * 24 * 15) {
-  return tokenController.createRefreshToken(userId, deviceInfo, parentId, expiresIn);
+export async function createRefreshToken(userId, deviceInfo, clientId = null, parentId = null, expiresIn = 60 * 60 * 24 * 15) {
+  return tokenController.createRefreshToken(userId, deviceInfo, clientId, parentId, expiresIn);
 }
 
 /**

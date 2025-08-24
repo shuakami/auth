@@ -197,7 +197,7 @@ export class AuthorizationServerService {
       let refreshToken = null;
       if (clientApp.issue_refresh_token && authCode.scopes.includes('offline_access')) {
         const tokenController = new TokenServiceController();
-        const result = await tokenController.createRefreshToken(authCode.user_id, 'OAuth Client');
+        const result = await tokenController.createRefreshToken(authCode.user_id, 'OAuth Client', clientId);
         refreshToken = result.token;
       }
       
@@ -249,7 +249,7 @@ export class AuthorizationServerService {
     }
 
     // 检查刷新令牌是否属于该客户端
-    if (payload.client_id !== clientId) {
+    if (dbToken.client_id !== clientId) {
       throw new Error('invalid_grant: 刷新令牌不属于此客户端');
     }
     

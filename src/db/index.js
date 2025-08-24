@@ -437,6 +437,7 @@ export async function init() {
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             token TEXT NOT NULL,
             device_info TEXT,
+            client_id VARCHAR(255) REFERENCES oauth_applications(client_id) ON DELETE SET NULL,
             parent_id UUID,
             revoked BOOLEAN DEFAULT FALSE,
             expires_at TIMESTAMP WITH TIME ZONE NOT NULL,

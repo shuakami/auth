@@ -18,11 +18,12 @@ export class TokenServiceController {
    * 创建新的Refresh Token
    * @param {string} userId 用户ID
    * @param {string} deviceInfo 设备信息
+   * @param {string|null} clientId 客户端ID
    * @param {string|null} parentId 父Token ID
    * @param {number} expiresIn 过期时间（秒）
    * @returns {Promise<Object>}
    */
-  async createRefreshToken(userId, deviceInfo, parentId = null, expiresIn = 60 * 60 * 24 * 15) {
+  async createRefreshToken(userId, deviceInfo, clientId = null, parentId = null, expiresIn = 60 * 60 * 24 * 15) {
     // 1. 检测异常活动
     try {
       const anomalyReport = await this.securityService.detectAnomalousActivity(userId);
@@ -55,7 +56,7 @@ export class TokenServiceController {
     }
 
     // 3. 创建新Token
-    return this.tokenService.createToken(userId, deviceInfo, parentId, expiresIn);
+    return this.tokenService.createToken(userId, deviceInfo, clientId, parentId, expiresIn);
   }
 
   /**

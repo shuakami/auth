@@ -20,11 +20,11 @@ export class RefreshTokenService {
    * @param {number} expiresIn 过期秒数
    * @returns {Promise<Object>}
    */
-  async createToken(userId, deviceInfo, parentId = null, expiresIn = this.DEFAULT_EXPIRES_IN) {
+  async createToken(userId, deviceInfo, clientId = null, parentId = null, expiresIn = this.DEFAULT_EXPIRES_IN) {
     const tokenData = this._generateTokenData(userId, deviceInfo, expiresIn);
     
     try {
-      await this._storeToken(tokenData, parentId);
+      await this._storeToken(tokenData, parentId, clientId);
       
       return {
         token: tokenData.token,
@@ -115,8 +115,8 @@ export class RefreshTokenService {
       );
       
       await client.query(
-        `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
+        `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)`,
         [
           tokenData.id,
           tokenData.userId,
@@ -124,7 +124,8 @@ export class RefreshTokenService {
           tokenData.deviceInfo,
           validation.dbToken.id, // parentId
           tokenData.expiresAt,
-          tokenData.createdAt
+          tokenData.createdAt,
+          validation.dbToken.client_id, // 在轮换时保留clientId
         ]
       );
       
@@ -229,10 +230,10 @@ export class RefreshTokenService {
    * @returns {Promise<void>}
    * @private
    */
-  async _storeToken(tokenData, parentId) {
+  async _storeToken(tokenData, parentId, clientId = null) {
     await smartQuery(
-      `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
+      `INSERT INTO refresh_tokens (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)`,
       [
         tokenData.id,
         tokenData.userId,
@@ -240,7 +241,8 @@ export class RefreshTokenService {
         tokenData.deviceInfo,
         parentId,
         tokenData.expiresAt,
-        tokenData.createdAt
+        tokenData.createdAt,
+        clientId,
       ]
     );
   }
