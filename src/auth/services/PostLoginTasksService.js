@@ -3,7 +3,7 @@
  */
 import { DeviceDetectionService } from './DeviceDetectionService.js';
 
-export class PostLoginTaskService {
+export class PostLoginTasksService {
   constructor() {
     this.deviceDetectionService = new DeviceDetectionService();
   }
