@@ -3,7 +3,6 @@
 import React, { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getIsLoggingOut } from '@/services/api';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 
 interface ProtectedRouteProps {
@@ -21,18 +20,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       return;
     }
 
-    // 如果正在登出过程中，不要重定向
-    if (getIsLoggingOut()) {
-      console.log('ProtectedRoute: 正在登出过程中，跳过重定向');
-      return;
-    }
-
     // 加载完成，但用户不存在 (null)，则重定向到登录
     if (!user) {
       console.log('ProtectedRoute: User not found after loading, redirecting to login.');
-      // 保留当前URL作为返回地址
-      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-      router.push(`/login?returnUrl=${returnUrl}`);
+      router.push('/login');
     }
     // 如果 user 存在，则什么都不做
   }, [user, initialLoading, router]); // 依赖 user 和 initialLoading

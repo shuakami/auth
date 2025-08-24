@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AUTH_CONSTANTS, ERROR_MESSAGES } from '@/constants/auth';
 import { useSearchParams } from 'next/navigation';
+import apiClient from '@/services/api';
 
 interface UseOAuthProps {
   onError: (error: string) => void;
@@ -10,7 +11,7 @@ interface UseOAuthProps {
 
 export const useOAuth = ({ onError }: UseOAuthProps) => {
   const router = useRouter();
-  const { checkAuth } = useAuth();
+  const { login } = useAuth();
   const searchParams = useSearchParams();
 
   // 使用临时token进行OAuth成功处理
@@ -18,74 +19,35 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
     try {
       console.log('[useOAuth] 收到临时token，开始交换正式cookie');
       
-      const response = await fetch('/api/exchange-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ tempToken })
-      });
+      const response = await apiClient.post('/exchange-token', { tempToken });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Token交换失败');
+      if (response.status !== 200) {
+        throw new Error(response.data.error || 'Token交换失败');
       }
 
-      const result = await response.json();
-      console.log('[useOAuth] Token交换成功，响应:', result);
+      const result = response.data;
 
-      // 等待一小段时间让cookie设置生效
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 交换成功后，直接用返回的用户信息登录，不再二次请求/me
+      if (result.user) {
+        login(result.user); // 使用AuthContext的login函数更新全局状态
 
-      // 交换成功后，重试多次检查认证状态
-      let user = null;
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries && !user) {
-        retryCount++;
-        console.log(`[useOAuth] 尝试检查认证状态 (第${retryCount}次)`);
-        
-        try {
-          user = await checkAuth();
-          if (user) {
-            console.log('[useOAuth] 认证状态检查成功，用户:', user.id);
-            break;
-          }
-        } catch (error) {
-          console.warn(`[useOAuth] 第${retryCount}次认证检查失败:`, error);
-        }
-        
-        if (retryCount < maxRetries) {
-          // 等待500ms再重试
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      if (user) {
-        // 认证成功，进行跳转
         if (result.returnUrl) {
           console.log('[useOAuth] OAuth成功，从后端获取到returnUrl:', result.returnUrl);
           window.location.href = result.returnUrl;
         } else {
-          console.log('[useOAuth] OAuth成功，后端未返回returnUrl，跳转到dashboard');
           router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);
+          console.log('[useOAuth] OAuth成功，后端未返回returnUrl，跳转到dashboard');
         }
       } else {
-        // 最后尝试：直接刷新页面，让系统重新初始化
-        console.warn('[useOAuth] 多次重试后仍无法获取用户信息，刷新页面');
-        if (result.returnUrl) {
-          window.location.href = result.returnUrl;
-        } else {
-          window.location.href = AUTH_CONSTANTS.ROUTES.DASHBOARD;
-        }
+        // 如果后端在成功时不返回user，这是一个严重问题
+        throw new Error('Token交换成功但后端未返回用户信息');
       }
     } catch (error: any) {
-      console.error('[useOAuth] OAuth token交换失败:', error);
-      onError(error.message || 'OAuth登录失败');
+      console.error('[useOAuth] OAuth token交换或登录失败:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'OAuth登录失败';
+      onError(errorMessage);
     }
-  }, [checkAuth, router, onError]);
+  }, [login, router, onError]);
 
   // OAuth 消息监听
   useEffect(() => {

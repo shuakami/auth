@@ -28,20 +28,21 @@ interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-// 全局状态：是否处于登出过程中
-let isLoggingOut = false;
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: any) => void; reject: (reason?: any) => void; }> = [];
 
-// 设置登出状态的函数
-export const setLoggingOut = (status: boolean) => {
-  isLoggingOut = status;
+const processQueue = (error: Error | null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(undefined);
+    }
+  });
+  failedQueue = [];
 };
 
-// 检查登出状态的函数
-export const getIsLoggingOut = () => {
-  return isLoggingOut;
-};
-
-// 响应拦截器：智能处理401错误
+// 响应拦截器：处理401/403，并委托给EnhancedTokenManager
 apiClient.interceptors.response.use(
   res => {
     // 登录或刷新成功后，响应体中会包含exp，需要更新给TokenManager
@@ -51,95 +52,50 @@ apiClient.interceptors.response.use(
     return res;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as CustomInternalAxiosRequestConfig | undefined;
+    const originalRequest = error.config as CustomInternalAxiosRequestConfig;
 
-    if (!error.response || !originalRequest) {
+    if (error.response?.status !== 401 || !originalRequest) {
       return Promise.reject(error);
     }
 
-    const status = error.response.status;
-    const url = originalRequest.url;
-
-    // 如果是刷新接口本身失败，或已经重试过，直接拒绝
-    if (url === '/refresh' || originalRequest._retry) {
-      return Promise.reject(error);
-    }
-
-    // 如果正在登出过程中，不要尝试刷新
-    if (isLoggingOut) {
-      return Promise.reject(error);
-    }
-
-    // 处理 Access Token 过期 (401)
-    if (status === 401) {
-      // 检查是否有合理的理由尝试刷新token
-      const shouldAttemptRefresh = await shouldAttemptTokenRefresh(url);
-      
-      if (!shouldAttemptRefresh) {
-        console.log('[API Interceptor] 401错误，但不应该尝试刷新token，跳转登录页');
-        handleAuthenticationFailure();
-        return Promise.reject(error);
+    if (originalRequest.url === '/refresh') {
+      console.error('[API Interceptor] Refresh token本身已失效, 无法刷新。');
+      tokenManager.stopAutoRefresh();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login?reason=session_expired';
       }
-
-      console.log('[API Interceptor] 捕获到401错误，尝试通过TokenManager刷新...');
-      originalRequest._retry = true;
-
-      try {
-        const refreshed = await tokenManager.manualRefresh();
-        if (refreshed) {
-          console.log('[API Interceptor] TokenManager刷新成功，重试原始请求:', originalRequest.url);
-          return apiClient(originalRequest);
-        } else {
-          console.error('[API Interceptor] TokenManager报告刷新失败，跳转登录页');
-          handleAuthenticationFailure();
-          return Promise.reject(new Error('Session expired, please login again.'));
-        }
-      } catch (refreshError) {
-        console.error('[API Interceptor] TokenManager刷新过程中抛出异常:', refreshError);
-        handleAuthenticationFailure();
-        return Promise.reject(refreshError);
-      }
+      return Promise.reject(error);
     }
-    
-    // 其他所有错误直接拒绝
-    return Promise.reject(error);
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then(() => apiClient(originalRequest));
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      console.log('[API Interceptor] 侦测到401，开始刷新Token...');
+      const { data } = await apiClient.post('/refresh');
+      tokenManager.updateTokenExpiration(data.exp);
+      console.log('[API Interceptor] Token刷新成功，处理等待队列...');
+      processQueue(null);
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      console.error('[API Interceptor] 刷新Token失败:', refreshError);
+      processQueue(refreshError as Error);
+      tokenManager.stopAutoRefresh();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login?reason=refresh_failed';
+      }
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
-
-// 检查是否应该尝试刷新token
-async function shouldAttemptTokenRefresh(url?: string): Promise<boolean> {
-  // 如果正在登出，不要刷新
-  if (isLoggingOut) {
-    return false;
-  }
-
-  // 检查是否有有效的refresh token (通过检查cookie)
-  if (typeof document !== 'undefined') {
-    const hasRefreshToken = document.cookie.includes('refreshToken=');
-    if (!hasRefreshToken) {
-      console.log('[API Interceptor] 没有refresh token，不尝试刷新');
-      return false;
-    }
-  }
-
-  return true;
-}
-
-// 处理认证失败
-function handleAuthenticationFailure() {
-  // 停止token manager的自动刷新
-  tokenManager.stopAutoRefresh();
-  
-  // 清理本地状态（不调用API以避免循环）
-  if (typeof window !== 'undefined') {
-    // 标记为登出状态
-    setLoggingOut(true);
-    
-    // 跳转到登录页，保留当前URL为返回地址
-    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.href = `/login?returnUrl=${returnUrl}`;
-  }
-}
 
 // --- 认证相关 API ---
 
@@ -178,7 +134,6 @@ export const fetchCurrentUser = async () => {
 };
 
 export const logout = async () => {
-  setLoggingOut(true); // 标记开始登出流程
   try {
     return await apiClient.post('/logout');
   } catch (error) {

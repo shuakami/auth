@@ -130,22 +130,29 @@ export class EnhancedTokenManager {
    * 检查并刷新token
    */
   private async checkAndRefreshToken(force = false) {
-    if (this.isRefreshing || !this.accessTokenExp) {
-      return;
-    }
-    
+    // 该函数现在只负责在适当的时候触发一次认证状态检查
+    // 真正的刷新逻辑由api.ts中的拦截器全权负责
+    if (!this.accessTokenExp) return;
+
     const now = Math.floor(Date.now() / 1000);
     const timeToExpire = this.accessTokenExp - now;
     const timeSinceActivity = Date.now() - this.lastActivity;
-    
-    const shouldRefresh = force || (
+
+    const shouldCheck = force || (
       timeToExpire < this.config.refreshThreshold && 
       timeSinceActivity < this.config.activityTimeout
     );
-    
-    if (shouldRefresh) {
-      console.log(`[EnhancedTokenManager] 准备刷新token，距离过期：${timeToExpire}秒，最后活动：${Math.round(timeSinceActivity / 1000)}秒前`);
-      await this.performRefresh();
+
+    if (shouldCheck) {
+      console.log(`[EnhancedTokenManager] Token即将过期，主动检查认证状态...`);
+      // 通过调用一个受保护的端点来触发拦截器（如果需要）
+      // 这统一了刷新逻辑，避免了竞争条件
+      try {
+        await fetchCurrentUser();
+      } catch (error) {
+        // 拦截器会处理刷新。如果错误冒泡到这里，说明刷新彻底失败。
+        console.error('[EnhancedTokenManager] 主动认证检查失败，拦截器未能恢复会话。', error);
+      }
     }
   }
 
@@ -153,69 +160,23 @@ export class EnhancedTokenManager {
    * 执行token刷新
    */
   private async performRefresh(): Promise<boolean> {
-    if (this.isRefreshing) {
-      console.log('[EnhancedTokenManager] 刷新已在进行中，跳过');
-      return false;
-    }
+    // 这个方法被废弃，所有逻辑统一到api.ts拦截器
+    console.warn('[EnhancedTokenManager] performRefresh() is deprecated. Refresh is now handled by API interceptor.');
+    if (this.isRefreshing) return false;
 
     this.isRefreshing = true;
-    let retries = 0;
-
-    while (retries < this.config.maxRetries) {
-      try {
-        console.log(`[EnhancedTokenManager] 执行token刷新 (尝试 ${retries + 1}/${this.config.maxRetries})`);
-        
-        // 动态导入以避免循环依赖
-        const apiClient = (await import('./api')).default;
-        const response = await apiClient.post('/refresh');
-
-        if (response.status === 200) {
-          const data = response.data;
-          
-          if (data.exp && data.expiresIn) {
-            this.updateTokenExpiration(data.exp);
-            
-            console.log(`[EnhancedTokenManager] ✅ Token刷新成功，新过期时间：${new Date(data.exp * 1000).toLocaleString()}`);
-            
-            // 触发成功回调
-            this.listeners.onTokenRefreshed?.({
-              exp: data.exp,
-              expiresIn: data.expiresIn
-            });
-            
-            this.isRefreshing = false;
-            return true;
-          }
-        } else {
-          const errorData = response.data;
-          throw new Error(`HTTP ${response.status}: ${errorData.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        retries++;
-        console.error(`[EnhancedTokenManager] ❌ Token刷新失败 (尝试 ${retries}/${this.config.maxRetries}):`, error);
-        
-        // @ts-expect-error
-        const statusCode = error.response?.status;
-        if (statusCode === 401 || statusCode === 403) {
-          console.error('[EnhancedTokenManager] 收到 401/403 错误，可能是Refresh Token已失效，将停止重试。');
-          this.listeners.onRefreshFailed?.(error as Error);
-          this.handleRefreshFailure();
-          break; // 立即中断重试
-        }
-        
-        if (retries < this.config.maxRetries) {
-          console.log(`[EnhancedTokenManager] ${this.config.retryDelay / 1000}秒后重试...`);
-          await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
-        } else {
-          // 最后一次尝试失败
-          this.listeners.onRefreshFailed?.(error as Error);
-          this.handleRefreshFailure();
-        }
-      }
+    try {
+      console.log('[EnhancedTokenManager] 触发一次认证状态检查来启动刷新...');
+      await fetchCurrentUser();
+      // 如果上面的调用成功（可能因为拦截器刷新成功），我们认为刷新是成功的
+      console.log('[EnhancedTokenManager] 认证状态检查成功。');
+      return true;
+    } catch (error) {
+      console.error('[EnhancedTokenManager] 认证状态检查失败:', error);
+      return false;
+    } finally {
+      this.isRefreshing = false;
     }
-
-    this.isRefreshing = false;
-    return false;
   }
 
   /**
@@ -232,18 +193,19 @@ export class EnhancedTokenManager {
   }
 
   /**
-   * 检查认证状态（不再自动刷新，避免循环）
+   * 检查认证状态
    */
   private async checkAuthenticationStatus() {
     try {
       await fetchCurrentUser();
       console.log('[EnhancedTokenManager] 认证状态检查通过');
-      return true;
     } catch (error) {
       console.warn('[EnhancedTokenManager] 认证状态检查失败:', error);
-      // 不再自动刷新token，避免无限循环
-      // 让其他机制（如API拦截器）处理401错误
-      return false;
+      
+      // 如果是401错误，可能token已过期，尝试刷新
+      if ((error as any).response?.status === 401) {
+        await this.performRefresh();
+      }
     }
   }
 
@@ -292,7 +254,8 @@ export class EnhancedTokenManager {
    * 手动触发token刷新
    */
   public async manualRefresh(): Promise<boolean> {
-    console.log('[EnhancedTokenManager] 手动触发token刷新');
+    // 手动刷新现在也只是触发一次认证检查
+    console.log('[EnhancedTokenManager] 手动触发刷新，将检查认证状态...');
     return this.performRefresh();
   }
 
@@ -324,9 +287,6 @@ export class EnhancedTokenManager {
     
     this.isRefreshing = false;
     this.accessTokenExp = null;
-    
-    // 清除所有监听器，防止回调干扰
-    this.listeners = {};
     
     console.log('[EnhancedTokenManager] 自动刷新已停止');
   }

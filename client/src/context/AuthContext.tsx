@@ -1,8 +1,8 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { fetchCurrentUser } from '@/services/api';
-import { logout as logoutApi, setLoggingOut } from '@/services/api';
+import { logout as logoutApi } from '@/services/api';
 import { tokenManager } from '@/services/EnhancedTokenManager';
 
 // 定义用户类型 (与 /me 接口返回的 user 对象对应)
@@ -42,15 +42,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [initialLoading, setInitialLoading] = useState(true); // 初始加载状态
   const [isCheckingAuth, setIsCheckingAuth] = useState(false); // 背景检查状态
-  const isLoggingOutRef = useRef(false); // 跟踪登出状态
 
   const checkAuth = async (): Promise<User | null> => { // 添加函数返回值类型
-    // 如果正在登出，不要进行认证检查
-    if (isLoggingOutRef.current) {
-      console.log('[AuthContext] 正在登出过程中，跳过认证检查');
-      return null;
-    }
-    
     // 只有在没有进行其他检查时才开始
     if (isCheckingAuth) return user;
     
@@ -65,25 +58,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null); // 更新状态
       }
     } catch (error) {
-      // 再次检查是否在登出过程中
-      if (isLoggingOutRef.current) {
-        console.log('[AuthContext] 在检查过程中开始登出，停止处理');
+      // 获取用户信息失败，检查是否是 401 (未授权)
+      // @ts-expect-error - 检查 Axios 错误结构
+      if (error.response && error.response.status === 401) {
+        // 401 是预期情况（用户未登录），静默处理
+        console.log('User not authenticated (401).'); // 可以选择性地打印普通日志
         setUser(null);
-        currentUser = null;
       } else {
-        // 获取用户信息失败，检查是否是 401 (未授权)
-        // @ts-expect-error - 检查 Axios 错误结构
-        if (error.response && error.response.status === 401) {
-          // 401 是预期情况（用户未登录），静默处理
-          console.log('User not authenticated (401).'); // 可以选择性地打印普通日志
-          setUser(null);
-        } else {
-          // 对于其他错误（如网络错误、服务器 500 等），打印错误
-          console.error('Check auth failed with unexpected error:', error);
-          setUser(null); // 同样视为未登录
-        }
-        currentUser = null; // 确保出错时返回 null
+        // 对于其他错误（如网络错误、服务器 500 等），打印错误
+        console.error('Check auth failed with unexpected error:', error);
+        setUser(null); // 同样视为未登录
       }
+      currentUser = null; // 确保出错时返回 null
     } finally {
       // 首次加载完成后，更新 initialLoading
       if (initialLoading) {
@@ -96,50 +82,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 组件加载时检查认证状态
   useEffect(() => {
-    // 检查是否有有效的cookie再决定是否检查认证
-    const hasTokenCookie = typeof document !== 'undefined' && 
-                          (document.cookie.includes('accessToken=') || 
-                           document.cookie.includes('refreshToken='));
-    
-    if (hasTokenCookie && !isLoggingOutRef.current) {
-      console.log('[AuthContext] 检测到token cookie，开始认证检查');
-      checkAuth();
-    } else {
-      console.log('[AuthContext] 没有token cookie或正在登出，跳过初始认证检查');
-      setInitialLoading(false);
+    // 仅当路径不是登录/注册等页面时才检查
+    if (typeof window !== 'undefined') {
+      const publicPaths = ['/login', '/register', '/verify', '/forgot', '/reset'];
+      if (!publicPaths.some(path => window.location.pathname.startsWith(path))) {
+        checkAuth();
+      } else {
+        setInitialLoading(false);
+      }
     }
   }, []);
 
   const login = (userData: User) => {
-    // 清除登出状态
-    isLoggingOutRef.current = false;
-    setLoggingOut(false);
-    
     setUser(userData);
     // 重新启动token自动刷新机制
     tokenManager.restartAutoRefresh();
   };
 
   const logout = async () => {
-    // 立即标记为登出状态，阻止任何认证检查
-    isLoggingOutRef.current = true;
-    setLoggingOut(true);
-    
+    const originalHref = window.location.href;
     try {
-      // 停止token自动刷新，防止退登后被自动重新登录
+      // 1. 立即停止任何未来的刷新尝试
       tokenManager.stopAutoRefresh();
       
-      // 立即清理本地用户状态
+      // 2. 立即清除本地用户状态，让UI响应
       setUser(null);
       
-      // 调用登出API
+      // 3. 调用API执行后端登出（清除cookie）
       await logoutApi();
+
     } catch (e) {
-      // 即使API失败也要完成本地清理
-      console.error('Logout API failed:', e);
+      // 即使API失败，也要确保用户被登出
+      console.error('Logout API failed, forcing logout:', e);
     } finally {
-      // 无论如何都要跳转到登录页
-      window.location.href = '/login';
+      // 4. 无论如何都重定向到登录页
+      // 使用 replace 防止用户通过“后退”按钮回到需要认证的页面
+      if (window.location.href === originalHref) { // 防止重复跳转
+         window.location.replace('/login');
+      }
     }
   };
 
