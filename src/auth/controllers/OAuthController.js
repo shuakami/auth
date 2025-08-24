@@ -178,11 +178,14 @@ export class OAuthController {
       
       console.log(`[OAuth] 临时token交换成功，用户 ${user.id} 已登录`);
       
+      const { password_hash, ...rest } = user;
+      
       res.json({
         ok: true,
         tokenType: tokenInfo.tokenType,
         expiresIn: tokenInfo.expiresIn,
         returnUrl: payload.returnUrl || null,
+        user: { ...rest, has_password: !!password_hash },
       });
 
     } catch (error) {
