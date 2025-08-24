@@ -36,6 +36,11 @@ export const setLoggingOut = (status: boolean) => {
   isLoggingOut = status;
 };
 
+// 检查登出状态的函数
+export const getIsLoggingOut = () => {
+  return isLoggingOut;
+};
+
 // 响应拦截器：智能处理401错误
 apiClient.interceptors.response.use(
   res => {

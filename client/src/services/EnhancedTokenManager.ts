@@ -232,19 +232,18 @@ export class EnhancedTokenManager {
   }
 
   /**
-   * 检查认证状态
+   * 检查认证状态（不再自动刷新，避免循环）
    */
   private async checkAuthenticationStatus() {
     try {
       await fetchCurrentUser();
       console.log('[EnhancedTokenManager] 认证状态检查通过');
+      return true;
     } catch (error) {
       console.warn('[EnhancedTokenManager] 认证状态检查失败:', error);
-      
-      // 如果是401错误，可能token已过期，尝试刷新
-      if ((error as any).response?.status === 401) {
-        await this.performRefresh();
-      }
+      // 不再自动刷新token，避免无限循环
+      // 让其他机制（如API拦截器）处理401错误
+      return false;
     }
   }
 
@@ -325,6 +324,9 @@ export class EnhancedTokenManager {
     
     this.isRefreshing = false;
     this.accessTokenExp = null;
+    
+    // 清除所有监听器，防止回调干扰
+    this.listeners = {};
     
     console.log('[EnhancedTokenManager] 自动刷新已停止');
   }

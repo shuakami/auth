@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
 import { fetchCurrentUser } from '@/services/api';
 import { logout as logoutApi, setLoggingOut } from '@/services/api';
 import { tokenManager } from '@/services/EnhancedTokenManager';
@@ -42,8 +42,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [initialLoading, setInitialLoading] = useState(true); // 初始加载状态
   const [isCheckingAuth, setIsCheckingAuth] = useState(false); // 背景检查状态
+  const isLoggingOutRef = useRef(false); // 跟踪登出状态
 
   const checkAuth = async (): Promise<User | null> => { // 添加函数返回值类型
+    // 如果正在登出，不要进行认证检查
+    if (isLoggingOutRef.current) {
+      console.log('[AuthContext] 正在登出过程中，跳过认证检查');
+      return null;
+    }
+    
     // 只有在没有进行其他检查时才开始
     if (isCheckingAuth) return user;
     
@@ -58,18 +65,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null); // 更新状态
       }
     } catch (error) {
-      // 获取用户信息失败，检查是否是 401 (未授权)
-      // @ts-expect-error - 检查 Axios 错误结构
-      if (error.response && error.response.status === 401) {
-        // 401 是预期情况（用户未登录），静默处理
-        console.log('User not authenticated (401).'); // 可以选择性地打印普通日志
+      // 再次检查是否在登出过程中
+      if (isLoggingOutRef.current) {
+        console.log('[AuthContext] 在检查过程中开始登出，停止处理');
         setUser(null);
+        currentUser = null;
       } else {
-        // 对于其他错误（如网络错误、服务器 500 等），打印错误
-        console.error('Check auth failed with unexpected error:', error);
-        setUser(null); // 同样视为未登录
+        // 获取用户信息失败，检查是否是 401 (未授权)
+        // @ts-expect-error - 检查 Axios 错误结构
+        if (error.response && error.response.status === 401) {
+          // 401 是预期情况（用户未登录），静默处理
+          console.log('User not authenticated (401).'); // 可以选择性地打印普通日志
+          setUser(null);
+        } else {
+          // 对于其他错误（如网络错误、服务器 500 等），打印错误
+          console.error('Check auth failed with unexpected error:', error);
+          setUser(null); // 同样视为未登录
+        }
+        currentUser = null; // 确保出错时返回 null
       }
-      currentUser = null; // 确保出错时返回 null
     } finally {
       // 首次加载完成后，更新 initialLoading
       if (initialLoading) {
@@ -82,11 +96,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 组件加载时检查认证状态
   useEffect(() => {
-    checkAuth();
+    // 检查是否有有效的cookie再决定是否检查认证
+    const hasTokenCookie = typeof document !== 'undefined' && 
+                          (document.cookie.includes('accessToken=') || 
+                           document.cookie.includes('refreshToken='));
+    
+    if (hasTokenCookie && !isLoggingOutRef.current) {
+      console.log('[AuthContext] 检测到token cookie，开始认证检查');
+      checkAuth();
+    } else {
+      console.log('[AuthContext] 没有token cookie或正在登出，跳过初始认证检查');
+      setInitialLoading(false);
+    }
   }, []);
 
   const login = (userData: User) => {
     // 清除登出状态
+    isLoggingOutRef.current = false;
     setLoggingOut(false);
     
     setUser(userData);
@@ -96,6 +122,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     // 立即标记为登出状态，阻止任何认证检查
+    isLoggingOutRef.current = true;
     setLoggingOut(true);
     
     try {
