@@ -167,7 +167,7 @@ export class EnhancedTokenManager {
         
         // 动态导入以避免循环依赖
         const apiClient = (await import('./api')).default;
-        const response = await apiClient.post('/api/refresh');
+        const response = await apiClient.post('/refresh');
 
         if (response.status === 200) {
           const data = response.data;
