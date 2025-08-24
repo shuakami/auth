@@ -186,17 +186,6 @@ export async function login(req, res, next) {
   }
 }
 
-router.post('/2fa/verify', async (req, res, next) => {
-  try {
-    await loginController.handle2FAVerification(req, res);
-  } catch(err) {
-    console.error("Error during 2FA verification:", err);
-    next(err);
-  }
-});
-
-export default router;
-
 /**
  * 掩码IP地址 - 保留原有的工具函数
  * @param {string} ip IP地址

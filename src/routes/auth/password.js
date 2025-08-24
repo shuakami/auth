@@ -9,8 +9,10 @@ import { recordLoginLog } from '../../auth/recordLoginLog.js';
 import { getGeoInfo } from '../../utils/geoip.js';
 import { sendLoginAlertEmail } from '../../mail/resend.js';
 import * as loginHistoryService from '../../services/loginHistoryService.js';
+import { LoginController } from '../../auth/controllers/LoginController.js';
 
 const router = express.Router();
+const loginController = new LoginController();
 
 // Typedefs are in src/types/apiSchema.js
 
@@ -72,6 +74,19 @@ router.get('/verify', verifyEmail);
  * @return {ErrorResponse} 500 - 服务器内部错误 - application/json
  */
 router.post('/login', authLimiter, login);
+
+/**
+ * POST /2fa/verify
+ * @tags 认证
+ * @summary 验证2FA（TOTP或备份码）
+ * @param {object} request.body - { email, totp?, backupCode? }
+ * @return {LoginSuccessResponse} 200 - 2FA验证成功，登录完成
+ * @return {ErrorResponse} 401 - 验证失败
+ */
+router.post('/2fa/verify', authLimiter, (req, res, next) => {
+  loginController.handle2FAVerification(req, res).catch(next);
+});
+
 
 /**
  * POST /forgot-password
