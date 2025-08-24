@@ -3,7 +3,7 @@
  */
 import { AuthenticationService } from '../services/AuthenticationService.js';
 import { TokenService } from '../services/TokenService.js';
-import { PostLoginTaskService } from '../services/PostLoginTaskService.js';
+import { PostLoginTaskService } from '../services/PostLoginTasksService.js';
 import { recordLoginLog } from '../recordLoginLog.js';
 
 export class BaseLoginStrategy {

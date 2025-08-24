@@ -8,7 +8,7 @@ import { sendVerifyEmail } from '../../mail/resend.js';
 import { PUBLIC_BASE_URL } from '../../config/env.js';
 import { decrypt } from '../cryptoUtils.js';
 
-import { PostLoginTasksService } from './PostLoginTaskService.js';
+import { PostLoginTasksService } from './PostLoginTasksService.js';
 
 export class AuthenticationService {
   constructor() {
