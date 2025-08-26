@@ -3,7 +3,7 @@
  */
 import bcrypt from 'bcryptjs';
 import * as User from '../../services/userService.js';
-import { signEmailToken } from '../jwt.js';
+import { signEmailToken, signAccessToken, verifyAccessToken } from '../jwt.js';
 import { sendVerifyEmail } from '../../mail/resend.js';
 import { PUBLIC_BASE_URL } from '../../config/env.js';
 import { decrypt } from '../cryptoUtils.js';
@@ -48,8 +48,7 @@ export class AuthenticationService {
     // 3. 检查是否需要2FA
     if (!this.requires2FA(user)) {
       // 不需要2FA，登录成功
-      const { exp } = await this.postLoginTasks.execute(user.id, deviceInfo, res);
-      return { status: 'success', userId: user.id, exp };
+      return await this._handleSuccessfulLogin(user, deviceInfo, res, 'No 2FA');
     }
 
     // 4. 需要2FA，检查是否提供了 token 或 backupCode
@@ -64,8 +63,8 @@ export class AuthenticationService {
     }
 
     // 6. 2FA验证通过，登录成功
-    const { exp } = await this.postLoginTasks.execute(user.id, deviceInfo, res);
-    return { status: 'success', userId: user.id, exp };
+    const loginType = totpToken ? 'TOTP' : 'Backup Code';
+    return await this._handleSuccessfulLogin(user, deviceInfo, res, loginType);
   }
 
   /**
@@ -205,5 +204,52 @@ export class AuthenticationService {
    */
   requires2FA(user) {
     return !!user.totp_secret;
+  }
+
+  /**
+   * 处理登录成功后的逻辑 - 创建JWT token并执行后台任务
+   * @param {Object} user 用户对象
+   * @param {Object} deviceInfo 设备信息
+   * @param {Object} res Express响应对象
+   * @param {string} loginType 登录类型
+   * @returns {Object} 包含status, userId, exp的对象
+   * @private
+   */
+  async _handleSuccessfulLogin(user, deviceInfo, res, loginType) {
+    try {
+      // 1. 创建JWT Access Token
+      const accessToken = signAccessToken({ uid: user.id });
+      
+      // 2. 解析token获得过期时间戳
+      const decoded = verifyAccessToken(accessToken);
+      const exp = decoded.exp;
+      
+      // 3. 异步执行登录后的后台任务（不影响响应速度）
+      // 注意：这里使用setTimeout让后台任务异步执行，不阻塞响应
+      setTimeout(async () => {
+        try {
+          await this.postLoginTasks.executePostLoginTasks({
+            req: { headers: { 'user-agent': deviceInfo.userAgent }, ip: deviceInfo.ip },
+            user,
+            loginType
+          });
+        } catch (error) {
+          console.error(`[AuthenticationService] 后台任务执行失败:`, error);
+        }
+      }, 0);
+      
+      return { 
+        status: 'success', 
+        userId: user.id, 
+        exp 
+      };
+    } catch (error) {
+      console.error(`[AuthenticationService] 登录成功处理失败:`, error);
+      return { 
+        status: 'failed', 
+        error: 'login_processing_failed', 
+        message: '登录处理失败' 
+      };
+    }
   }
 }
