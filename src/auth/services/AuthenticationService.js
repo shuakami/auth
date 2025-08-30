@@ -9,19 +9,21 @@ import { PUBLIC_BASE_URL } from '../../config/env.js';
 import { decrypt } from '../cryptoUtils.js';
 
 import { PostLoginTasksService } from './PostLoginTasksService.js';
+import { TokenService } from './TokenService.js';
 
 export class AuthenticationService {
   constructor() {
     this.postLoginTasks = new PostLoginTasksService();
+    this.tokenService = new TokenService();
   }
   
   /**
    * 完整的用户认证流程
-   * @param {object} context - 包含 email, password, totpToken, backupCode, deviceInfo, res 的上下文对象
+   * @param {object} context - 包含 email, password, totpToken, backupCode, deviceInfo, res, req 的上下文对象
    * @returns {Promise<object>} 认证结果
    */
   async authenticate(context) {
-    const { email, password, totpToken, backupCode, deviceInfo, res, is2faOnly } = context;
+    const { email, password, totpToken, backupCode, deviceInfo, res, req, is2faOnly } = context;
     let user;
 
     if (is2faOnly) {
@@ -48,7 +50,7 @@ export class AuthenticationService {
     // 3. 检查是否需要2FA
     if (!this.requires2FA(user)) {
       // 不需要2FA，登录成功
-      return await this._handleSuccessfulLogin(user, deviceInfo, res, 'No 2FA');
+      return await this._handleSuccessfulLogin(user, deviceInfo, res, req, 'No 2FA');
     }
 
     // 4. 需要2FA，检查是否提供了 token 或 backupCode
@@ -64,7 +66,7 @@ export class AuthenticationService {
 
     // 6. 2FA验证通过，登录成功
     const loginType = totpToken ? 'TOTP' : 'Backup Code';
-    return await this._handleSuccessfulLogin(user, deviceInfo, res, loginType);
+    return await this._handleSuccessfulLogin(user, deviceInfo, res, req, loginType);
   }
 
   /**
@@ -207,29 +209,26 @@ export class AuthenticationService {
   }
 
   /**
-   * 处理登录成功后的逻辑 - 创建JWT token并执行后台任务
+   * 处理登录成功后的逻辑 - 创建JWT token、设置cookie并执行后台任务
    * @param {Object} user 用户对象
    * @param {Object} deviceInfo 设备信息
    * @param {Object} res Express响应对象
+   * @param {Object} req Express请求对象
    * @param {string} loginType 登录类型
    * @returns {Object} 包含status, userId, exp的对象
    * @private
    */
-  async _handleSuccessfulLogin(user, deviceInfo, res, loginType) {
+  async _handleSuccessfulLogin(user, deviceInfo, res, req, loginType) {
     try {
-      // 1. 创建JWT Access Token
-      const accessToken = signAccessToken({ uid: user.id });
+      // 1. 生成并设置token cookies（包括access token和refresh token）
+      const tokenInfo = await this.tokenService.generateAndSetTokens(user, req, res);
       
-      // 2. 解析token获得过期时间戳
-      const decoded = verifyAccessToken(accessToken);
-      const exp = decoded.exp;
-      
-      // 3. 异步执行登录后的后台任务（不影响响应速度）
+      // 2. 异步执行登录后的后台任务（不影响响应速度）
       // 注意：这里使用setTimeout让后台任务异步执行，不阻塞响应
       setTimeout(async () => {
         try {
           await this.postLoginTasks.executePostLoginTasks({
-            req: { headers: { 'user-agent': deviceInfo.userAgent }, ip: deviceInfo.ip },
+            req: { headers: { 'user-agent': deviceInfo || req.headers['user-agent'] }, ip: req.ip },
             user,
             loginType
           });
@@ -237,6 +236,10 @@ export class AuthenticationService {
           console.error(`[AuthenticationService] 后台任务执行失败:`, error);
         }
       }, 0);
+      
+      // 3. 解析access token获得过期时间戳
+      const decoded = verifyAccessToken(tokenInfo.accessToken);
+      const exp = decoded ? decoded.exp : Math.floor(Date.now() / 1000) + 1800; // 默认30分钟
       
       return { 
         status: 'success', 

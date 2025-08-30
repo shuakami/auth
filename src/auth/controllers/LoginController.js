@@ -20,6 +20,7 @@ export class LoginController {
       backupCode,
       deviceInfo,
       res,
+      req,
       is2faOnly: is2faVerification,
     };
     

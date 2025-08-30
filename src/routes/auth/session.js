@@ -49,8 +49,8 @@ router.post('/refresh', async (req, res) => {
   // 从Cookie获取Refresh Token
   const refreshToken = req.cookies.refreshToken;
   const deviceInfo = req.body.deviceInfo || req.headers['user-agent'] || '';
-  if (!refreshToken) {
-    return res.status(400).json({ error: '缺少Refresh Token' });
+  if (!refreshToken || refreshToken === 'undefined') {
+    return res.status(400).json({ error: '无效的Token格式' });
   }
   try {
     // 校验旧Token
