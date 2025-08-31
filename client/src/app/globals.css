@@ -38,9 +38,14 @@
   --background-end-rgb: 0, 0, 0;
 }
 
+html {
+  background: rgb(var(--background-start-rgb));
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
 }
 
 @layer utilities {
