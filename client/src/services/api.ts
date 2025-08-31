@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { tokenManager } from './EnhancedTokenManager';
+import { tokenRefreshManager } from './TokenRefreshManager';
 
 // @ts-ignore
 declare global {
@@ -78,6 +79,10 @@ apiClient.interceptors.response.use(
 
     try {
       console.log('[API Interceptor] 侦测到401，开始刷新Token...');
+      
+      // 显示Token刷新Logo
+      tokenRefreshManager.startRefresh();
+      
       const { data } = await apiClient.post('/refresh');
       tokenManager.updateTokenExpiration(data.exp);
       console.log('[API Interceptor] Token刷新成功，处理等待队列...');
@@ -93,6 +98,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
+      // 隐藏Token刷新Logo（无论成功还是失败）
+      tokenRefreshManager.endRefresh();
     }
   }
 );

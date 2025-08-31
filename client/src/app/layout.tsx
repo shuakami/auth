@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "next-themes";
+import { TokenRefreshProvider } from "@/components/providers/TokenRefreshProvider";
 
 export const metadata: Metadata = {
   title: "Auth - sdjz.wiki",
@@ -23,7 +24,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <TokenRefreshProvider>
+              {children}
+            </TokenRefreshProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
