@@ -3,10 +3,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import Avatar from '@/components/ui/Avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // 定义 User 类型
 interface User {
   id: string;
+  email: string;
   username: string | null;
 }
 
@@ -55,23 +64,35 @@ export default function Header({ user }: HeaderProps) {
         {/* 右侧内容 - 条件渲染 */}
         <div className="flex items-center gap-3">
           {user ? (
-            // 用户已登录：显示用户名和登出按钮
-            <>
-              <div className="hidden items-center gap-3 sm:flex">
-                <span className="text-xs font-medium text-neutral-900 dark:text-zinc-100">
-                  {user.username || '未设置用户名'}
-                </span>
-                <div className="h-6 w-px bg-neutral-200 dark:bg-[#404040]" />
-              </div>
-              <Button
-                onClick={logout}
-                variant="ghost"
-                size="sm"
-                className="text-xs font-medium text-neutral-600 hover:text-neutral-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-              >
-                登出
-              </Button>
-            </>
+            // 用户已登录：显示头像下拉菜单
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-neutral-200 dark:hover:ring-neutral-700 transition-all">
+                  <Avatar 
+                    email={user.email} 
+                    size={32} 
+                    className="cursor-pointer" 
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                    {user.username || '未设置用户名'}
+                  </p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {user.email}
+                  </p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={logout}
+                  className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400 cursor-pointer"
+                >
+                  登出
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             // 用户未登录：显示登录和注册按钮
             <>
