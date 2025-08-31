@@ -50,7 +50,19 @@ export default function Footer() {
                    <Link href="/terms" className="hover:text-neutral-900 dark:hover:text-neutral-100">服务条款</Link>
                  </nav>
                </div>
-               <div className="h-8 w-8"></div>
+               {/* 添加主题切换按钮到未mounted状态 */}
+               <button
+                 onClick={handleToggleTheme}
+                 className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:bg-[#262626]"
+                 title="切换主题"
+               >
+                 <div className="h-4 w-4">
+                   {/* 显示默认图标，避免hydration错误 */}
+                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                     <path fillRule="evenodd" d="M7.455 2.004a.75.75 0 01.26.77 7 7 0 009.958 7.967.75.75 0 011.067.853A8.5 8.5 0 116.647 1.921a.75.75 0 01.808.083z" clipRule="evenodd" />
+                   </svg>
+                 </div>
+               </button>
              </div>
 
              <div className="flex items-center">

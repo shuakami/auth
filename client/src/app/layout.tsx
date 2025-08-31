@@ -17,7 +17,6 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        {/* @ts-expect-error // Ignore the incorrect children type error for ThemeProvider */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
