@@ -93,6 +93,12 @@ export class WebAuthnService {
           if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
             credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
             console.log(`[WebAuthnService] Successfully converted hex credential_id`);
+          } else if (cred.credential_id.startsWith('0') && cred.credential_id.length > 20) {
+            // 检查是否是错误编码的格式（每个字符前加0）
+            const originalCredentialId = cred.credential_id.replace(/0(.)/g, '$1');
+            console.log(`[WebAuthnService] Detected malformed credential_id, extracting: ${originalCredentialId}`);
+            credentialIdBuffer = isoBase64URL.toBuffer(originalCredentialId);
+            console.log(`[WebAuthnService] Successfully converted malformed credential_id`);
           } else {
             // 如果不是hex格式，尝试base64URL转换（旧格式或不同编码）
             console.log(`[WebAuthnService] Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
@@ -224,6 +230,12 @@ export class WebAuthnService {
             if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
               credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
               console.log(`[WebAuthnService] Auth Options: Successfully converted hex credential_id`);
+            } else if (cred.credential_id.startsWith('0') && cred.credential_id.length > 20) {
+              // 检查是否是错误编码的格式（每个字符前加0）
+              const originalCredentialId = cred.credential_id.replace(/0(.)/g, '$1');
+              console.log(`[WebAuthnService] Auth Options: Detected malformed credential_id, extracting: ${originalCredentialId}`);
+              credentialIdBuffer = isoBase64URL.toBuffer(originalCredentialId);
+              console.log(`[WebAuthnService] Auth Options: Successfully converted malformed credential_id`);
             } else {
               // 如果不是hex格式，尝试base64URL转换（旧格式）
               console.log(`[WebAuthnService] Auth Options: Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
@@ -323,6 +335,12 @@ export class WebAuthnService {
         if (/^[0-9A-Fa-f]+$/.test(credential.credential_id)) {
           credentialIDBuffer = isoUint8Array.fromHex(credential.credential_id);
           console.log(`[WebAuthnService] Authentication: Successfully converted hex credential_id`);
+        } else if (credential.credential_id.startsWith('0') && credential.credential_id.length > 20) {
+          // 检查是否是错误编码的格式（每个字符前加0）
+          const originalCredentialId = credential.credential_id.replace(/0(.)/g, '$1');
+          console.log(`[WebAuthnService] Authentication: Detected malformed credential_id, extracting: ${originalCredentialId}`);
+          credentialIDBuffer = isoBase64URL.toBuffer(originalCredentialId);
+          console.log(`[WebAuthnService] Authentication: Successfully converted malformed credential_id`);
         } else {
           // 如果不是hex格式，尝试base64URL转换（旧格式）
           console.log(`[WebAuthnService] Authentication: Attempting base64URL conversion for credential_id: ${credential.credential_id}`);
