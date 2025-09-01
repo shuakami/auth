@@ -272,19 +272,30 @@ export class WebAuthnService {
    */
   async verifyAuthenticationResponse(response, userId = null) {
     try {
-      // response.id 已经是 base64url 编码的字符串，直接使用
-      // 但数据库中存储的是 hex 格式，需要转换格式查找
+      // response.id 已经是 base64url 编码的字符串
       const credentialIdBase64url = response.id;
       
-      // 将 base64url 转换为 hex 来匹配数据库中的格式
+      // 将 base64url 转换为 hex 格式
       const credentialIdBytes = isoBase64URL.toBuffer(credentialIdBase64url);
       const credentialIdHex = isoUint8Array.toHex(credentialIdBytes);
       
-      // 通过凭据ID查找凭据
-      const credential = await WebAuthnCredential.getCredentialById(credentialIdHex);
+      console.log(`[WebAuthnService] Authentication: Looking for credential with base64url: ${credentialIdBase64url}, hex: ${credentialIdHex}`);
+      
+      // 首先尝试用hex格式查找凭据（新格式）
+      let credential = await WebAuthnCredential.getCredentialById(credentialIdHex);
+      
       if (!credential) {
+        // 如果hex格式找不到，尝试用base64url格式查找（旧格式）
+        console.log(`[WebAuthnService] Authentication: Hex format not found, trying base64url format`);
+        credential = await WebAuthnCredential.getCredentialById(credentialIdBase64url);
+      }
+      
+      if (!credential) {
+        console.error(`[WebAuthnService] Authentication: No credential found for base64url: ${credentialIdBase64url} or hex: ${credentialIdHex}`);
         throw new Error('未找到匹配的凭据');
       }
+      
+      console.log(`[WebAuthnService] Authentication: Found credential with ID: ${credential.credential_id}`);
 
       // 如果提供了用户ID，验证凭据是否属于该用户
       if (userId && credential.user_id !== userId) {
@@ -334,9 +345,9 @@ export class WebAuthnService {
         throw new Error('认证验证失败');
       }
 
-      // 更新凭据计数器
+      // 更新凭据计数器（使用数据库中实际存储的格式）
       await WebAuthnCredential.updateCredentialCounter(
-        credentialIdHex,
+        credential.credential_id,
         verification.authenticationInfo.newCounter
       );
 
@@ -345,7 +356,7 @@ export class WebAuthnService {
       return {
         verified: true,
         userId: credential.user_id,
-        credentialId: credentialIdHex,
+        credentialId: credential.credential_id, // 返回实际的credential_id格式
         credential,
       };
 
