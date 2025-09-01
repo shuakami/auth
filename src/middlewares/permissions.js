@@ -151,7 +151,7 @@ export function requireUserManagement() {
   return async (req, res, next) => {
     try {
       const managerId = req.user?.id;
-      const targetUserId = req.params.userId || req.body.userId;
+      const targetUserId = req.params.userId || req.body?.userId;
 
       if (!managerId) {
         return res.status(401).json({ 

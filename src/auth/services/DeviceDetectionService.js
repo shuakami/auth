@@ -12,8 +12,8 @@ export class DeviceDetectionService {
                req.ip || 
                req.connection?.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
-    const deviceInfo = req.body.deviceInfo || userAgent;
-    const fingerprint = req.body.fingerprint;
+    const deviceInfo = req.body?.deviceInfo || userAgent;
+    const fingerprint = req.body?.fingerprint;
 
     return {
       ip: ip.trim(),

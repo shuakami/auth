@@ -32,13 +32,13 @@ export async function validateRefreshToken(token) {
  * 轮换Refresh Token（向后兼容）
  * @param {string} oldToken 旧Refresh Token串
  * @param {string} deviceInfo 当前设备指纹
- * @returns {Promise<{newToken: string, newId: string, expiresAt: Date}>}
+ * @returns {Promise<{token: string, id: string, expiresAt: Date}>}
  */
 export async function rotateRefreshToken(oldToken, deviceInfo) {
   const result = await tokenController.rotateRefreshToken(oldToken, deviceInfo);
   return {
-    newToken: result.token,
-    newId: result.id,
+    token: result.token,
+    id: result.id,
     expiresAt: result.expiresAt
   };
 }

@@ -254,7 +254,7 @@ export class AuthorizationServerService {
     }
     
     // 3. 轮换刷新令牌
-    const { newToken: newRefreshToken } = await rotateRefreshToken(refreshTokenString, 'OAuth Client Rotated');
+    const { token: newRefreshToken } = await rotateRefreshToken(refreshTokenString, 'OAuth Client Rotated');
 
     // 4. 生成新的访问令牌和ID令牌
     const { rows: userRows } = await pool.query(

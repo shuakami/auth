@@ -219,8 +219,8 @@ router.post('/token', async (req, res) => {
     const credentials = basicAuth(req);
     
     // 从请求头 (basic auth) 或请求体中获取客户端凭据
-    const client_id = credentials ? credentials.name : req.body.client_id;
-    const client_secret = credentials ? credentials.pass : req.body.client_secret;
+    const client_id = credentials ? credentials.name : req.body?.client_id;
+    const client_secret = credentials ? credentials.pass : req.body?.client_secret;
 
     const { 
       grant_type, 

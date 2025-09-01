@@ -48,9 +48,11 @@ router.post('/logout', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   // 从Cookie获取Refresh Token
   const refreshToken = req.cookies.refreshToken;
-  const deviceInfo = req.body.deviceInfo || req.headers['user-agent'] || '';
-  if (!refreshToken || refreshToken === 'undefined') {
-    return res.status(400).json({ error: '无效的Token格式' });
+  const deviceInfo = req.body?.deviceInfo || req.headers['user-agent'] || '';
+  if (!refreshToken || refreshToken === 'undefined' || refreshToken === undefined) {
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
+    return res.status(401).json({ error: '无效的Token格式，请重新登录', code: 'refresh_token_missing' });
   }
   try {
     // 校验旧Token
@@ -83,6 +85,18 @@ router.post('/refresh', async (req, res) => {
     // 正常轮换
     const { token: newRefreshToken } = await RefreshTokenService.rotateRefreshToken(refreshToken, deviceInfo);
     const accessToken = signAccessToken({ uid: dbToken.user_id });
+    
+    // 验证生成的token有效性
+    if (!newRefreshToken || typeof newRefreshToken !== 'string' || newRefreshToken === 'undefined') {
+      console.error('[Session] Invalid newRefreshToken:', newRefreshToken);
+      return res.status(500).json({ error: 'Token轮换失败', code: 'token_generation_error' });
+    }
+    
+    if (!accessToken || typeof accessToken !== 'string' || accessToken === 'undefined') {
+      console.error('[Session] Invalid accessToken:', accessToken);
+      return res.status(500).json({ error: 'Token生成失败', code: 'token_generation_error' });
+    }
+    
     // 解析exp
     const decoded = await import('jsonwebtoken').then(m => m.decode(accessToken));
     const exp = decoded && decoded.exp ? decoded.exp : Math.floor(Date.now() / 1000) + 1800; // 30分钟 = 1800秒
@@ -103,6 +117,8 @@ router.post('/refresh', async (req, res) => {
       path: '/', // 确保cookie在整个域名下都可用
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
+    
+    console.log('[Session] Token轮换成功 - Access Token长度:', accessToken.length, 'Refresh Token长度:', newRefreshToken.length);
     // 响应体返回exp，便于前端Silent Refresh
     res.json({ ok: true, tokenType: 'Bearer', expiresIn: 1800, exp }); // 30分钟 = 1800秒
   } catch (err) {

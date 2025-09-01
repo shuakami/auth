@@ -26,7 +26,7 @@ export async function recordLoginLog({ req, user, success, reason, location, fin
   try {
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
-    const fp = fingerprint || req.body.fingerprint || '';
+    const fp = fingerprint || req.body?.fingerprint || '';
     await loginHistoryService.recordLogin({
       userId: user?.id || null,
       ip,

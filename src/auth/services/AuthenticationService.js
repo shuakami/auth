@@ -228,7 +228,11 @@ export class AuthenticationService {
       setTimeout(async () => {
         try {
           await this.postLoginTasks.executePostLoginTasks({
-            req: { headers: { 'user-agent': deviceInfo || req.headers['user-agent'] }, ip: req.ip },
+            req: { 
+              headers: { 'user-agent': deviceInfo || req.headers['user-agent'] }, 
+              ip: req.ip,
+              body: req.body || {} // 添加body属性，避免undefined错误
+            },
             user,
             loginType
           });
