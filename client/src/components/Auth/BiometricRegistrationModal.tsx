@@ -5,8 +5,7 @@
 import { memo, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Fingerprint, Shield, Check, AlertCircle, Smartphone, X } from 'lucide-react';
-import { cn } from '@/lib/utils/utils';
+import { Fingerprint, Shield, AlertCircle, Check } from 'lucide-react';
 
 interface BiometricRegistrationModalProps {
   isOpen: boolean;
@@ -75,35 +74,25 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center space-x-3">
-          <div className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full',
-            browserSupported ? 'bg-neutral-100 dark:bg-neutral-800' : 'bg-red-100 dark:bg-red-900/30'
-          )}>
-            {browserSupported ? (
-              <Check className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            )}
-          </div>
-          <span className="text-sm text-neutral-700 dark:text-neutral-300">
+          {browserSupported ? (
+            <Shield className="h-5 w-5 text-green-600 dark:text-green-400" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          )}
+          <span className="text-base text-neutral-700 dark:text-neutral-300">
             浏览器支持 WebAuthn
           </span>
         </div>
 
         <div className="flex items-center space-x-3">
-          <div className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full',
-            platformSupported ? 'bg-neutral-100 dark:bg-neutral-800' : 'bg-yellow-100 dark:bg-yellow-900/30'
-          )}>
-            {platformSupported ? (
-              <Check className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-            ) : (
-              <Smartphone className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-            )}
-          </div>
-          <span className="text-sm text-neutral-700 dark:text-neutral-300">
+          {platformSupported ? (
+            <Fingerprint className="h-5 w-5 text-green-600 dark:text-green-400" />
+          ) : (
+            <Shield className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+          )}
+          <span className="text-base text-neutral-700 dark:text-neutral-300">
             {platformSupported ? '设备支持生物认证器' : '可使用安全密钥'}
           </span>
         </div>
@@ -112,20 +101,17 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
   };
 
   const renderIntroStep = () => (
-    <div className="space-y-8">
-      <div className="text-center space-y-4">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-700 shadow-sm">
-          <Check className="h-8 w-8 text-neutral-700 dark:text-neutral-300" />
+          <div className="space-y-8">
+        <div className="text-center space-y-6">
+          <div>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
+              检查设备兼容性
+            </h3>
+            <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              我们需要确认您的设备支持生物验证功能
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
-            检查设备兼容性
-          </h3>
-          <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
-            我们需要确认您的设备支持生物验证功能
-          </p>
-        </div>
-      </div>
 
       <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-6">
         {renderSupportInfo()}
@@ -156,12 +142,9 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
 
   const renderNamingStep = () => (
     <div className="space-y-8">
-      <div className="text-center space-y-4">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/40 shadow-sm">
-          <Smartphone className="h-8 w-8 text-blue-700 dark:text-blue-300" />
-        </div>
+      <div className="text-center space-y-6">
         <div>
-          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
             设备命名
           </h3>
           <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
@@ -230,13 +213,13 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
   const renderRegisteringStep = () => (
     <div className="space-y-8">
       <div className="text-center space-y-6">
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/40 shadow-sm">
+        <div className="flex justify-center">
           <div className="animate-pulse">
-            <Fingerprint className="h-10 w-10 text-green-700 dark:text-green-300" />
+            <Fingerprint className="h-16 w-16 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
         <div>
-          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
             正在注册设备
           </h3>
           <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
@@ -270,15 +253,6 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl p-0 gap-0 border-0 bg-white dark:bg-[#09090b]">
-        {/* 关闭按钮 */}
-        <button
-          onClick={handleClose}
-          className="absolute right-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">关闭</span>
-        </button>
-
         <div className="flex min-h-[700px]">
           {/* 左侧介绍区域 */}
           <div className="w-3/5 p-8 lg:p-16 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-800/30">
@@ -306,9 +280,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
                 {/* 功能特性 */}
                 <div className="space-y-6 text-left">
                   <div className="flex items-start space-x-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
-                      <Shield className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
-                    </div>
+                    <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0" />
                     <div>
                       <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         安全可靠
@@ -320,9 +292,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
                   </div>
                   
                   <div className="flex items-start space-x-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
-                      <Smartphone className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
-                    </div>
+                    <Fingerprint className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0" />
                     <div>
                       <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         多设备支持
@@ -334,9 +304,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
                   </div>
                   
                   <div className="flex items-start space-x-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
-                      <Check className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
-                    </div>
+                    <Check className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-1 flex-shrink-0" />
                     <div>
                       <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         备用登录
