@@ -424,9 +424,22 @@ export class WebAuthnService {
       console.log(`[WebAuthnService] Authentication: credential.credential_public_key length:`, credential.credential_public_key ? credential.credential_public_key.length : 'undefined');
 
       // 构建authenticator对象
+      // 确保credentialPublicKey是正确的Uint8Array格式
+      let credentialPublicKey;
+      if (credential.credential_public_key instanceof Buffer) {
+        credentialPublicKey = new Uint8Array(credential.credential_public_key);
+      } else if (credential.credential_public_key && credential.credential_public_key.buffer) {
+        // MongoDB Binary类型处理
+        credentialPublicKey = new Uint8Array(credential.credential_public_key.buffer);
+      } else if (Array.isArray(credential.credential_public_key)) {
+        credentialPublicKey = new Uint8Array(credential.credential_public_key);
+      } else {
+        credentialPublicKey = new Uint8Array(credential.credential_public_key);
+      }
+
       const authenticator = {
         credentialID: credentialIDBuffer,
-        credentialPublicKey: new Uint8Array(credential.credential_public_key),
+        credentialPublicKey: credentialPublicKey,
         counter: counter,
         transports: transports,
       };
