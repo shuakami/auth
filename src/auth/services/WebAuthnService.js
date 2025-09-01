@@ -145,7 +145,9 @@ export class WebAuthnService {
         throw new Error('注册验证失败');
       }
 
-      const { credentialID, credentialPublicKey, counter, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      // 解构新的数据结构 (v13格式)
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
       // 保存凭据到数据库
       const savedCredential = await WebAuthnCredential.saveCredential({
