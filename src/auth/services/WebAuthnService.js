@@ -216,11 +216,32 @@ export class WebAuthnService {
       if (userId) {
         // 获取用户的凭据
         const credentials = await WebAuthnCredential.getCredentialsByUserId(userId);
-        allowCredentials = credentials.map(cred => ({
-          id: isoUint8Array.fromHex(cred.credential_id),
-          type: 'public-key',
-          transports: cred.transports ? JSON.parse(cred.transports) : undefined,
-        }));
+        allowCredentials = credentials.map(cred => {
+          try {
+            let credentialIdBuffer;
+            
+            // 首先尝试hex转换（新格式）
+            if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
+              credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
+              console.log(`[WebAuthnService] Auth Options: Successfully converted hex credential_id`);
+            } else {
+              // 如果不是hex格式，尝试base64URL转换（旧格式）
+              console.log(`[WebAuthnService] Auth Options: Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
+              credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
+              console.log(`[WebAuthnService] Auth Options: Successfully converted base64URL credential_id`);
+            }
+            
+            return {
+              id: credentialIdBuffer,
+              type: 'public-key',
+              transports: cred.transports ? JSON.parse(cred.transports) : undefined,
+            };
+          } catch (error) {
+            console.error(`[WebAuthnService] Auth Options: Failed to convert credential_id: ${cred.credential_id}`, error);
+            // 跳过这个无效的凭据
+            return null;
+          }
+        }).filter(Boolean); // 过滤掉null值
       }
 
       // 生成认证选项
@@ -278,13 +299,30 @@ export class WebAuthnService {
       }
 
       // 验证认证响应
+      let credentialIDBuffer;
+      try {
+        // 首先尝试hex转换（新格式）
+        if (/^[0-9A-Fa-f]+$/.test(credential.credential_id)) {
+          credentialIDBuffer = isoUint8Array.fromHex(credential.credential_id);
+          console.log(`[WebAuthnService] Authentication: Successfully converted hex credential_id`);
+        } else {
+          // 如果不是hex格式，尝试base64URL转换（旧格式）
+          console.log(`[WebAuthnService] Authentication: Attempting base64URL conversion for credential_id: ${credential.credential_id}`);
+          credentialIDBuffer = isoBase64URL.toBuffer(credential.credential_id);
+          console.log(`[WebAuthnService] Authentication: Successfully converted base64URL credential_id`);
+        }
+      } catch (error) {
+        console.error(`[WebAuthnService] Authentication: Failed to convert credential_id: ${credential.credential_id}`, error);
+        throw new Error('无效的凭据格式');
+      }
+
       const verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge,
         expectedOrigin: ORIGIN,
         expectedRPID: RP_ID,
         authenticator: {
-          credentialID: isoUint8Array.fromHex(credential.credential_id),
+          credentialID: credentialIDBuffer,
           credentialPublicKey: new Uint8Array(credential.credential_public_key),
           counter: parseInt(credential.counter),
           transports: credential.transports ? JSON.parse(credential.transports) : undefined,
