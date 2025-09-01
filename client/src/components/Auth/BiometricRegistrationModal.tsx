@@ -269,7 +269,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl p-0 gap-0 border-0 bg-white dark:bg-[#09090b]">
+      <DialogContent className="max-w-6xl p-0 gap-0 border-0 bg-white dark:bg-[#09090b]">
         {/* 关闭按钮 */}
         <button
           onClick={handleClose}
@@ -279,10 +279,10 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           <span className="sr-only">关闭</span>
         </button>
 
-        <div className="flex min-h-[600px]">
+        <div className="flex min-h-[700px]">
           {/* 左侧介绍区域 */}
-          <div className="w-2/5 p-8 lg:p-12 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-800/30">
-            <div className="max-w-sm mx-auto lg:mx-0 h-full flex flex-col justify-center">
+          <div className="w-3/5 p-8 lg:p-16 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-800/30">
+            <div className="max-w-lg mx-auto lg:mx-0 h-full flex flex-col justify-center">
               <div className="text-center lg:text-left">
                 <div className="mx-auto lg:mx-0 flex h-24 w-24 items-center justify-center rounded-2xl bg-white dark:bg-neutral-800 shadow-sm mb-8">
                   {platformSupported ? (
@@ -352,8 +352,8 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           </div>
 
           {/* 右侧操作区域 */}
-          <div className="flex-1 p-8 lg:p-16 flex items-center justify-center">
-            <div className="w-full max-w-lg">
+          <div className="w-2/5 p-8 lg:p-12 flex items-center justify-center bg-white dark:bg-[#09090b]">
+            <div className="w-full max-w-md">
               {step === 'intro' && renderIntroStep()}
               {step === 'naming' && renderNamingStep()}
               {step === 'registering' && renderRegisteringStep()}

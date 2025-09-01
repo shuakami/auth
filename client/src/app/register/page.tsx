@@ -51,11 +51,7 @@ function RegisterContent() {
   
   useAutoRedirectIfAuthenticated();
   
-  // 如果还在初始加载中，显示加载指示器
-  if (initialLoading) {
-    return <LoadingIndicator />;
-  }
-  
+  // 所有的useState必须在条件返回之前调用，遵循Hooks规则
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -64,6 +60,11 @@ function RegisterContent() {
   const [loading, setLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
+  
+  // 如果还在初始加载中，显示加载指示器
+  if (initialLoading) {
+    return <LoadingIndicator />;
+  }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -2,16 +2,7 @@
  * WebAuthn 客户端服务
  * 处理生物验证的客户端操作
  */
-import {
-  startRegistration,
-  startAuthentication,
-  browserSupportsWebAuthn,
-  platformAuthenticatorIsAvailable,
-} from '@simplewebauthn/browser';
-import type {
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from '@simplewebauthn/types';
+import { client } from '@passwordless-id/webauthn';
 import api from './api';
 
 // WebAuthn 凭据接口定义
@@ -31,9 +22,27 @@ export interface WebAuthnSupport {
   credentials: WebAuthnCredential[];
 }
 
-// 使用库提供的类型别名
-export type WebAuthnRegistrationOptions = PublicKeyCredentialCreationOptionsJSON;
-export type WebAuthnAuthenticationOptions = PublicKeyCredentialRequestOptionsJSON;
+// WebAuthn 选项类型
+export interface WebAuthnRegistrationOptions {
+  challenge: string;
+  rp: { name: string; id: string };
+  user: { id: string; name: string; displayName: string };
+  pubKeyCredParams: Array<{ type: string; alg: number }>;
+  timeout: number;
+  attestation?: string;
+  authenticatorSelection?: {
+    authenticatorAttachment?: string;
+    userVerification?: string;
+  };
+}
+
+export interface WebAuthnAuthenticationOptions {
+  challenge: string;
+  timeout: number;
+  rpId?: string;
+  allowCredentials?: Array<{ id: string; type: string; transports?: string[] }>;
+  userVerification?: string;
+}
 
 /**
  * WebAuthn 客户端服务类
@@ -43,7 +52,9 @@ export class WebAuthnService {
    * 检查浏览器是否支持 WebAuthn
    */
   static isBrowserSupported(): boolean {
-    return browserSupportsWebAuthn();
+    return typeof window !== 'undefined' && 
+           typeof window.PublicKeyCredential !== 'undefined' &&
+           typeof navigator.credentials !== 'undefined';
   }
 
   /**
@@ -51,7 +62,11 @@ export class WebAuthnService {
    */
   static async isPlatformAuthenticatorAvailable(): Promise<boolean> {
     try {
-      return await platformAuthenticatorIsAvailable();
+      if (!this.isBrowserSupported()) return false;
+      
+      // 检查是否支持平台认证器
+      const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return available;
     } catch (error) {
       console.warn('[WebAuthn] 检查平台认证器可用性失败:', error);
       return false;
@@ -103,11 +118,15 @@ export class WebAuthnService {
   ): Promise<WebAuthnCredential> {
     try {
       // 调用浏览器 WebAuthn API
-      const attResp = await startRegistration({ optionsJSON: options });
+      const registration = await client.register({
+        challenge: options.challenge,
+        user: options.user,
+        timeout: options.timeout,
+      });
 
       // 提交到服务器验证
       const response = await api.post('/webauthn/registration/finish', {
-        response: attResp,
+        response: registration,
         credentialName: credentialName || 'Biometric Device',
       });
 
@@ -166,11 +185,16 @@ export class WebAuthnService {
   }> {
     try {
       // 调用浏览器 WebAuthn API
-      const asseResp = await startAuthentication({ optionsJSON: options });
+      const authentication = await client.authenticate({
+        challenge: options.challenge,
+        timeout: options.timeout,
+        allowCredentials: options.allowCredentials?.map(cred => cred.id),
+        userVerification: (options.userVerification === 'required' || options.userVerification === 'preferred' || options.userVerification === 'discouraged') ? options.userVerification : 'preferred',
+      });
 
       // 提交到服务器验证
       const response = await api.post('/webauthn/authentication/finish', {
-        response: asseResp,
+        response: authentication,
         userId,
       });
 
