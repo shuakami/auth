@@ -43,12 +43,29 @@ export class WebAuthnService {
    * @param {string} challenge 挑战值
    * @param {string} type 类型 ('registration' | 'authentication')
    */
-  _storeChallenge(userId, challenge, type) {
+  async _storeChallenge(userId, challenge, type) {
     this._cleanupExpiredChallenges();
+    
+    // 同时存储在内存和数据库中（兼容性）
     this.challenges.set(`${userId}-${type}`, {
       challenge,
       timestamp: Date.now()
     });
+
+    // 存储到数据库（serverless友好）
+    try {
+      const { smartQuery } = await import('../../db/index.js');
+      await smartQuery(
+        `INSERT INTO webauthn_challenges (user_id, challenge_type, challenge_value, expires_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, challenge_type) 
+         DO UPDATE SET challenge_value = $3, expires_at = $4`,
+        [userId, type, challenge, new Date(Date.now() + this.CHALLENGE_TTL)]
+      );
+      console.log(`[WebAuthnService] Challenge stored in database for ${userId}-${type}`);
+    } catch (error) {
+      console.warn(`[WebAuthnService] Failed to store challenge in database:`, error);
+    }
   }
 
   /**
@@ -57,13 +74,43 @@ export class WebAuthnService {
    * @param {string} type 类型
    * @returns {string|null}
    */
-  _getAndRemoveChallenge(userId, type) {
+  async _getAndRemoveChallenge(userId, type) {
     const key = `${userId}-${type}`;
-    const data = this.challenges.get(key);
-    if (data) {
+    
+    // 首先尝试从内存获取
+    const memData = this.challenges.get(key);
+    if (memData) {
       this.challenges.delete(key);
-      return data.challenge;
+      console.log(`[WebAuthnService] Challenge retrieved from memory for ${userId}-${type}`);
+      return memData.challenge;
     }
+
+    // 如果内存中没有，从数据库获取（serverless环境）
+    try {
+      const { smartQuery } = await import('../../db/index.js');
+      const result = await smartQuery(
+        `SELECT challenge_value FROM webauthn_challenges 
+         WHERE user_id = $1 AND challenge_type = $2 AND expires_at > NOW()`,
+        [userId, type]
+      );
+
+      if (result.rows.length > 0) {
+        const challenge = result.rows[0].challenge_value;
+        
+        // 删除使用过的challenge
+        await smartQuery(
+          `DELETE FROM webauthn_challenges WHERE user_id = $1 AND challenge_type = $2`,
+          [userId, type]
+        );
+        
+        console.log(`[WebAuthnService] Challenge retrieved from database for ${userId}-${type}`);
+        return challenge;
+      }
+    } catch (error) {
+      console.warn(`[WebAuthnService] Failed to retrieve challenge from database:`, error);
+    }
+
+    console.log(`[WebAuthnService] No valid challenge found for ${userId}-${type}`);
     return null;
   }
 
@@ -142,7 +189,7 @@ export class WebAuthnService {
       });
 
       // 存储挑战值
-      this._storeChallenge(userId, options.challenge, 'registration');
+      await this._storeChallenge(userId, options.challenge, 'registration');
 
       console.log(`[WebAuthnService] 生成注册选项成功 for user ${userId}`);
       return options;
@@ -163,7 +210,7 @@ export class WebAuthnService {
   async verifyRegistrationResponse(userId, response, credentialName = 'Biometric Device') {
     try {
       // 获取存储的挑战值
-      const expectedChallenge = this._getAndRemoveChallenge(userId, 'registration');
+      const expectedChallenge = await this._getAndRemoveChallenge(userId, 'registration');
       if (!expectedChallenge) {
         throw new Error('无效或过期的挑战值');
       }
@@ -277,7 +324,7 @@ export class WebAuthnService {
 
       // 存储挑战值（如果有用户ID）
       const challengeKey = userId || 'anonymous';
-      this._storeChallenge(challengeKey, options.challenge, 'authentication');
+      await this._storeChallenge(challengeKey, options.challenge, 'authentication');
 
       console.log(`[WebAuthnService] 生成认证选项成功 for ${userId || 'anonymous'}`);
       return options;
@@ -335,7 +382,7 @@ export class WebAuthnService {
 
       // 获取存储的挑战值
       const challengeKey = userId || 'anonymous';
-      const expectedChallenge = this._getAndRemoveChallenge(challengeKey, 'authentication');
+      const expectedChallenge = await this._getAndRemoveChallenge(challengeKey, 'authentication');
       console.log(`[WebAuthnService] Authentication: Expected challenge:`, expectedChallenge);
       console.log(`[WebAuthnService] Authentication: Challenge type:`, typeof expectedChallenge);
       console.log(`[WebAuthnService] Authentication: Challenge length:`, expectedChallenge ? expectedChallenge.length : 'undefined');

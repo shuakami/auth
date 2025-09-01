@@ -490,6 +490,20 @@ export async function init() {
         `
       },
       {
+        name: 'WebAuthn挑战表',
+        sql: `
+          CREATE TABLE IF NOT EXISTS webauthn_challenges (
+            user_id TEXT NOT NULL,
+            challenge_type TEXT NOT NULL,
+            challenge_value TEXT NOT NULL,
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, challenge_type)
+          );
+          CREATE INDEX IF NOT EXISTS "IDX_webauthn_challenges_expires" ON webauthn_challenges (expires_at);
+        `
+      },
+      {
         name: 'OAuth应用表',
         sql: `
           CREATE TABLE IF NOT EXISTS oauth_applications (
