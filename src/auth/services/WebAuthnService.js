@@ -337,8 +337,17 @@ export class WebAuthnService {
       const challengeKey = userId || 'anonymous';
       const expectedChallenge = this._getAndRemoveChallenge(challengeKey, 'authentication');
       console.log(`[WebAuthnService] Authentication: Expected challenge:`, expectedChallenge);
+      console.log(`[WebAuthnService] Authentication: Challenge type:`, typeof expectedChallenge);
+      console.log(`[WebAuthnService] Authentication: Challenge length:`, expectedChallenge ? expectedChallenge.length : 'undefined');
+      
       if (!expectedChallenge) {
         throw new Error('无效或过期的挑战值');
+      }
+
+      // 确保challenge是正确的格式
+      if (typeof expectedChallenge !== 'string') {
+        console.error(`[WebAuthnService] Authentication: Invalid challenge type: ${typeof expectedChallenge}`);
+        throw new Error('挑战值格式错误');
       }
 
       // 验证认证响应
@@ -439,7 +448,7 @@ export class WebAuthnService {
       const verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: ORIGIN,
+        expectedOrigin: 'https://auth.sdjz.wiki', // 尝试单个字符串而不是数组
         expectedRPID: RP_ID,
         authenticator,
         requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
