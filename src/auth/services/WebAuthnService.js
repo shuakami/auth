@@ -185,10 +185,20 @@ export class WebAuthnService {
       const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
       const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
 
+      // 生成正确格式的credential ID
+      const hexCredentialId = isoUint8Array.toHex(credentialID);
+      console.log(`[WebAuthnService] Registration: Generated credential_id: ${hexCredentialId} (length: ${hexCredentialId.length})`);
+      
+      // 验证hex格式是否正确
+      if (!/^[0-9A-Fa-f]+$/.test(hexCredentialId)) {
+        console.error(`[WebAuthnService] Registration: Invalid hex format: ${hexCredentialId}`);
+        throw new Error('生成的凭据ID格式无效');
+      }
+
       // 保存凭据到数据库
       const savedCredential = await WebAuthnCredential.saveCredential({
         userId,
-        credentialId: isoUint8Array.toHex(credentialID),
+        credentialId: hexCredentialId,
         credentialPublicKey: Buffer.from(credentialPublicKey),
         counter,
         credentialDeviceType,
@@ -196,6 +206,8 @@ export class WebAuthnService {
         transports: response.response.transports ? JSON.stringify(response.response.transports) : null,
         name: credentialName,
       });
+      
+      console.log(`[WebAuthnService] Registration: Saved credential with ID: ${savedCredential.credential_id}`);
 
       console.log(`[WebAuthnService] 注册验证成功 for user ${userId}, credential: ${savedCredential.id}`);
 
@@ -352,6 +364,27 @@ export class WebAuthnService {
         throw new Error('无效的凭据格式');
       }
 
+      // 验证credential对象的完整性
+      console.log(`[WebAuthnService] Authentication: Credential data:`, {
+        id: credential.credential_id,
+        userId: credential.user_id,
+        hasPublicKey: !!credential.credential_public_key,
+        counter: credential.counter,
+        counterType: typeof credential.counter,
+        deviceType: credential.credential_device_type,
+        backedUp: credential.credential_backed_up,
+        transports: credential.transports,
+      });
+
+      if (!credential.credential_public_key) {
+        throw new Error('凭据缺少公钥数据');
+      }
+
+      if (credential.counter === undefined || credential.counter === null) {
+        console.warn(`[WebAuthnService] Authentication: Counter is null/undefined, defaulting to 0`);
+        credential.counter = 0;
+      }
+
       const verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge,
@@ -360,7 +393,7 @@ export class WebAuthnService {
         authenticator: {
           credentialID: credentialIDBuffer,
           credentialPublicKey: new Uint8Array(credential.credential_public_key),
-          counter: parseInt(credential.counter),
+          counter: parseInt(credential.counter) || 0,
           transports: credential.transports ? JSON.parse(credential.transports) : undefined,
         },
         requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
