@@ -156,7 +156,7 @@ const BiometricSettings = memo(function BiometricSettings({
           onClick={() => setShowRegistrationModal(true)}
           disabled={isLoading}
           leftIcon={<Plus className="h-4 w-4" />}
-          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+          variant="default"
         >
           添加设备
         </Button>
@@ -330,7 +330,7 @@ const BiometricSettings = memo(function BiometricSettings({
             <Button
               onClick={handleEditName}
               disabled={!editingName.trim()}
-              className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+              variant="default"
             >
               保存
             </Button>

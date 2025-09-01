@@ -112,31 +112,41 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
   };
 
   const renderIntroStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-          检查设备兼容性
-        </h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          我们需要确认您的设备支持生物验证功能
-        </p>
+    <div className="space-y-8">
+      <div className="text-center space-y-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-700 shadow-sm">
+          <Check className="h-8 w-8 text-neutral-700 dark:text-neutral-300" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+            检查设备兼容性
+          </h3>
+          <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            我们需要确认您的设备支持生物验证功能
+          </p>
+        </div>
       </div>
 
-      {renderSupportInfo()}
+      <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-6">
+        {renderSupportInfo()}
+      </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-center space-x-4 pt-6">
         <Button
           variant="outline"
           onClick={handleClose}
           disabled={loading}
-          className="border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          size="lg"
+          className="min-w-[120px]"
         >
           取消
         </Button>
         <Button
           onClick={handleRegister}
           disabled={!browserSupported || loading}
-          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+          variant="default"
+          size="lg"
+          className="min-w-[120px]"
         >
           下一步
         </Button>
@@ -145,53 +155,61 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
   );
 
   const renderNamingStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-          设备命名
-        </h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          给这个认证器起个名字，方便您在多个设备间进行管理
-        </p>
+    <div className="space-y-8">
+      <div className="text-center space-y-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/40 shadow-sm">
+          <Smartphone className="h-8 w-8 text-blue-700 dark:text-blue-300" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+            设备命名
+          </h3>
+          <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            给这个认证器起个名字，方便您在多个设备间进行管理
+          </p>
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="credential-name" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-          设备名称（可选）
-        </label>
-        <input
-          id="credential-name"
-          type="text"
-          value={credentialName}
-          onChange={(e) => setCredentialName(e.target.value)}
-          className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
-          placeholder={platformSupported ? "我的iPhone" : "我的安全密钥"}
-          maxLength={50}
-        />
-        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-          如果不填写，将使用默认名称
-        </p>
-      </div>
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="credential-name" className="block text-base font-semibold text-neutral-700 dark:text-neutral-300 mb-3">
+            设备名称（可选）
+          </label>
+          <input
+            id="credential-name"
+            type="text"
+            value={credentialName}
+            onChange={(e) => setCredentialName(e.target.value)}
+            className="block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-200 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-neutral-400 dark:focus:ring-neutral-700"
+            placeholder={platformSupported ? "我的iPhone" : "我的安全密钥"}
+            maxLength={50}
+          />
+          <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+            如果不填写，将使用默认名称
+          </p>
+        </div>
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-            <div className="ml-3">
-              <p className="text-sm text-red-800 dark:text-red-400">
-                {error}
-              </p>
+        {error && (
+          <div className="rounded-xl bg-red-50 p-4 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50">
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" aria-hidden="true" />
+              <div className="ml-3">
+                <p className="text-sm text-red-800 dark:text-red-400">
+                  {error}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-center space-x-4 pt-6">
         <Button
           variant="outline"
           onClick={() => setStep('intro')}
           disabled={loading}
-          className="border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          size="lg"
+          className="min-w-[120px]"
         >
           上一步
         </Button>
@@ -199,46 +217,50 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           onClick={handleRegister}
           disabled={loading}
           loading={loading}
-          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+          variant="default"
+          size="lg"
+          className="min-w-[120px]"
         >
-          注册生物验证
+          开始注册
         </Button>
       </div>
     </div>
   );
 
   const renderRegisteringStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
+    <div className="space-y-8">
+      <div className="text-center space-y-6">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/30 dark:to-green-800/40 shadow-sm">
           <div className="animate-pulse">
-            <Fingerprint className="h-8 w-8 text-neutral-600 dark:text-neutral-400" />
+            <Fingerprint className="h-10 w-10 text-green-700 dark:text-green-300" />
           </div>
         </div>
-        <div className="mt-4">
-          <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">
-            正在注册
+        <div>
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">
+            正在注册设备
           </h3>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
             请按照浏览器提示完成{platformSupported ? '生物验证' : '安全密钥'}设置
           </p>
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="animate-pulse">
-          <div className="h-2 bg-neutral-200 rounded dark:bg-neutral-700"></div>
-        </div>
-        <div className="animate-pulse" style={{ animationDelay: '0.2s' }}>
-          <div className="h-2 bg-neutral-200 rounded w-3/4 dark:bg-neutral-700"></div>
-        </div>
-        <div className="animate-pulse" style={{ animationDelay: '0.4s' }}>
-          <div className="h-2 bg-neutral-200 rounded w-1/2 dark:bg-neutral-700"></div>
+      <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-6">
+        <div className="space-y-4">
+          <div className="animate-pulse">
+            <div className="h-3 bg-neutral-300 rounded-full dark:bg-neutral-600"></div>
+          </div>
+          <div className="animate-pulse" style={{ animationDelay: '0.3s' }}>
+            <div className="h-3 bg-neutral-300 rounded-full w-3/4 dark:bg-neutral-600"></div>
+          </div>
+          <div className="animate-pulse" style={{ animationDelay: '0.6s' }}>
+            <div className="h-3 bg-neutral-300 rounded-full w-1/2 dark:bg-neutral-600"></div>
+          </div>
         </div>
       </div>
 
       <div className="text-center">
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 animate-pulse">
           处理中，请稍候...
         </p>
       </div>
@@ -257,24 +279,24 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           <span className="sr-only">关闭</span>
         </button>
 
-        <div className="flex min-h-[500px]">
+        <div className="flex min-h-[600px]">
           {/* 左侧介绍区域 */}
-          <div className="flex-1 p-8 lg:p-12 bg-neutral-50 dark:bg-neutral-900/50">
-            <div className="max-w-md mx-auto lg:mx-0">
+          <div className="w-2/5 p-8 lg:p-12 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-800/30">
+            <div className="max-w-sm mx-auto lg:mx-0 h-full flex flex-col justify-center">
               <div className="text-center lg:text-left">
-                <div className="mx-auto lg:mx-0 flex h-20 w-20 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 mb-6">
+                <div className="mx-auto lg:mx-0 flex h-24 w-24 items-center justify-center rounded-2xl bg-white dark:bg-neutral-800 shadow-sm mb-8">
                   {platformSupported ? (
-                    <Fingerprint className="h-10 w-10 text-neutral-600 dark:text-neutral-400" />
+                    <Fingerprint className="h-12 w-12 text-neutral-700 dark:text-neutral-300" />
                   ) : (
-                    <Shield className="h-10 w-10 text-neutral-600 dark:text-neutral-400" />
+                    <Shield className="h-12 w-12 text-neutral-700 dark:text-neutral-300" />
                   )}
                 </div>
                 
-                <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 mb-4">
+                <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 mb-6">
                   设置生物验证
                 </h1>
                 
-                <p className="text-lg text-neutral-600 dark:text-neutral-400 mb-8">
+                <p className="text-lg text-neutral-600 dark:text-neutral-400 mb-10 leading-relaxed">
                   {platformSupported 
                     ? '使用您的指纹、Face ID 或其他生物特征进行安全快速的登录体验。'
                     : '使用安全密钥进行无密码登录，提供企业级的安全保障。'
@@ -282,44 +304,44 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
                 </p>
 
                 {/* 功能特性 */}
-                <div className="space-y-4 text-left">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-700 mt-0.5">
-                      <Shield className="h-3 w-3 text-neutral-600 dark:text-neutral-400" />
+                <div className="space-y-6 text-left">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
+                      <Shield className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                      <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         安全可靠
                       </h3>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
                         生物信息仅存储在您的设备上，不会上传到服务器
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start space-x-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-700 mt-0.5">
-                      <Smartphone className="h-3 w-3 text-neutral-600 dark:text-neutral-400" />
+                  <div className="flex items-start space-x-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
+                      <Smartphone className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                      <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         多设备支持
                       </h3>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
                         您可以同时注册多个设备作为备份方案
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start space-x-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-200 dark:bg-neutral-700 mt-0.5">
-                      <Check className="h-3 w-3 text-neutral-600 dark:text-neutral-400" />
+                  <div className="flex items-start space-x-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-neutral-700 shadow-sm mt-1">
+                      <Check className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                      <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                         备用登录
                       </h3>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
                         即使启用生物验证，您仍可以使用密码登录
                       </p>
                     </div>
@@ -330,8 +352,8 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           </div>
 
           {/* 右侧操作区域 */}
-          <div className="flex-1 p-8 lg:p-12">
-            <div className="max-w-md mx-auto">
+          <div className="flex-1 p-8 lg:p-16 flex items-center justify-center">
+            <div className="w-full max-w-lg">
               {step === 'intro' && renderIntroStep()}
               {step === 'naming' && renderNamingStep()}
               {step === 'registering' && renderRegisteringStep()}
