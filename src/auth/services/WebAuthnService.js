@@ -336,6 +336,7 @@ export class WebAuthnService {
       // 获取存储的挑战值
       const challengeKey = userId || 'anonymous';
       const expectedChallenge = this._getAndRemoveChallenge(challengeKey, 'authentication');
+      console.log(`[WebAuthnService] Authentication: Expected challenge:`, expectedChallenge);
       if (!expectedChallenge) {
         throw new Error('无效或过期的挑战值');
       }
@@ -407,6 +408,12 @@ export class WebAuthnService {
 
       console.log(`[WebAuthnService] Authentication: Processed values - counter: ${counter}, transports:`, transports);
 
+      // 验证关键数据
+      console.log(`[WebAuthnService] Authentication: Building authenticator object...`);
+      console.log(`[WebAuthnService] Authentication: credentialIDBuffer:`, credentialIDBuffer);
+      console.log(`[WebAuthnService] Authentication: credential.credential_public_key type:`, typeof credential.credential_public_key);
+      console.log(`[WebAuthnService] Authentication: credential.credential_public_key length:`, credential.credential_public_key ? credential.credential_public_key.length : 'undefined');
+
       // 构建authenticator对象
       const authenticator = {
         credentialID: credentialIDBuffer,
@@ -414,6 +421,8 @@ export class WebAuthnService {
         counter: counter,
         transports: transports,
       };
+
+      console.log(`[WebAuthnService] Authentication: Authenticator object created successfully`);
 
       // 详细日志验证所有参数
       console.log(`[WebAuthnService] Authentication: Verification parameters:`);
