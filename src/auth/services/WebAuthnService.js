@@ -82,11 +82,35 @@ export class WebAuthnService {
 
       // 获取用户现有凭据
       const existingCredentials = await WebAuthnCredential.getCredentialsByUserId(userId);
-      const excludeCredentials = existingCredentials.map(cred => ({
-        id: isoUint8Array.fromHex(cred.credential_id),
-        type: 'public-key',
-        transports: cred.transports ? JSON.parse(cred.transports) : undefined,
-      }));
+      console.log(`[WebAuthnService] Found ${existingCredentials.length} existing credentials for user ${userId}`);
+      
+      const excludeCredentials = existingCredentials.map(cred => {
+        console.log(`[WebAuthnService] Processing credential: ${cred.credential_id}`);
+        try {
+          // 检查credential_id是否是有效的hex字符串
+          const credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
+          return {
+            id: credentialIdBuffer,
+            type: 'public-key',
+            transports: cred.transports ? JSON.parse(cred.transports) : undefined,
+          };
+        } catch (error) {
+          console.error(`[WebAuthnService] Invalid credential_id format: ${cred.credential_id}`, error);
+          // 如果hex转换失败，尝试base64url转换
+          try {
+            const credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
+            return {
+              id: credentialIdBuffer,
+              type: 'public-key', 
+              transports: cred.transports ? JSON.parse(cred.transports) : undefined,
+            };
+          } catch (base64Error) {
+            console.error(`[WebAuthnService] Failed to convert credential_id to buffer:`, base64Error);
+            // 跳过这个无效的凭据
+            return null;
+          }
+        }
+      }).filter(Boolean); // 过滤掉null值
 
       // 生成注册选项
       const options = await generateRegistrationOptions({

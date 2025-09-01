@@ -228,7 +228,8 @@ router.get('/webauthn/credentials', ensureAuth, async (req, res) => {
     const credentials = await WebAuthnCredential.getCredentialsByUserId(req.user.id);
     
     const credentialList = credentials.map(cred => ({
-      id: cred.id,
+      id: cred.id, // 数据库主键ID，用于删除操作
+      credentialId: cred.credential_id, // WebAuthn凭据ID（hex格式）
       name: cred.name,
       deviceType: cred.credential_device_type,
       createdAt: cred.created_at,
@@ -276,7 +277,7 @@ router.put('/webauthn/credentials/:credentialId/name', ensureAuth, async (req, r
       return res.status(400).json({ error: '凭据名称不能为空' });
     }
 
-    const success = await WebAuthnCredential.updateCredentialName(
+    const success = await WebAuthnCredential.updateCredentialNameById(
       credentialId,
       req.user.id,
       name.trim()
@@ -318,7 +319,7 @@ router.delete('/webauthn/credentials/:credentialId', ensureAuth, async (req, res
   try {
     const { credentialId } = req.params;
 
-    const success = await WebAuthnCredential.deleteCredential(credentialId, req.user.id);
+    const success = await WebAuthnCredential.deleteCredentialById(credentialId, req.user.id);
 
     if (!success) {
       return res.status(404).json({ error: '凭据不存在或无权限删除' });

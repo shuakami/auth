@@ -136,7 +136,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
         <Button
           onClick={handleRegister}
           disabled={!browserSupported || loading}
-          className="bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
         >
           下一步
         </Button>
@@ -164,7 +164,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           type="text"
           value={credentialName}
           onChange={(e) => setCredentialName(e.target.value)}
-          className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-neutral-500 dark:focus:ring-neutral-500"
+          className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
           placeholder={platformSupported ? "我的iPhone" : "我的安全密钥"}
           maxLength={50}
         />
@@ -199,7 +199,7 @@ const BiometricRegistrationModal = memo(function BiometricRegistrationModal({
           onClick={handleRegister}
           disabled={loading}
           loading={loading}
-          className="bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
         >
           注册生物验证
         </Button>

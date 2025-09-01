@@ -47,7 +47,7 @@ const BiometricSettings = memo(function BiometricSettings({
   } = useWebAuthn();
 
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const [editingCredential, setEditingCredential] = useState<string | null>(null);
+  const [editingCredential, setEditingCredential] = useState<{id: string, name: string} | null>(null);
   const [editingName, setEditingName] = useState('');
   const [deletingCredential, setDeletingCredential] = useState<string | null>(null);
 
@@ -61,15 +61,17 @@ const BiometricSettings = memo(function BiometricSettings({
     }
   }, [registerBiometric]);
 
-  const handleEditName = useCallback(async (credentialId: string, newName: string) => {
+  const handleEditName = useCallback(async () => {
+    if (!editingCredential || !editingName.trim()) return;
+    
     try {
-      await updateCredentialName(credentialId, newName);
+      await updateCredentialName(editingCredential.id, editingName.trim());
       setEditingCredential(null);
       setEditingName('');
     } catch (error: any) {
       console.error('更新凭据名称失败:', error);
     }
-  }, [updateCredentialName]);
+  }, [updateCredentialName, editingCredential, editingName]);
 
   const handleDelete = useCallback(async (credentialId: string) => {
     try {
@@ -81,7 +83,7 @@ const BiometricSettings = memo(function BiometricSettings({
   }, [deleteCredential]);
 
   const startEdit = (credentialId: string, currentName: string) => {
-    setEditingCredential(credentialId);
+    setEditingCredential({ id: credentialId, name: currentName });
     setEditingName(currentName);
   };
 
@@ -153,9 +155,8 @@ const BiometricSettings = memo(function BiometricSettings({
         <Button
           onClick={() => setShowRegistrationModal(true)}
           disabled={isLoading}
-          variant="outline"
           leftIcon={<Plus className="h-4 w-4" />}
-          className="border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+          className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
         >
           添加设备
         </Button>
@@ -200,80 +201,43 @@ const BiometricSettings = memo(function BiometricSettings({
                     {getDeviceIcon(credential.deviceType)}
                   </div>
                   <div>
-                    {editingCredential === credential.id ? (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          className="rounded border px-2 py-1 text-sm"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleEditName(credential.id, editingName);
-                            } else if (e.key === 'Escape') {
-                              cancelEdit();
-                            }
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleEditName(credential.id, editingName)}
-                          disabled={!editingName.trim()}
-                        >
-                          保存
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={cancelEdit}
-                        >
-                          取消
-                        </Button>
+                    <h5 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                      {credential.name}
+                    </h5>
+                    <div className="flex items-center space-x-4 text-xs text-neutral-500 dark:text-neutral-400">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>注册于 {format(new Date(credential.createdAt), 'yyyy年MM月dd日')}</span>
                       </div>
-                    ) : (
-                      <div>
-                        <h5 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                          {credential.name}
-                        </h5>
-                        <div className="flex items-center space-x-4 text-xs text-neutral-500 dark:text-neutral-400">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>注册于 {format(new Date(credential.createdAt), 'yyyy年MM月dd日')}</span>
-                          </div>
-                          {credential.lastUsedAt && (
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>最后使用 {format(new Date(credential.lastUsedAt), 'MM月dd日')}</span>
-                            </div>
-                          )}
+                      {credential.lastUsedAt && (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>最后使用 {format(new Date(credential.lastUsedAt), 'MM月dd日')}</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {editingCredential !== credential.id && (
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => startEdit(credential.id, credential.name)}
-                      leftIcon={<Edit3 className="h-4 w-4" />}
-                    >
-                      重命名
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeletingCredential(credential.id)}
-                      leftIcon={<Trash2 className="h-4 w-4" />}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                    >
-                      删除
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => startEdit(credential.id, credential.name)}
+                    leftIcon={<Edit3 className="h-4 w-4" />}
+                  >
+                    重命名
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeletingCredential(credential.id)}
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                  >
+                    删除
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -320,12 +284,66 @@ const BiometricSettings = memo(function BiometricSettings({
         error={error}
       />
 
+      {/* 编辑名称弹窗 */}
+      <Dialog 
+        open={!!editingCredential} 
+        onOpenChange={() => cancelEdit()}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>重命名设备</DialogTitle>
+            <DialogDescription>
+              为您的生物验证设备设置一个容易识别的名称
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label htmlFor="device-name" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                设备名称
+              </label>
+              <input
+                id="device-name"
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+                placeholder="我的设备"
+                maxLength={50}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && editingName.trim()) {
+                    handleEditName();
+                  } else if (e.key === 'Escape') {
+                    cancelEdit();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={cancelEdit}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={handleEditName}
+              disabled={!editingName.trim()}
+              className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
+            >
+              保存
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 删除确认弹窗 */}
       <Dialog 
         open={!!deletingCredential} 
         onOpenChange={() => setDeletingCredential(null)}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>删除生物验证设备</DialogTitle>
             <DialogDescription>

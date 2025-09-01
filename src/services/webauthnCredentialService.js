@@ -116,8 +116,8 @@ export async function updateCredentialCounter(credentialId, newCounter) {
 }
 
 /**
- * 删除凭据
- * @param {string} credentialId 凭据ID
+ * 删除凭据（通过credential_id）
+ * @param {string} credentialId 凭据ID（hex格式）
  * @param {string} userId 用户ID（用于权限验证）
  * @returns {Promise<boolean>}
  */
@@ -143,8 +143,35 @@ export async function deleteCredential(credentialId, userId) {
 }
 
 /**
- * 更新凭据名称
- * @param {string} credentialId 凭据ID
+ * 删除凭据（通过数据库主键ID）
+ * @param {string} id 数据库主键ID（UUID格式）
+ * @param {string} userId 用户ID（用于权限验证）
+ * @returns {Promise<boolean>}
+ */
+export async function deleteCredentialById(id, userId) {
+  try {
+    const result = await smartQuery(
+      `DELETE FROM webauthn_credentials 
+       WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (result.rowCount > 0) {
+      console.log(`[WebAuthnCredentialService] 凭据删除成功 (ID: ${id})`);
+      return true;
+    }
+
+    return false;
+
+  } catch (error) {
+    console.error('[WebAuthnCredentialService] 删除凭据失败:', error);
+    throw new Error('删除凭据失败');
+  }
+}
+
+/**
+ * 更新凭据名称（通过credential_id）
+ * @param {string} credentialId 凭据ID（hex格式）
  * @param {string} userId 用户ID（用于权限验证）
  * @param {string} newName 新名称
  * @returns {Promise<boolean>}
@@ -156,6 +183,30 @@ export async function updateCredentialName(credentialId, userId, newName) {
        SET name = $1, updated_at = CURRENT_TIMESTAMP 
        WHERE credential_id = $2 AND user_id = $3`,
       [newName, credentialId, userId]
+    );
+
+    return result.rowCount > 0;
+
+  } catch (error) {
+    console.error('[WebAuthnCredentialService] 更新凭据名称失败:', error);
+    throw new Error('更新凭据名称失败');
+  }
+}
+
+/**
+ * 更新凭据名称（通过数据库主键ID）
+ * @param {string} id 数据库主键ID（UUID格式）
+ * @param {string} userId 用户ID（用于权限验证）
+ * @param {string} newName 新名称
+ * @returns {Promise<boolean>}
+ */
+export async function updateCredentialNameById(id, userId, newName) {
+  try {
+    const result = await smartQuery(
+      `UPDATE webauthn_credentials 
+       SET name = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 AND user_id = $3`,
+      [newName, id, userId]
     );
 
     return result.rowCount > 0;
