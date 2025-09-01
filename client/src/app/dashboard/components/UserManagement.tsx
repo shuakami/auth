@@ -26,6 +26,7 @@ import {
   Chrome,
   ShieldOff,
   MailX,
+  Fingerprint,
 } from 'lucide-react';
 import {
   getUsersList,
@@ -471,6 +472,9 @@ export default function UserManagement() {
                           ) : (
                             <ShieldOff className="w-4 h-4 text-neutral-400 dark:text-zinc-500" />
                           )}
+                        </span>
+                        <span title={user.biometricEnabled ? '生物验证已启用' : '生物验证未启用'}>
+                          <Fingerprint className={`w-4 h-4 ${user.biometricEnabled ? 'text-neutral-700 dark:text-zinc-300' : 'text-neutral-400 dark:text-zinc-500'}`} />
                         </span>
                       </div>
                     </td>

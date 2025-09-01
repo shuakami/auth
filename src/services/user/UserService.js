@@ -663,31 +663,33 @@ export class UserService {
 
       // 角色筛选
       if (role) {
-        whereClause += ` AND role = $${paramIndex}`;
+        whereClause += ` AND u.role = $${paramIndex}`;
         params.push(role);
         paramIndex++;
       }
 
       // 验证状态筛选
       if (verified !== null) {
-        whereClause += ` AND verified = $${paramIndex}`;
+        whereClause += ` AND u.verified = $${paramIndex}`;
         params.push(verified);
         paramIndex++;
       }
 
       // 验证排序字段
       const validSortFields = ['id', 'email', 'username', 'role', 'verified', 'created_at', 'updated_at'];
-      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const sortFieldRaw = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const sortField = `u.${sortFieldRaw}`;
       const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
       // 查询用户列表
       const { rows: users } = await smartQuery(
         `SELECT 
-           id, email, username, role, verified, totp_enabled, 
-           github_id IS NOT NULL as github_linked,
-           google_id IS NOT NULL as google_linked,
-           created_at, updated_at
-         FROM users 
+           u.id, u.email, u.username, u.role, u.verified, u.totp_enabled, 
+           u.github_id IS NOT NULL as github_linked,
+           u.google_id IS NOT NULL as google_linked,
+           u.created_at, u.updated_at,
+           EXISTS(SELECT 1 FROM webauthn_credentials wc WHERE wc.user_id = u.id) as biometric_enabled
+         FROM users u
          ${whereClause}
          ORDER BY ${sortField} ${order}
          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -696,7 +698,7 @@ export class UserService {
 
       // 查询总数
       const { rows: countResult } = await smartQuery(
-        `SELECT COUNT(*) as total FROM users ${whereClause}`,
+        `SELECT COUNT(*) as total FROM users u ${whereClause}`,
         params
       );
 
@@ -711,6 +713,7 @@ export class UserService {
           role: user.role || 'user',
           verified: user.verified,
           totpEnabled: user.totp_enabled,
+          biometricEnabled: user.biometric_enabled,
           githubLinked: user.github_linked,
           googleLinked: user.google_linked,
           createdAt: user.created_at,

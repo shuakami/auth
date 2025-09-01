@@ -14,6 +14,7 @@ export interface User {
   role: UserRole;
   verified: boolean;
   totpEnabled: boolean;
+  biometricEnabled: boolean;
   githubLinked: boolean;
   googleLinked: boolean;
   createdAt: string;
