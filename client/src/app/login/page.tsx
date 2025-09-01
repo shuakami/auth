@@ -12,6 +12,7 @@ import TwoFactorModal from '@/components/Auth/TwoFactorModal';
 import Footer from '../dashboard/components/Footer';
 import { AUTH_CONSTANTS } from '@/constants/auth';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import { useAuth } from '@/context/AuthContext';
 
 // Logo 组件
 const LogoSection = memo(function LogoSection({ 
@@ -112,8 +113,15 @@ const RegisterLink = memo(function RegisterLink() {
 
 // 将登录页面的核心逻辑和UI移入此组件
 function LoginContent() {
+  const { initialLoading } = useAuth();
+  
   // 自动重定向已认证用户
   useAutoRedirectIfAuthenticated();
+
+  // 如果还在初始加载中，显示加载指示器
+  if (initialLoading) {
+    return <LoadingIndicator />;
+  }
 
   // 使用登录 hook
   const {

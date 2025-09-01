@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Footer from './dashboard/components/Footer';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
+import LoadingIndicator from '@/components/ui/LoadingIndicator';
 
 // 定义动画变体
 const containerVariants = {
@@ -31,7 +32,12 @@ const itemVariants = {
 };
 
 export default function HomePage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, initialLoading } = useAuth();
+
+  // 如果还在初始加载中，显示加载指示器
+  if (initialLoading) {
+    return <LoadingIndicator />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">

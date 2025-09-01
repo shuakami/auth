@@ -7,6 +7,7 @@ import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticat
 import Image from 'next/image';
 import Footer from '../dashboard/components/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import { useAuth } from '@/context/AuthContext';
 
 const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rightContent: ReactNode }) => (
   <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
@@ -46,7 +47,15 @@ const LeftContent = ({ title, description }: { title: string; description: strin
 );
 
 function RegisterContent() {
+  const { initialLoading } = useAuth();
+  
   useAutoRedirectIfAuthenticated();
+  
+  // 如果还在初始加载中，显示加载指示器
+  if (initialLoading) {
+    return <LoadingIndicator />;
+  }
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
