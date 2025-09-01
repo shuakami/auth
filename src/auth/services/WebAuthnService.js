@@ -291,6 +291,13 @@ export class WebAuthnService {
       }
       
       if (!credential) {
+        // 如果还找不到，尝试查找错误编码的格式（每个字符前加0）
+        const malformedCredentialId = credentialIdBase64url.split('').map(char => '0' + char).join('');
+        console.log(`[WebAuthnService] Authentication: Trying malformed format: ${malformedCredentialId}`);
+        credential = await WebAuthnCredential.getCredentialById(malformedCredentialId);
+      }
+      
+      if (!credential) {
         console.error(`[WebAuthnService] Authentication: No credential found for base64url: ${credentialIdBase64url} or hex: ${credentialIdHex}`);
         throw new Error('未找到匹配的凭据');
       }
