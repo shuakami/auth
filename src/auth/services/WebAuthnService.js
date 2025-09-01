@@ -1,16 +1,11 @@
 /**
- * WebAuthn 认证服务
+ * WebAuthn 认证服务 (使用 @passwordless-id/webauthn)
  * 处理生物验证的注册和验证流程
  */
-import {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} from '@simplewebauthn/server';
-import { isoUint8Array, isoBase64URL } from '@simplewebauthn/server/helpers';
+import { server } from '@passwordless-id/webauthn';
 import * as WebAuthnCredential from '../../services/webauthnCredentialService.js';
 import * as User from '../../services/userService.js';
+import crypto from 'crypto';
 
 // WebAuthn 配置常量
 const RP_NAME = 'Auth系统';
@@ -21,7 +16,7 @@ const ORIGIN = process.env.NODE_ENV === 'production' ?
 
 export class WebAuthnService {
   constructor() {
-    this.challenges = new Map(); // 临时存储挑战值
+    this.challenges = new Map();
     this.CHALLENGE_TTL = 5 * 60 * 1000; // 5分钟过期
   }
 
@@ -115,6 +110,14 @@ export class WebAuthnService {
   }
 
   /**
+   * 生成随机挑战值
+   * @returns {string}
+   */
+  _generateChallenge() {
+    return crypto.randomBytes(32).toString('base64url');
+  }
+
+  /**
    * 生成注册选项
    * @param {string} userId 用户ID
    * @returns {Promise<Object>}
@@ -131,65 +134,38 @@ export class WebAuthnService {
       const existingCredentials = await WebAuthnCredential.getCredentialsByUserId(userId);
       console.log(`[WebAuthnService] Found ${existingCredentials.length} existing credentials for user ${userId}`);
       
-      const excludeCredentials = existingCredentials.map(cred => {
-        console.log(`[WebAuthnService] Processing credential: ${cred.credential_id}`);
-        try {
-          let credentialIdBuffer;
-          
-          // 首先尝试hex转换（新格式）
-          if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
-            credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
-            console.log(`[WebAuthnService] Successfully converted hex credential_id`);
-          } else if (cred.credential_id.startsWith('0') && cred.credential_id.length > 20) {
-            // 检查是否是错误编码的格式（每个字符前加0）
-            const originalCredentialId = cred.credential_id.replace(/0(.)/g, '$1');
-            console.log(`[WebAuthnService] Detected malformed credential_id, extracting: ${originalCredentialId}`);
-            credentialIdBuffer = isoBase64URL.toBuffer(originalCredentialId);
-            console.log(`[WebAuthnService] Successfully converted malformed credential_id`);
-          } else {
-            // 如果不是hex格式，尝试base64URL转换（旧格式或不同编码）
-            console.log(`[WebAuthnService] Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
-            
-            // 确保credential_id是字符串
-            if (typeof cred.credential_id !== 'string') {
-              throw new Error(`credential_id is not a string: ${typeof cred.credential_id}`);
-            }
-            
-            credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
-            console.log(`[WebAuthnService] Successfully converted base64URL credential_id`);
-          }
-          
-          return {
-            id: credentialIdBuffer,
-            type: 'public-key',
-            transports: cred.transports ? JSON.parse(cred.transports) : undefined,
-          };
-        } catch (error) {
-          console.error(`[WebAuthnService] Failed to convert credential_id to buffer: ${cred.credential_id}`, error);
-          // 跳过这个无效的凭据
-          return null;
-        }
-      }).filter(Boolean); // 过滤掉null值
-
-      // 生成注册选项
-      const options = await generateRegistrationOptions({
-        rpName: RP_NAME,
-        rpID: RP_ID,
-        userID: isoUint8Array.fromUTF8String(userId),
-        userName: user.email,
-        userDisplayName: user.username || user.email,
-        attestationType: 'indirect',
-        excludeCredentials,
-        authenticatorSelection: {
-          residentKey: 'preferred',
-          userVerification: 'preferred',
-          authenticatorAttachment: 'platform', // 优先使用平台认证器（如 Touch ID, Face ID）
+      // 生成挑战值
+      const challenge = this._generateChallenge();
+      
+      // 构建注册选项
+      const options = {
+        challenge,
+        rp: {
+          name: RP_NAME,
+          id: RP_ID,
         },
-        supportedAlgorithmIDs: [-7, -257], // ES256 和 RS256
-      });
+        user: {
+          id: Buffer.from(userId).toString('base64url'),
+          name: user.email,
+          displayName: user.username || user.email.split('@')[0],
+        },
+        pubKeyCredParams: [
+          { alg: -7, type: "public-key" },   // ES256
+          { alg: -257, type: "public-key" }  // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "preferred",
+        },
+        attestation: "none",
+        excludeCredentials: existingCredentials.map(cred => ({
+          type: "public-key",
+          id: cred.credential_id,
+        })),
+      };
 
       // 存储挑战值
-      await this._storeChallenge(userId, options.challenge, 'registration');
+      await this._storeChallenge(userId, challenge, 'registration');
 
       console.log(`[WebAuthnService] 生成注册选项成功 for user ${userId}`);
       return options;
@@ -215,46 +191,42 @@ export class WebAuthnService {
         throw new Error('无效或过期的挑战值');
       }
 
-      // 验证注册响应
-      const verification = await verifyRegistrationResponse({
-        response,
-        expectedChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
-        requireUserVerification: false, // 与注册选项中的 'preferred' 对应，不强制要求
-      });
+      // 获取用户信息
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('用户不存在');
+      }
 
-      if (!verification.verified || !verification.registrationInfo) {
+      // 构建期望的验证参数
+      const expected = {
+        challenge: expectedChallenge,
+        origin: Array.isArray(ORIGIN) ? ORIGIN[0] : ORIGIN,
+        userVerified: false, // 不强制要求用户验证
+      };
+
+      console.log(`[WebAuthnService] Verifying registration for user ${userId}`);
+      console.log(`[WebAuthnService] Expected:`, expected);
+
+      // 使用新库验证注册响应
+      const registrationParsed = await server.verifyRegistration(response, expected);
+
+      if (!registrationParsed) {
         throw new Error('注册验证失败');
       }
 
-      // 解构新的数据结构 (v13格式)
-      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
-      const { id: credentialID, publicKey: credentialPublicKey, counter } = credential;
-
-      // 生成正确格式的credential ID
-      const hexCredentialId = isoUint8Array.toHex(credentialID);
-      console.log(`[WebAuthnService] Registration: Generated credential_id: ${hexCredentialId} (length: ${hexCredentialId.length})`);
-      
-      // 验证hex格式是否正确
-      if (!/^[0-9A-Fa-f]+$/.test(hexCredentialId)) {
-        console.error(`[WebAuthnService] Registration: Invalid hex format: ${hexCredentialId}`);
-        throw new Error('生成的凭据ID格式无效');
-      }
+      console.log(`[WebAuthnService] Registration verification successful:`, registrationParsed);
 
       // 保存凭据到数据库
       const savedCredential = await WebAuthnCredential.saveCredential({
         userId,
-        credentialId: hexCredentialId,
-        credentialPublicKey: Buffer.from(credentialPublicKey),
-        counter,
-        credentialDeviceType,
-        credentialBackedUp,
-        transports: response.response.transports ? JSON.stringify(response.response.transports) : null,
+        credentialId: registrationParsed.credential.id,
+        credentialPublicKey: Buffer.from(registrationParsed.credential.publicKey, 'base64'),
+        counter: registrationParsed.credential.counter || 0,
+        credentialDeviceType: registrationParsed.credential.type || 'unknown',
+        credentialBackedUp: registrationParsed.credential.backup || false,
+        transports: registrationParsed.credential.transports ? JSON.stringify(registrationParsed.credential.transports) : null,
         name: credentialName,
       });
-      
-      console.log(`[WebAuthnService] Registration: Saved credential with ID: ${savedCredential.credential_id}`);
 
       console.log(`[WebAuthnService] 注册验证成功 for user ${userId}, credential: ${savedCredential.id}`);
 
@@ -276,55 +248,32 @@ export class WebAuthnService {
    */
   async generateAuthenticationOptions(userId = null) {
     try {
-      let allowCredentials;
+      let allowCredentials = [];
 
       if (userId) {
         // 获取用户的凭据
         const credentials = await WebAuthnCredential.getCredentialsByUserId(userId);
-        allowCredentials = credentials.map(cred => {
-          try {
-            let credentialIdBuffer;
-            
-            // 首先尝试hex转换（新格式）
-            if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
-              credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
-              console.log(`[WebAuthnService] Auth Options: Successfully converted hex credential_id`);
-            } else if (cred.credential_id.startsWith('0') && cred.credential_id.length > 20) {
-              // 检查是否是错误编码的格式（每个字符前加0）
-              const originalCredentialId = cred.credential_id.replace(/0(.)/g, '$1');
-              console.log(`[WebAuthnService] Auth Options: Detected malformed credential_id, extracting: ${originalCredentialId}`);
-              credentialIdBuffer = isoBase64URL.toBuffer(originalCredentialId);
-              console.log(`[WebAuthnService] Auth Options: Successfully converted malformed credential_id`);
-            } else {
-              // 如果不是hex格式，尝试base64URL转换（旧格式）
-              console.log(`[WebAuthnService] Auth Options: Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
-              credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
-              console.log(`[WebAuthnService] Auth Options: Successfully converted base64URL credential_id`);
-            }
-            
-            return {
-              id: credentialIdBuffer,
-              type: 'public-key',
-              transports: cred.transports ? JSON.parse(cred.transports) : undefined,
-            };
-          } catch (error) {
-            console.error(`[WebAuthnService] Auth Options: Failed to convert credential_id: ${cred.credential_id}`, error);
-            // 跳过这个无效的凭据
-            return null;
-          }
-        }).filter(Boolean); // 过滤掉null值
+        allowCredentials = credentials.map(cred => ({
+          type: "public-key",
+          id: cred.credential_id,
+          transports: cred.transports ? JSON.parse(cred.transports) : undefined,
+        }));
       }
 
+      // 生成挑战值
+      const challenge = this._generateChallenge();
+
       // 生成认证选项
-      const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+      const options = {
+        challenge,
+        rpId: RP_ID,
         allowCredentials,
-        userVerification: 'preferred',
-      });
+        userVerification: "preferred",
+      };
 
       // 存储挑战值（如果有用户ID）
       const challengeKey = userId || 'anonymous';
-      await this._storeChallenge(challengeKey, options.challenge, 'authentication');
+      await this._storeChallenge(challengeKey, challenge, 'authentication');
 
       console.log(`[WebAuthnService] 生成认证选项成功 for ${userId || 'anonymous'}`);
       return options;
@@ -343,36 +292,15 @@ export class WebAuthnService {
    */
   async verifyAuthenticationResponse(response, userId = null) {
     try {
-      // response.id 已经是 base64url 编码的字符串
-      const credentialIdBase64url = response.id;
+      // 通过凭据ID查找凭据
+      const credentialId = response.id;
+      console.log(`[WebAuthnService] Authentication: Looking for credential with ID: ${credentialId}`);
       
-      // 将 base64url 转换为 hex 格式
-      const credentialIdBytes = isoBase64URL.toBuffer(credentialIdBase64url);
-      const credentialIdHex = isoUint8Array.toHex(credentialIdBytes);
-      
-      console.log(`[WebAuthnService] Authentication: Looking for credential with base64url: ${credentialIdBase64url}, hex: ${credentialIdHex}`);
-      
-      // 首先尝试用hex格式查找凭据（新格式）
-      let credential = await WebAuthnCredential.getCredentialById(credentialIdHex);
-      
+      const credential = await WebAuthnCredential.getCredentialById(credentialId);
       if (!credential) {
-        // 如果hex格式找不到，尝试用base64url格式查找（旧格式）
-        console.log(`[WebAuthnService] Authentication: Hex format not found, trying base64url format`);
-        credential = await WebAuthnCredential.getCredentialById(credentialIdBase64url);
-      }
-      
-      if (!credential) {
-        // 如果还找不到，尝试查找错误编码的格式（每个字符前加0）
-        const malformedCredentialId = credentialIdBase64url.split('').map(char => '0' + char).join('');
-        console.log(`[WebAuthnService] Authentication: Trying malformed format: ${malformedCredentialId}`);
-        credential = await WebAuthnCredential.getCredentialById(malformedCredentialId);
-      }
-      
-      if (!credential) {
-        console.error(`[WebAuthnService] Authentication: No credential found for base64url: ${credentialIdBase64url} or hex: ${credentialIdHex}`);
         throw new Error('未找到匹配的凭据');
       }
-      
+
       console.log(`[WebAuthnService] Authentication: Found credential with ID: ${credential.credential_id}`);
 
       // 如果提供了用户ID，验证凭据是否属于该用户
@@ -383,153 +311,50 @@ export class WebAuthnService {
       // 获取存储的挑战值
       const challengeKey = userId || 'anonymous';
       const expectedChallenge = await this._getAndRemoveChallenge(challengeKey, 'authentication');
-      console.log(`[WebAuthnService] Authentication: Expected challenge:`, expectedChallenge);
-      console.log(`[WebAuthnService] Authentication: Challenge type:`, typeof expectedChallenge);
-      console.log(`[WebAuthnService] Authentication: Challenge length:`, expectedChallenge ? expectedChallenge.length : 'undefined');
       
       if (!expectedChallenge) {
         throw new Error('无效或过期的挑战值');
       }
 
-      // 确保challenge是正确的格式
-      if (typeof expectedChallenge !== 'string') {
-        console.error(`[WebAuthnService] Authentication: Invalid challenge type: ${typeof expectedChallenge}`);
-        throw new Error('挑战值格式错误');
-      }
+      console.log(`[WebAuthnService] Authentication: Expected challenge: ${expectedChallenge}`);
 
-      // 验证认证响应
-      let credentialIDBuffer;
-      try {
-        // 首先尝试hex转换（新格式）
-        if (/^[0-9A-Fa-f]+$/.test(credential.credential_id)) {
-          credentialIDBuffer = isoUint8Array.fromHex(credential.credential_id);
-          console.log(`[WebAuthnService] Authentication: Successfully converted hex credential_id`);
-        } else if (credential.credential_id.startsWith('0') && credential.credential_id.length > 20) {
-          // 检查是否是错误编码的格式（每个字符前加0）
-          const originalCredentialId = credential.credential_id.replace(/0(.)/g, '$1');
-          console.log(`[WebAuthnService] Authentication: Detected malformed credential_id, extracting: ${originalCredentialId}`);
-          credentialIDBuffer = isoBase64URL.toBuffer(originalCredentialId);
-          console.log(`[WebAuthnService] Authentication: Successfully converted malformed credential_id`);
-        } else {
-          // 如果不是hex格式，尝试base64URL转换（旧格式）
-          console.log(`[WebAuthnService] Authentication: Attempting base64URL conversion for credential_id: ${credential.credential_id}`);
-          credentialIDBuffer = isoBase64URL.toBuffer(credential.credential_id);
-          console.log(`[WebAuthnService] Authentication: Successfully converted base64URL credential_id`);
-        }
-      } catch (error) {
-        console.error(`[WebAuthnService] Authentication: Failed to convert credential_id: ${credential.credential_id}`, error);
-        throw new Error('无效的凭据格式');
-      }
-
-      // 验证credential对象的完整性
-      console.log(`[WebAuthnService] Authentication: Credential data:`, {
-        id: credential.credential_id,
-        userId: credential.user_id,
-        hasPublicKey: !!credential.credential_public_key,
-        counter: credential.counter,
-        counterType: typeof credential.counter,
-        deviceType: credential.credential_device_type,
-        backedUp: credential.credential_backed_up,
-        transports: credential.transports,
-      });
-
-      if (!credential.credential_public_key) {
-        throw new Error('凭据缺少公钥数据');
-      }
-
-      // 确保counter是数字类型
-      let counter = 0;
-      if (credential.counter !== undefined && credential.counter !== null) {
-        counter = typeof credential.counter === 'string' ? parseInt(credential.counter) : Number(credential.counter);
-        if (isNaN(counter)) {
-          console.warn(`[WebAuthnService] Authentication: Invalid counter value: ${credential.counter}, defaulting to 0`);
-          counter = 0;
-        }
-      } else {
-        console.warn(`[WebAuthnService] Authentication: Counter is null/undefined, defaulting to 0`);
-      }
-
-      // 解析transports
-      let transports = undefined;
-      if (credential.transports) {
-        try {
-          transports = typeof credential.transports === 'string' 
-            ? JSON.parse(credential.transports) 
-            : credential.transports;
-        } catch (error) {
-          console.warn(`[WebAuthnService] Authentication: Failed to parse transports: ${credential.transports}`, error);
-          transports = undefined;
-        }
-      }
-
-      console.log(`[WebAuthnService] Authentication: Processed values - counter: ${counter}, transports:`, transports);
-
-      // 验证关键数据
-      console.log(`[WebAuthnService] Authentication: Building authenticator object...`);
-      console.log(`[WebAuthnService] Authentication: credentialIDBuffer:`, credentialIDBuffer);
-      console.log(`[WebAuthnService] Authentication: credential.credential_public_key type:`, typeof credential.credential_public_key);
-      console.log(`[WebAuthnService] Authentication: credential.credential_public_key length:`, credential.credential_public_key ? credential.credential_public_key.length : 'undefined');
-
-      // 构建authenticator对象
-      // 确保credentialPublicKey是正确的Uint8Array格式
-      let credentialPublicKey;
-      if (credential.credential_public_key instanceof Buffer) {
-        credentialPublicKey = new Uint8Array(credential.credential_public_key);
-      } else if (credential.credential_public_key && credential.credential_public_key.buffer) {
-        // MongoDB Binary类型处理
-        credentialPublicKey = new Uint8Array(credential.credential_public_key.buffer);
-      } else if (Array.isArray(credential.credential_public_key)) {
-        credentialPublicKey = new Uint8Array(credential.credential_public_key);
-      } else {
-        credentialPublicKey = new Uint8Array(credential.credential_public_key);
-      }
-
-      const authenticator = {
-        credentialID: credentialIDBuffer,
-        credentialPublicKey: credentialPublicKey,
-        counter: counter,
-        transports: transports,
+      // 构建期望的验证参数
+      const expected = {
+        challenge: expectedChallenge,
+        origin: Array.isArray(ORIGIN) ? ORIGIN[0] : ORIGIN,
+        userVerified: false,
+        counter: parseInt(credential.counter) || 0,
       };
 
-      console.log(`[WebAuthnService] Authentication: Authenticator object created successfully`);
+      // 构建认证凭据信息
+      const credentialKey = {
+        id: credential.credential_id,
+        publicKey: credential.credential_public_key.toString('base64'),
+        algorithm: 'ES256', // 默认算法
+      };
 
-      // 详细日志验证所有参数
-      console.log(`[WebAuthnService] Authentication: Verification parameters:`);
-      console.log(`  - response.id: ${response.id}`);
-      console.log(`  - response.type: ${response.type}`);
-      console.log(`  - expectedChallenge length: ${expectedChallenge ? expectedChallenge.length : 'undefined'}`);
-      console.log(`  - expectedOrigin: ${ORIGIN}`);
-      console.log(`  - expectedRPID: ${RP_ID}`);
-      console.log(`  - authenticator.credentialID length: ${credentialIDBuffer ? credentialIDBuffer.length : 'undefined'}`);
-      console.log(`  - authenticator.credentialPublicKey length: ${authenticator.credentialPublicKey.length}`);
-      console.log(`  - authenticator.counter: ${authenticator.counter} (type: ${typeof authenticator.counter})`);
-      console.log(`  - authenticator.transports:`, authenticator.transports);
+      console.log(`[WebAuthnService] Authentication: Verifying with expected:`, expected);
+      console.log(`[WebAuthnService] Authentication: Credential key:`, credentialKey);
 
-      const verification = await verifyAuthenticationResponse({
-        response,
-        expectedChallenge,
-        expectedOrigin: 'https://auth.sdjz.wiki', // 尝试单个字符串而不是数组
-        expectedRPID: RP_ID,
-        authenticator,
-        requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
-      });
+      // 使用新库验证认证响应
+      const authenticationParsed = await server.verifyAuthentication(response, expected, credentialKey);
 
-      if (!verification.verified) {
+      if (!authenticationParsed) {
         throw new Error('认证验证失败');
       }
 
-      // 更新凭据计数器（使用数据库中实际存储的格式）
-      await WebAuthnCredential.updateCredentialCounter(
-        credential.credential_id,
-        verification.authenticationInfo.newCounter
-      );
+      console.log(`[WebAuthnService] Authentication verification successful:`, authenticationParsed);
+
+      // 更新凭据计数器
+      const newCounter = authenticationParsed.authenticator?.counter || (parseInt(credential.counter) + 1);
+      await WebAuthnCredential.updateCredentialCounter(credential.credential_id, newCounter);
 
       console.log(`[WebAuthnService] 认证验证成功 for user ${credential.user_id}`);
 
       return {
         verified: true,
         userId: credential.user_id,
-        credentialId: credential.credential_id, // 返回实际的credential_id格式
+        credentialId: credential.credential_id,
         credential,
       };
 
@@ -546,25 +371,28 @@ export class WebAuthnService {
    */
   async checkBiometricSupport(userId) {
     try {
-      const hasCredentials = await WebAuthnCredential.hasCredentials(userId);
       const credentials = await WebAuthnCredential.getCredentialsByUserId(userId);
-
+      
       return {
-        supported: true, // WebAuthn API 支持检测在客户端进行
-        enabled: hasCredentials,
-        credentialCount: credentials.length,
+        supported: true,
+        hasCredentials: credentials.length > 0,
+        credentialsCount: credentials.length,
         credentials: credentials.map(cred => ({
           id: cred.id,
           name: cred.name,
           deviceType: cred.credential_device_type,
           createdAt: cred.created_at,
           lastUsedAt: cred.last_used_at,
-        })),
+        }))
       };
-
     } catch (error) {
       console.error('[WebAuthnService] 检查生物验证支持失败:', error);
-      throw new Error('检查生物验证支持失败');
+      return {
+        supported: false,
+        hasCredentials: false,
+        credentialsCount: 0,
+        credentials: []
+      };
     }
   }
 }
