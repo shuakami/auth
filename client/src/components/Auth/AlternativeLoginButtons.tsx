@@ -106,30 +106,33 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
       </div>
 
       {/* 登录按钮组 */}
-      <div className={`grid gap-3 ${biometricCanUse ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        <button
-          type="button"
-          onClick={onGitHubLogin}
-          disabled={disabled}
-          className={buttonBaseClasses}
-          aria-label="使用 GitHub 登录"
-        >
-          <GithubIcon />
-          <span>GitHub</span>
-        </button>
-        
-        <button
-          type="button"
-          onClick={onGoogleLogin}
-          disabled={disabled}
-          className={buttonBaseClasses}
-          aria-label="使用 Google 登录"
-        >
-          <GoogleIcon />
-          <span>Google</span>
-        </button>
+      <div className="space-y-3">
+        {/* OAuth 按钮行 */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onGitHubLogin}
+            disabled={disabled}
+            className={buttonBaseClasses}
+            aria-label="使用 GitHub 登录"
+          >
+            <GithubIcon />
+            <span>GitHub</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={onGoogleLogin}
+            disabled={disabled}
+            className={buttonBaseClasses}
+            aria-label="使用 Google 登录"
+          >
+            <GoogleIcon />
+            <span>Google</span>
+          </button>
+        </div>
 
-        {/* 生物验证按钮 - 与OAuth按钮并列 */}
+        {/* 生物验证按钮 - 全宽显示 */}
         {biometricCanUse && (
           <button
             type="button"
