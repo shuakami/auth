@@ -8,6 +8,10 @@ import {
   browserSupportsWebAuthn,
   platformAuthenticatorIsAvailable,
 } from '@simplewebauthn/browser';
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/types';
 import api from './api';
 
 // WebAuthn 凭据接口定义
@@ -27,46 +31,9 @@ export interface WebAuthnSupport {
   credentials: WebAuthnCredential[];
 }
 
-export interface WebAuthnRegistrationOptions {
-  challenge: string;
-  rp: {
-    name: string;
-    id: string;
-  };
-  user: {
-    id: string;
-    name: string;
-    displayName: string;
-  };
-  pubKeyCredParams: Array<{
-    alg: number;
-    type: string;
-  }>;
-  timeout?: number;
-  excludeCredentials?: Array<{
-    id: string;
-    type: string;
-    transports?: string[];
-  }>;
-  authenticatorSelection?: {
-    authenticatorAttachment?: 'platform' | 'cross-platform';
-    userVerification?: 'required' | 'preferred' | 'discouraged';
-    residentKey?: 'discouraged' | 'preferred' | 'required';
-  };
-  attestation?: 'none' | 'indirect' | 'direct';
-}
-
-export interface WebAuthnAuthenticationOptions {
-  challenge: string;
-  timeout?: number;
-  rpId?: string;
-  allowCredentials?: Array<{
-    id: string;
-    type: string;
-    transports?: string[];
-  }>;
-  userVerification?: 'required' | 'preferred' | 'discouraged';
-}
+// 使用库提供的类型别名
+export type WebAuthnRegistrationOptions = PublicKeyCredentialCreationOptionsJSON;
+export type WebAuthnAuthenticationOptions = PublicKeyCredentialRequestOptionsJSON;
 
 /**
  * WebAuthn 客户端服务类
@@ -114,7 +81,7 @@ export class WebAuthnService {
    */
   static async beginRegistration(): Promise<WebAuthnRegistrationOptions> {
     try {
-      const response = await api.post('/api/webauthn/registration/begin');
+      const response = await api.post('/webauthn/registration/begin');
       
       if (!response.data.ok) {
         throw new Error(response.data.error || '获取注册选项失败');
@@ -136,10 +103,10 @@ export class WebAuthnService {
   ): Promise<WebAuthnCredential> {
     try {
       // 调用浏览器 WebAuthn API
-      const attResp = await startRegistration(options);
+      const attResp = await startRegistration({ optionsJSON: options });
 
       // 提交到服务器验证
-      const response = await api.post('/api/webauthn/registration/finish', {
+      const response = await api.post('/webauthn/registration/finish', {
         response: attResp,
         credentialName: credentialName || 'Biometric Device',
       });
@@ -171,7 +138,7 @@ export class WebAuthnService {
    */
   static async beginAuthentication(userId?: string): Promise<WebAuthnAuthenticationOptions> {
     try {
-      const response = await api.post('/api/webauthn/authentication/begin', {
+      const response = await api.post('/webauthn/authentication/begin', {
         userId,
       });
 
@@ -199,10 +166,10 @@ export class WebAuthnService {
   }> {
     try {
       // 调用浏览器 WebAuthn API
-      const asseResp = await startAuthentication(options);
+      const asseResp = await startAuthentication({ optionsJSON: options });
 
       // 提交到服务器验证
-      const response = await api.post('/api/webauthn/authentication/finish', {
+      const response = await api.post('/webauthn/authentication/finish', {
         response: asseResp,
         userId,
       });
@@ -238,7 +205,7 @@ export class WebAuthnService {
    */
   static async getCredentials(): Promise<WebAuthnCredential[]> {
     try {
-      const response = await api.get('/api/webauthn/credentials');
+      const response = await api.get('/webauthn/credentials');
       
       if (!response.data.ok) {
         throw new Error(response.data.error || '获取凭据列表失败');
@@ -256,7 +223,7 @@ export class WebAuthnService {
    */
   static async updateCredentialName(credentialId: string, newName: string): Promise<void> {
     try {
-      const response = await api.put(`/api/webauthn/credentials/${credentialId}/name`, {
+      const response = await api.put(`/webauthn/credentials/${credentialId}/name`, {
         name: newName,
       });
       
@@ -274,7 +241,7 @@ export class WebAuthnService {
    */
   static async deleteCredential(credentialId: string): Promise<void> {
     try {
-      const response = await api.delete(`/api/webauthn/credentials/${credentialId}`);
+      const response = await api.delete(`/webauthn/credentials/${credentialId}`);
       
       if (!response.data.ok) {
         throw new Error(response.data.error || '删除凭据失败');
@@ -290,7 +257,7 @@ export class WebAuthnService {
    */
   static async getBiometricSupport(): Promise<WebAuthnSupport> {
     try {
-      const response = await api.get('/api/webauthn/support');
+      const response = await api.get('/webauthn/support');
       
       if (!response.data.ok) {
         throw new Error(response.data.error || '获取支持状态失败');
