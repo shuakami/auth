@@ -3,6 +3,7 @@
 import { Section, Button } from './DashboardUI';
 import type { ReactNode } from 'react';
 import SessionManagement from './components/SessionManagement';
+import BiometricSettings from '@/components/Auth/BiometricSettings';
 
 /* -------------------------------------------------------------------------- */
 /* 通用设置                                                                   */
@@ -186,6 +187,12 @@ export const SecuritySection = ({
           {backupMsg && <p className="mt-2 text-sm text-green-600 dark:text-green-400">{backupMsg}</p>}
         </div>
       </div>
+    </Section>
+    
+    {/* 生物验证 */}
+    <Section title="生物验证">
+      <p className="text-sm text-neutral-500 dark:text-zinc-400">使用指纹、Face ID 或安全密钥进行快速登录</p>
+      <BiometricSettings className="mt-6" />
     </Section>
     
     <SessionManagement />

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 
 interface TokenRefreshOverlayProps {
   show: boolean;
@@ -38,21 +37,15 @@ const TokenRefreshOverlay: React.FC<TokenRefreshOverlayProps> = ({ show }) => {
             : 'opacity-0 scale-100'
         }`}
       >
-        <Image
+        <img
           src="/assets/images/logo/logo-text-white.png"
           alt="Logo"
-          width={140}
-          height={140}
-          className="dark:hidden"
-          priority
+          className="dark:hidden w-auto h-[70px] object-contain"
         />
-        <Image
+        <img
           src="/assets/images/logo/logo-text-black.png"
           alt="Logo"
-          width={140}
-          height={140}
-          className="hidden dark:block"
-          priority
+          className="hidden dark:block w-auto h-[70px] object-contain"
         />
       </div>
     </div>

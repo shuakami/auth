@@ -8,6 +8,7 @@ import sessionRouter    from './auth/session.js';
 import passwordRouter   from './auth/password.js';
 import totpRouter       from './auth/totp.js';
 import backupRouter     from './auth/backupCodes.js';
+import webauthnRouter   from './auth/webauthn.js';
 import oauthDocsRouter  from './auth/oauthDocs.js';
 import oauthRouter from '../auth/oauth.js';
 
@@ -18,6 +19,7 @@ router.use(sessionRouter);
 router.use(passwordRouter);
 router.use(totpRouter);
 router.use(backupRouter);
+router.use(webauthnRouter);
 router.use(oauthDocsRouter);
 router.use(oauthRouter);
 

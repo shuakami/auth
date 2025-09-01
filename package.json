@@ -16,6 +16,7 @@
     "@prisma/adapter-neon": "^6.14.0",
     "@prisma/client": "^6.14.0",
     "@scalar/api-reference": "^1.28.23",
+    "@simplewebauthn/server": "^13.1.2",
     "axios": "^1.9.0",
     "basic-auth": "^2.0.1",
     "bcryptjs": "^2.4.3",

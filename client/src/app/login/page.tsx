@@ -7,7 +7,7 @@ import { useLogin } from '@/hooks/useLogin';
 import { useOAuth } from '@/hooks/useOAuth';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import LoginForm from '@/components/Auth/LoginForm';
-import OAuthButtons from '@/components/Auth/OAuthButtons';
+import AlternativeLoginButtons from '@/components/Auth/AlternativeLoginButtons';
 import TwoFactorModal from '@/components/Auth/TwoFactorModal';
 import Footer from '../dashboard/components/Footer';
 import { AUTH_CONSTANTS } from '@/constants/auth';
@@ -185,11 +185,16 @@ function LoginContent() {
                 onSubmit={handleLoginSubmit}
               />
 
-              {/* OAuth 按钮 */}
-              <OAuthButtons
+              {/* 替代登录方式 */}
+              <AlternativeLoginButtons
                 onGitHubLogin={loginWithGitHub}
                 onGoogleLogin={loginWithGoogle}
-                disabled={loading}
+                onBiometricSuccess={(result) => {
+                  // 生物验证登录成功，页面会自动跳转
+                  console.log('生物验证登录成功:', result);
+                }}
+                onError={setError}
+                disabled={loading || show2fa}
               />
 
               {/* 小屏幕注册链接 */}
