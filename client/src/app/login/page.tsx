@@ -118,12 +118,6 @@ function LoginContent() {
   // 自动重定向已认证用户
   useAutoRedirectIfAuthenticated();
 
-  // 如果还在初始加载中，显示加载指示器
-  if (initialLoading) {
-    return <LoadingIndicator />;
-  }
-
-  // 使用登录 hook
   const {
     email,
     password,
@@ -149,6 +143,11 @@ function LoginContent() {
   const { loginWithGitHub, loginWithGoogle } = useOAuth({
     onError: setError,
   });
+
+  // 如果还在初始加载中，显示加载指示器
+  if (initialLoading) {
+    return <LoadingIndicator />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
