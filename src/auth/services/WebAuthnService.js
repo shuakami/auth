@@ -286,15 +286,21 @@ export class WebAuthnService {
 
   /**
    * 验证认证响应
-   * @param {Object} response 客户端响应
+   * @param {Object} response 客户端认证响应（浏览器WebAuthn API返回的对象）
    * @param {string} userId 用户ID（可选）
    * @returns {Promise<Object>}
    */
   async verifyAuthenticationResponse(response, userId = null) {
     try {
-      // 通过凭据ID查找凭据
+      // 验证 response 对象结构
+      if (!response || !response.id) {
+        console.error(`[WebAuthnService] Invalid response object:`, response);
+        throw new Error('无效的认证响应对象：缺少credential ID');
+      }
+
       const credentialId = response.id;
       console.log(`[WebAuthnService] Authentication: Looking for credential with ID: ${credentialId}`);
+      console.log(`[WebAuthnService] Authentication: Full response object:`, response);
       
       const credential = await WebAuthnCredential.getCredentialById(credentialId);
       if (!credential) {
@@ -318,26 +324,28 @@ export class WebAuthnService {
 
       console.log(`[WebAuthnService] Authentication: Expected challenge: ${expectedChallenge}`);
 
-      // 构建期望的验证参数
-      const expected = {
-        challenge: expectedChallenge,
-        origin: Array.isArray(ORIGIN) ? ORIGIN[0] : ORIGIN,
-        userVerified: false,
-        counter: parseInt(credential.counter) || 0,
-      };
-
       // 构建认证凭据信息
       const credentialKey = {
         id: credential.credential_id,
         publicKey: credential.credential_public_key.toString('base64'),
-        algorithm: 'ES256', // 默认算法
+        algorithm: 'ES256', // 默认算法，实际应该从credential存储中获取
+        counter: parseInt(credential.counter) || 0,
       };
 
-      console.log(`[WebAuthnService] Authentication: Verifying with expected:`, expected);
-      console.log(`[WebAuthnService] Authentication: Credential key:`, credentialKey);
+      // 构建期望的验证参数
+      const expected = {
+        challenge: expectedChallenge,
+        origin: Array.isArray(ORIGIN) ? ORIGIN[0] : ORIGIN,
+        userVerified: false, // 不强制要求用户验证
+        counter: parseInt(credential.counter) || 0,
+        verbose: true, // 开启调试日志
+      };
 
-      // 使用新库验证认证响应
-      const authenticationParsed = await server.verifyAuthentication(response, expected, credentialKey);
+      console.log(`[WebAuthnService] Authentication: Verifying with credentialKey:`, credentialKey);
+      console.log(`[WebAuthnService] Authentication: Expected parameters:`, expected);
+
+      // 使用新库验证认证响应 - 注意参数顺序！
+      const authenticationParsed = await server.verifyAuthentication(response, credentialKey, expected);
 
       if (!authenticationParsed) {
         throw new Error('认证验证失败');
@@ -346,7 +354,7 @@ export class WebAuthnService {
       console.log(`[WebAuthnService] Authentication verification successful:`, authenticationParsed);
 
       // 更新凭据计数器
-      const newCounter = authenticationParsed.authenticator?.counter || (parseInt(credential.counter) + 1);
+      const newCounter = authenticationParsed.counter !== undefined ? authenticationParsed.counter : (parseInt(credential.counter) + 1);
       await WebAuthnCredential.updateCredentialCounter(credential.credential_id, newCounter);
 
       console.log(`[WebAuthnService] 认证验证成功 for user ${credential.user_id}`);
