@@ -407,17 +407,32 @@ export class WebAuthnService {
 
       console.log(`[WebAuthnService] Authentication: Processed values - counter: ${counter}, transports:`, transports);
 
+      // 构建authenticator对象
+      const authenticator = {
+        credentialID: credentialIDBuffer,
+        credentialPublicKey: new Uint8Array(credential.credential_public_key),
+        counter: counter,
+        transports: transports,
+      };
+
+      // 详细日志验证所有参数
+      console.log(`[WebAuthnService] Authentication: Verification parameters:`);
+      console.log(`  - response.id: ${response.id}`);
+      console.log(`  - response.type: ${response.type}`);
+      console.log(`  - expectedChallenge length: ${expectedChallenge ? expectedChallenge.length : 'undefined'}`);
+      console.log(`  - expectedOrigin: ${ORIGIN}`);
+      console.log(`  - expectedRPID: ${RP_ID}`);
+      console.log(`  - authenticator.credentialID length: ${credentialIDBuffer ? credentialIDBuffer.length : 'undefined'}`);
+      console.log(`  - authenticator.credentialPublicKey length: ${authenticator.credentialPublicKey.length}`);
+      console.log(`  - authenticator.counter: ${authenticator.counter} (type: ${typeof authenticator.counter})`);
+      console.log(`  - authenticator.transports:`, authenticator.transports);
+
       const verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge,
         expectedOrigin: ORIGIN,
         expectedRPID: RP_ID,
-        authenticator: {
-          credentialID: credentialIDBuffer,
-          credentialPublicKey: new Uint8Array(credential.credential_public_key),
-          counter: counter,
-          transports: transports,
-        },
+        authenticator,
         requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
       });
 
