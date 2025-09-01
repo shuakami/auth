@@ -87,28 +87,34 @@ export class WebAuthnService {
       const excludeCredentials = existingCredentials.map(cred => {
         console.log(`[WebAuthnService] Processing credential: ${cred.credential_id}`);
         try {
-          // 检查credential_id是否是有效的hex字符串
-          const credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
+          let credentialIdBuffer;
+          
+          // 首先尝试hex转换（新格式）
+          if (/^[0-9A-Fa-f]+$/.test(cred.credential_id)) {
+            credentialIdBuffer = isoUint8Array.fromHex(cred.credential_id);
+            console.log(`[WebAuthnService] Successfully converted hex credential_id`);
+          } else {
+            // 如果不是hex格式，尝试base64URL转换（旧格式或不同编码）
+            console.log(`[WebAuthnService] Attempting base64URL conversion for credential_id: ${cred.credential_id}`);
+            
+            // 确保credential_id是字符串
+            if (typeof cred.credential_id !== 'string') {
+              throw new Error(`credential_id is not a string: ${typeof cred.credential_id}`);
+            }
+            
+            credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
+            console.log(`[WebAuthnService] Successfully converted base64URL credential_id`);
+          }
+          
           return {
             id: credentialIdBuffer,
             type: 'public-key',
             transports: cred.transports ? JSON.parse(cred.transports) : undefined,
           };
         } catch (error) {
-          console.error(`[WebAuthnService] Invalid credential_id format: ${cred.credential_id}`, error);
-          // 如果hex转换失败，尝试base64url转换
-          try {
-            const credentialIdBuffer = isoBase64URL.toBuffer(cred.credential_id);
-            return {
-              id: credentialIdBuffer,
-              type: 'public-key', 
-              transports: cred.transports ? JSON.parse(cred.transports) : undefined,
-            };
-          } catch (base64Error) {
-            console.error(`[WebAuthnService] Failed to convert credential_id to buffer:`, base64Error);
-            // 跳过这个无效的凭据
-            return null;
-          }
+          console.error(`[WebAuthnService] Failed to convert credential_id to buffer: ${cred.credential_id}`, error);
+          // 跳过这个无效的凭据
+          return null;
         }
       }).filter(Boolean); // 过滤掉null值
 

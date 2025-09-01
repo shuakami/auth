@@ -317,9 +317,13 @@ router.put('/webauthn/credentials/:credentialId/name', ensureAuth, async (req, r
  */
 router.delete('/webauthn/credentials/:credentialId', ensureAuth, async (req, res) => {
   try {
+    console.log(`[WebAuthn Delete] Received DELETE request for credential: ${req.params.credentialId}`);
+    console.log(`[WebAuthn Delete] User ID: ${req.user.id}`);
+    
     const { credentialId } = req.params;
 
     const success = await WebAuthnCredential.deleteCredentialById(credentialId, req.user.id);
+    console.log(`[WebAuthn Delete] Delete operation result: ${success}`);
 
     if (!success) {
       return res.status(404).json({ error: '凭据不存在或无权限删除' });
