@@ -8,7 +8,7 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
-import { isoUint8Array } from '@simplewebauthn/server/helpers';
+import { isoUint8Array, isoBase64URL } from '@simplewebauthn/server/helpers';
 import * as WebAuthnCredential from '../../services/webauthnCredentialService.js';
 import * as User from '../../services/userService.js';
 
@@ -221,10 +221,16 @@ export class WebAuthnService {
    */
   async verifyAuthenticationResponse(response, userId = null) {
     try {
-      const credentialId = isoUint8Array.toHex(response.rawId);
+      // response.id 已经是 base64url 编码的字符串，直接使用
+      // 但数据库中存储的是 hex 格式，需要转换格式查找
+      const credentialIdBase64url = response.id;
+      
+      // 将 base64url 转换为 hex 来匹配数据库中的格式
+      const credentialIdBytes = isoBase64URL.toBuffer(credentialIdBase64url);
+      const credentialIdHex = isoUint8Array.toHex(credentialIdBytes);
       
       // 通过凭据ID查找凭据
-      const credential = await WebAuthnCredential.getCredentialById(credentialId);
+      const credential = await WebAuthnCredential.getCredentialById(credentialIdHex);
       if (!credential) {
         throw new Error('未找到匹配的凭据');
       }
@@ -262,7 +268,7 @@ export class WebAuthnService {
 
       // 更新凭据计数器
       await WebAuthnCredential.updateCredentialCounter(
-        credentialId,
+        credentialIdHex,
         verification.authenticationInfo.newCounter
       );
 
@@ -271,7 +277,7 @@ export class WebAuthnService {
       return {
         verified: true,
         userId: credential.user_id,
-        credentialId,
+        credentialId: credentialIdHex,
         credential,
       };
 

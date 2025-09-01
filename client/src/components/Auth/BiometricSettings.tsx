@@ -153,7 +153,9 @@ const BiometricSettings = memo(function BiometricSettings({
         <Button
           onClick={() => setShowRegistrationModal(true)}
           disabled={isLoading}
+          variant="outline"
           leftIcon={<Plus className="h-4 w-4" />}
+          className="border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
         >
           添加设备
         </Button>
@@ -291,14 +293,14 @@ const BiometricSettings = memo(function BiometricSettings({
       )}
 
       {/* 安全提示 */}
-      <div className="rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+      <div className="rounded-md bg-neutral-50 p-4 dark:bg-neutral-800/50">
         <div className="flex">
-          <Shield className="h-5 w-5 text-blue-400" aria-hidden="true" />
+          <Shield className="h-5 w-5 text-neutral-600 dark:text-neutral-400" aria-hidden="true" />
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-400">
+            <h3 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
               安全提示
             </h3>
-            <ul className="mt-1 text-sm text-blue-700 dark:text-blue-300 space-y-1">
+            <ul className="mt-1 text-sm text-neutral-700 dark:text-neutral-300 space-y-1">
               <li>• 建议注册多个设备作为备份</li>
               <li>• 生物信息仅存储在您的设备本地</li>
               <li>• 定期检查和清理不再使用的设备</li>
