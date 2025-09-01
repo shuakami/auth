@@ -380,10 +380,32 @@ export class WebAuthnService {
         throw new Error('凭据缺少公钥数据');
       }
 
-      if (credential.counter === undefined || credential.counter === null) {
+      // 确保counter是数字类型
+      let counter = 0;
+      if (credential.counter !== undefined && credential.counter !== null) {
+        counter = typeof credential.counter === 'string' ? parseInt(credential.counter) : Number(credential.counter);
+        if (isNaN(counter)) {
+          console.warn(`[WebAuthnService] Authentication: Invalid counter value: ${credential.counter}, defaulting to 0`);
+          counter = 0;
+        }
+      } else {
         console.warn(`[WebAuthnService] Authentication: Counter is null/undefined, defaulting to 0`);
-        credential.counter = 0;
       }
+
+      // 解析transports
+      let transports = undefined;
+      if (credential.transports) {
+        try {
+          transports = typeof credential.transports === 'string' 
+            ? JSON.parse(credential.transports) 
+            : credential.transports;
+        } catch (error) {
+          console.warn(`[WebAuthnService] Authentication: Failed to parse transports: ${credential.transports}`, error);
+          transports = undefined;
+        }
+      }
+
+      console.log(`[WebAuthnService] Authentication: Processed values - counter: ${counter}, transports:`, transports);
 
       const verification = await verifyAuthenticationResponse({
         response,
@@ -393,8 +415,8 @@ export class WebAuthnService {
         authenticator: {
           credentialID: credentialIDBuffer,
           credentialPublicKey: new Uint8Array(credential.credential_public_key),
-          counter: parseInt(credential.counter) || 0,
-          transports: credential.transports ? JSON.parse(credential.transports) : undefined,
+          counter: counter,
+          transports: transports,
         },
         requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
       });
