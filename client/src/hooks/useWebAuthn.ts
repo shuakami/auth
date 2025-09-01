@@ -75,15 +75,17 @@ export function useWebAuthn() {
         isLoading: false,
       }));
     }
-  }, [user]);
+  }, []);
 
   // 注册生物验证
   const registerBiometric = useCallback(async (credentialName?: string) => {
-    if (!state.canUse || !user) {
-      throw new Error('生物验证不可用或用户未登录');
-    }
-
-    setState(prev => ({ ...prev, isRegistering: true, error: null }));
+    // 在函数内部进行检查，避免依赖频繁变化的state
+    setState(prev => {
+      if (!prev.canUse || !user) {
+        throw new Error('生物验证不可用或用户未登录');
+      }
+      return { ...prev, isRegistering: true, error: null };
+    });
 
     try {
       // 获取注册选项
@@ -105,15 +107,17 @@ export function useWebAuthn() {
       }));
       throw error;
     }
-  }, [state.canUse, user, fetchUserSupport]);
+  }, [fetchUserSupport]);
 
   // 生物验证登录
   const authenticateWithBiometric = useCallback(async (userId?: string) => {
-    if (!state.canUse) {
-      throw new Error('生物验证不可用');
-    }
-
-    setState(prev => ({ ...prev, isAuthenticating: true, error: null }));
+    // 在函数内部进行检查
+    setState(prev => {
+      if (!prev.canUse) {
+        throw new Error('生物验证不可用');
+      }
+      return { ...prev, isAuthenticating: true, error: null };
+    });
 
     try {
       // 获取认证选项
@@ -123,7 +127,7 @@ export function useWebAuthn() {
       const result = await WebAuthnService.finishAuthentication(options, userId);
       
       // 更新认证状态
-      await login(result.user, result.accessToken);
+      await login(result.user);
       
       setState(prev => ({ ...prev, isAuthenticating: false }));
       return result;
@@ -135,7 +139,7 @@ export function useWebAuthn() {
       }));
       throw error;
     }
-  }, [state.canUse, login]);
+  }, [login]);
 
   // 更新凭据名称
   const updateCredentialName = useCallback(async (credentialId: string, newName: string) => {

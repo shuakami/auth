@@ -138,6 +138,7 @@ export class WebAuthnService {
         expectedChallenge,
         expectedOrigin: ORIGIN,
         expectedRPID: RP_ID,
+        requireUserVerification: false, // 与注册选项中的 'preferred' 对应，不强制要求
       });
 
       if (!verification.verified || !verification.registrationInfo) {
@@ -250,6 +251,7 @@ export class WebAuthnService {
           counter: parseInt(credential.counter),
           transports: credential.transports ? JSON.parse(credential.transports) : undefined,
         },
+        requireUserVerification: false, // 与认证选项中的 'preferred' 对应，不强制要求
       });
 
       if (!verification.verified) {
