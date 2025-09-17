@@ -1,10 +1,38 @@
 /**
- * 登录历史服务
- * 提供登录历史记录、查询、统计和分析功能
+ * 登录历史服务 - 提供登录历史记录、查询、统计和分析功能
  */
 import { v4 as uuidv4 } from 'uuid';
-import { smartQuery, smartConnect } from '../../db/index.js';
+import { smartQuery } from '../../db/index.js';
 import { encrypt, decrypt } from '../../auth/cryptoUtils.js';
+
+/**
+ * 轻量级 LRU 缓存（同 SessionHistoryService）
+ */
+class SimpleLRU {
+  constructor(capacity = 1024) {
+    this.capacity = capacity;
+    this.map = new Map();
+  }
+  get(key) {
+    if (!key || !this.map.has(key)) return undefined;
+    const val = this.map.get(key);
+    this.map.delete(key);
+    this.map.set(key, val);
+    return val;
+  }
+  set(key, value) {
+    if (!key) return;
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    if (this.map.size > this.capacity) {
+      const oldestKey = this.map.keys().next().value;
+      this.map.delete(oldestKey);
+    }
+  }
+}
+
+const decryptCache = new SimpleLRU(8192);
+const locationCache = new SimpleLRU(4096);
 
 export class LoginHistoryService {
   /**
@@ -22,7 +50,7 @@ export class LoginHistoryService {
       success,
       failReason,
       loginMethod = 'password', // password, oauth, 2fa
-      deviceType = 'unknown' // web, mobile, api
+      deviceType = 'unknown', // web, mobile, api
     } = loginData;
 
     try {
@@ -37,14 +65,23 @@ export class LoginHistoryService {
           location, success, fail_reason, login_method, device_type
         ) VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
-          recordId, userId, ipEnc, fingerprintEnc, userAgent,
-          locationJson, success, failReason, loginMethod, deviceType
+          recordId,
+          userId,
+          ipEnc,
+          fingerprintEnc,
+          userAgent,
+          locationJson,
+          success,
+          failReason,
+          loginMethod,
+          deviceType,
         ]
       );
 
-      console.log(`[LoginHistory] 记录登录历史: 用户=${userId}, 成功=${success}, 方法=${loginMethod}`);
+      console.log(
+        `[LoginHistory] 记录登录历史: 用户=${userId}, 成功=${success}, 方法=${loginMethod}`
+      );
       return recordId;
-
     } catch (error) {
       console.error('[LoginHistory] 记录登录历史失败:', error);
       throw new Error('记录登录历史失败');
@@ -52,7 +89,7 @@ export class LoginHistoryService {
   }
 
   /**
-   * 获取用户登录历史
+   * 获取用户登录历史（单次查询同时返回总数，接口结构不变）
    * @param {string} userId 用户ID
    * @param {Object} options 查询选项
    * @returns {Promise<Object>}
@@ -65,21 +102,21 @@ export class LoginHistoryService {
       endDate = null,
       successOnly = false,
       includeLocation = true,
-      loginMethod = null
+      loginMethod = null,
     } = options;
 
     try {
       let query = `
         SELECT id, login_at, ip_enc, fingerprint_enc, user_agent, location, 
-               success, fail_reason, login_method, device_type
+               success, fail_reason, login_method, device_type,
+               COUNT(*) OVER() AS total_count
         FROM login_history 
         WHERE user_id = $1
       `;
-      
+
       const params = [userId];
       let paramIndex = 2;
 
-      // 添加过滤条件
       if (startDate) {
         query += ` AND login_at >= $${paramIndex}`;
         params.push(startDate);
@@ -105,25 +142,26 @@ export class LoginHistoryService {
       query += ` ORDER BY login_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
 
-      // 执行查询
       const { rows } = await smartQuery(query, params);
 
-      // 格式化结果
-      const formattedHistory = rows.map(row => this._formatHistoryRecord(row, includeLocation));
+      const totalCount =
+        rows.length > 0 && rows[0].total_count != null
+          ? parseInt(rows[0].total_count, 10)
+          : 0;
 
-      // 获取总数
-      const totalCount = await this._getHistoryCount(userId, { startDate, endDate, successOnly, loginMethod });
+      const formattedHistory = rows.map((row) =>
+        this._formatHistoryRecord(row, includeLocation)
+      );
 
       return {
         history: formattedHistory,
         pagination: {
-          total: totalCount,
+          total: totalCount, // 与原接口一致：总数为满足过滤条件的总行数
           limit,
           offset,
-          hasMore: totalCount > offset + limit
-        }
+          hasMore: totalCount > offset + limit,
+        },
       };
-
     } catch (error) {
       console.error('[LoginHistory] 获取登录历史失败:', error);
       throw new Error('获取登录历史失败');
@@ -137,10 +175,7 @@ export class LoginHistoryService {
    * @returns {Promise<Object>}
    */
   async getLoginStats(userId, options = {}) {
-    const {
-      days = 30,
-      groupBy = 'day' // day, hour, method, device
-    } = options;
+    const { days = 30, groupBy = 'day' } = options;
 
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -150,7 +185,7 @@ export class LoginHistoryService {
         this._getLocationStats(userId, startDate),
         this._getDeviceStats(userId, startDate),
         this._getTimeSeriesStats(userId, startDate, groupBy),
-        this._getFailureAnalysis(userId, startDate)
+        this._getFailureAnalysis(userId, startDate),
       ]);
 
       return {
@@ -159,9 +194,8 @@ export class LoginHistoryService {
         locations: stats[1],
         devices: stats[2],
         timeSeries: stats[3],
-        failures: stats[4]
+        failures: stats[4],
       };
-
     } catch (error) {
       console.error('[LoginHistory] 获取登录统计失败:', error);
       throw new Error('获取登录统计失败');
@@ -175,15 +209,12 @@ export class LoginHistoryService {
    * @returns {Promise<Object>}
    */
   async detectAnomalousPatterns(userId, options = {}) {
-    const {
-      timeWindow = 24 * 60 * 60 * 1000, // 24小时
-      minEventsForAnalysis = 5
-    } = options;
+    const { timeWindow = 24 * 60 * 60 * 1000, minEventsForAnalysis = 5 } =
+      options;
 
     try {
       const windowStart = new Date(Date.now() - timeWindow);
 
-      // 获取时间窗口内的登录数据
       const { rows: recentLogins } = await smartQuery(
         `SELECT login_at, ip_enc, user_agent, location, success, fail_reason, login_method
          FROM login_history
@@ -196,43 +227,30 @@ export class LoginHistoryService {
         return {
           anomaliesDetected: false,
           reason: 'INSUFFICIENT_DATA',
-          eventsAnalyzed: recentLogins.length
+          eventsAnalyzed: recentLogins.length,
         };
       }
 
       const anomalies = [];
 
-      // 1. 检测异常IP模式
       const ipAnomalies = await this._detectIPAnomalies(userId, recentLogins);
-      if (ipAnomalies.length > 0) {
-        anomalies.push(...ipAnomalies);
-      }
+      if (ipAnomalies.length > 0) anomalies.push(...ipAnomalies);
 
-      // 2. 检测异常时间模式
       const timeAnomalies = this._detectTimeAnomalies(recentLogins);
-      if (timeAnomalies.length > 0) {
-        anomalies.push(...timeAnomalies);
-      }
+      if (timeAnomalies.length > 0) anomalies.push(...timeAnomalies);
 
-      // 3. 检测失败模式
       const failureAnomalies = this._detectFailurePatterns(recentLogins);
-      if (failureAnomalies.length > 0) {
-        anomalies.push(...failureAnomalies);
-      }
+      if (failureAnomalies.length > 0) anomalies.push(...failureAnomalies);
 
-      // 4. 检测设备异常
       const deviceAnomalies = this._detectDeviceAnomalies(recentLogins);
-      if (deviceAnomalies.length > 0) {
-        anomalies.push(...deviceAnomalies);
-      }
+      if (deviceAnomalies.length > 0) anomalies.push(...deviceAnomalies);
 
       return {
         anomaliesDetected: anomalies.length > 0,
         anomalies,
         eventsAnalyzed: recentLogins.length,
-        timeWindow: timeWindow / (60 * 60 * 1000) // 转换为小时
+        timeWindow: timeWindow / (60 * 60 * 1000),
       };
-
     } catch (error) {
       console.error('[LoginHistory] 异常模式检测失败:', error);
       throw new Error('异常模式检测失败');
@@ -245,13 +263,12 @@ export class LoginHistoryService {
    * @returns {Promise<number>}
    */
   async cleanupOldHistory(options = {}) {
-    const {
-      retentionDays = 365, // 保留1年
-      batchSize = 1000
-    } = options;
+    const { retentionDays = 365, batchSize = 1000 } = options;
 
     try {
-      const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      const cutoffDate = new Date(
+        Date.now() - retentionDays * 24 * 60 * 60 * 1000
+      );
 
       const result = await smartQuery(
         `DELETE FROM login_history 
@@ -265,13 +282,12 @@ export class LoginHistoryService {
       );
 
       const cleanedCount = result.rowCount;
-      
+
       if (cleanedCount > 0) {
         console.log(`[LoginHistory] 清理了 ${cleanedCount} 条过期登录历史记录`);
       }
 
       return cleanedCount;
-
     } catch (error) {
       console.error('[LoginHistory] 清理历史记录失败:', error);
       return 0;
@@ -279,7 +295,7 @@ export class LoginHistoryService {
   }
 
   /**
-   * 格式化历史记录
+   * 格式化历史记录（保持字段命名与语义不变）
    * @param {Object} row 数据库行
    * @param {boolean} includeLocation 是否包含位置信息
    * @returns {Object}
@@ -295,25 +311,18 @@ export class LoginHistoryService {
       success: row.success,
       failReason: row.fail_reason,
       loginMethod: row.login_method || 'password',
-      deviceType: row.device_type || 'unknown'
+      deviceType: row.device_type || 'unknown',
     };
 
     if (includeLocation && row.location) {
-      try {
-        formatted.location = typeof row.location === 'string' 
-          ? JSON.parse(row.location) 
-          : row.location;
-      } catch (error) {
-        console.warn('[LoginHistory] 解析位置信息失败:', error);
-        formatted.location = null;
-      }
+      formatted.location = this._parseLocation(row.location);
     }
 
     return formatted;
   }
 
   /**
-   * 解密字段
+   * 解密字段（带缓存）
    * @param {string} encryptedField 加密字段
    * @returns {string|null}
    * @private
@@ -321,8 +330,13 @@ export class LoginHistoryService {
   _decryptField(encryptedField) {
     if (!encryptedField) return null;
 
+    const cached = decryptCache.get(encryptedField);
+    if (cached !== undefined) return cached;
+
     try {
-      return decrypt(encryptedField);
+      const val = decrypt(encryptedField);
+      decryptCache.set(encryptedField, val);
+      return val;
     } catch (error) {
       console.warn('[LoginHistory] 解密字段失败:', error);
       return null;
@@ -330,45 +344,24 @@ export class LoginHistoryService {
   }
 
   /**
-   * 获取历史记录总数
-   * @param {string} userId 用户ID
-   * @param {Object} filters 过滤条件
-   * @returns {Promise<number>}
+   * 解析位置信息（带缓存）
+   * @param {string|Object} location
+   * @returns {Object|null}
    * @private
    */
-  async _getHistoryCount(userId, filters) {
+  _parseLocation(location) {
+    if (!location) return null;
+
     try {
-      let query = 'SELECT COUNT(*) as count FROM login_history WHERE user_id = $1';
-      const params = [userId];
-      let paramIndex = 2;
-
-      if (filters.startDate) {
-        query += ` AND login_at >= $${paramIndex}`;
-        params.push(filters.startDate);
-        paramIndex++;
-      }
-
-      if (filters.endDate) {
-        query += ` AND login_at <= $${paramIndex}`;
-        params.push(filters.endDate);
-        paramIndex++;
-      }
-
-      if (filters.successOnly) {
-        query += ` AND success = TRUE`;
-      }
-
-      if (filters.loginMethod) {
-        query += ` AND login_method = $${paramIndex}`;
-        params.push(filters.loginMethod);
-      }
-
-      const { rows } = await smartQuery(query, params);
-      return parseInt(rows[0].count);
-
+      if (typeof location !== 'string') return location;
+      const cached = locationCache.get(location);
+      if (cached !== undefined) return cached;
+      const parsed = JSON.parse(location);
+      locationCache.set(location, parsed);
+      return parsed;
     } catch (error) {
-      console.error('[LoginHistory] 获取历史记录总数失败:', error);
-      return 0;
+      console.warn('[LoginHistory] 解析位置信息失败:', error);
+      return null;
     }
   }
 
@@ -395,20 +388,24 @@ export class LoginHistoryService {
       );
 
       const stats = rows[0];
-      const successRate = stats.total_attempts > 0 
-        ? (parseInt(stats.successful_logins) / parseInt(stats.total_attempts) * 100).toFixed(2)
-        : 0;
+      const totalAttempts = parseInt(stats.total_attempts || 0, 10);
+      const successfulLogins = parseInt(stats.successful_logins || 0, 10);
+      const failedAttempts = parseInt(stats.failed_attempts || 0, 10);
+
+      const successRate =
+        totalAttempts > 0
+          ? parseFloat(((successfulLogins / totalAttempts) * 100).toFixed(2))
+          : 0;
 
       return {
-        totalAttempts: parseInt(stats.total_attempts),
-        successfulLogins: parseInt(stats.successful_logins),
-        failedAttempts: parseInt(stats.failed_attempts),
-        successRate: parseFloat(successRate),
-        activeDays: parseInt(stats.active_days),
-        uniqueIPs: parseInt(stats.unique_ips),
-        uniqueDevices: parseInt(stats.unique_devices)
+        totalAttempts,
+        successfulLogins,
+        failedAttempts,
+        successRate,
+        activeDays: parseInt(stats.active_days || 0, 10),
+        uniqueIPs: parseInt(stats.unique_ips || 0, 10),
+        uniqueDevices: parseInt(stats.unique_devices || 0, 10),
       };
-
     } catch (error) {
       console.error('[LoginHistory] 获取基本统计失败:', error);
       return {};
@@ -434,20 +431,22 @@ export class LoginHistoryService {
         [userId, startDate]
       );
 
-      return rows.map(row => {
-        try {
-          const location = typeof row.location === 'string' 
-            ? JSON.parse(row.location) 
-            : row.location;
-          return {
-            location,
-            count: parseInt(row.count)
-          };
-        } catch {
-          return null;
-        }
-      }).filter(Boolean);
-
+      return rows
+        .map((row) => {
+          try {
+            const location =
+              typeof row.location === 'string'
+                ? this._parseLocation(row.location)
+                : row.location;
+            return {
+              location,
+              count: parseInt(row.count || 0, 10),
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
     } catch (error) {
       console.error('[LoginHistory] 获取位置统计失败:', error);
       return [];
@@ -474,14 +473,13 @@ export class LoginHistoryService {
         [userId, startDate]
       );
 
-      return rows.map(row => ({
+      return rows.map((row) => ({
         userAgent: row.user_agent,
         loginMethod: row.login_method,
         deviceType: row.device_type,
-        count: parseInt(row.count),
-        lastUsed: row.last_used
+        count: parseInt(row.count || 0, 10),
+        lastUsed: row.last_used,
       }));
-
     } catch (error) {
       console.error('[LoginHistory] 获取设备统计失败:', error);
       return [];
@@ -521,13 +519,12 @@ export class LoginHistoryService {
         [userId, startDate]
       );
 
-      return rows.map(row => ({
+      return rows.map((row) => ({
         time: row.time_bucket,
-        totalAttempts: parseInt(row.total_attempts),
-        successfulLogins: parseInt(row.successful_logins),
-        failedAttempts: parseInt(row.failed_attempts)
+        totalAttempts: parseInt(row.total_attempts || 0, 10),
+        successfulLogins: parseInt(row.successful_logins || 0, 10),
+        failedAttempts: parseInt(row.failed_attempts || 0, 10),
       }));
-
     } catch (error) {
       console.error('[LoginHistory] 获取时间序列统计失败:', error);
       return [];
@@ -553,13 +550,15 @@ export class LoginHistoryService {
       );
 
       return {
-        byReason: rows.map(row => ({
+        byReason: rows.map((row) => ({
           reason: row.fail_reason,
-          count: parseInt(row.count)
+          count: parseInt(row.count || 0, 10),
         })),
-        totalFailures: rows.reduce((sum, row) => sum + parseInt(row.count), 0)
+        totalFailures: rows.reduce(
+          (sum, row) => sum + parseInt(row.count || 0, 10),
+          0
+        ),
       };
-
     } catch (error) {
       console.error('[LoginHistory] 获取失败分析失败:', error);
       return { byReason: [], totalFailures: 0 };
@@ -575,8 +574,7 @@ export class LoginHistoryService {
    */
   async _detectIPAnomalies(userId, recentLogins) {
     const anomalies = [];
-    
-    // 获取用户历史常用IP
+
     const { rows: historicalIPs } = await smartQuery(
       `SELECT ip_enc, COUNT(*) as usage_count
        FROM login_history
@@ -587,19 +585,18 @@ export class LoginHistoryService {
       [userId]
     );
 
-    const knownIPs = new Set(historicalIPs.map(row => row.ip_enc));
-    
-    // 检测新IP
+    const knownIPs = new Set(historicalIPs.map((row) => row.ip_enc));
+
     const newIPs = recentLogins
-      .filter(login => login.ip_enc && !knownIPs.has(login.ip_enc))
-      .map(login => login.ip_enc);
+      .filter((login) => login.ip_enc && !knownIPs.has(login.ip_enc))
+      .map((login) => login.ip_enc);
 
     if (newIPs.length > 0) {
       anomalies.push({
         type: 'NEW_IP_ADDRESSES',
         severity: 'MEDIUM',
         count: newIPs.length,
-        details: `检测到 ${newIPs.length} 个新的IP地址`
+        details: `检测到 ${newIPs.length} 个新的IP地址`,
       });
     }
 
@@ -614,11 +611,10 @@ export class LoginHistoryService {
    */
   _detectTimeAnomalies(recentLogins) {
     const anomalies = [];
-    
-    // 检测异常时间段登录（深夜登录）
-    const nightLogins = recentLogins.filter(login => {
+
+    const nightLogins = recentLogins.filter((login) => {
       const hour = new Date(login.login_at).getHours();
-      return hour >= 2 && hour <= 5; // 凌晨2点到5点
+      return hour >= 2 && hour <= 5;
     });
 
     if (nightLogins.length > 2) {
@@ -626,7 +622,7 @@ export class LoginHistoryService {
         type: 'UNUSUAL_TIME_PATTERN',
         severity: 'LOW',
         count: nightLogins.length,
-        details: `检测到 ${nightLogins.length} 次深夜登录（2-5点）`
+        details: `检测到 ${nightLogins.length} 次深夜登录（2-5点）`,
       });
     }
 
@@ -641,16 +637,16 @@ export class LoginHistoryService {
    */
   _detectFailurePatterns(recentLogins) {
     const anomalies = [];
-    
-    const failedLogins = recentLogins.filter(login => !login.success);
+
+    const failedLogins = recentLogins.filter((login) => !login.success);
     const totalLogins = recentLogins.length;
-    
+
     if (totalLogins > 5 && failedLogins.length / totalLogins > 0.5) {
       anomalies.push({
         type: 'HIGH_FAILURE_RATE',
         severity: 'HIGH',
-        failureRate: (failedLogins.length / totalLogins * 100).toFixed(2),
-        details: `失败率过高：${failedLogins.length}/${totalLogins}`
+        failureRate: ((failedLogins.length / totalLogins) * 100).toFixed(2),
+        details: `失败率过高：${failedLogins.length}/${totalLogins}`,
       });
     }
 
@@ -665,9 +661,9 @@ export class LoginHistoryService {
    */
   _detectDeviceAnomalies(recentLogins) {
     const anomalies = [];
-    
+
     const uniqueUserAgents = new Set(
-      recentLogins.map(login => login.user_agent).filter(Boolean)
+      recentLogins.map((login) => login.user_agent).filter(Boolean)
     );
 
     if (uniqueUserAgents.size > 5) {
@@ -675,7 +671,7 @@ export class LoginHistoryService {
         type: 'MULTIPLE_DEVICES',
         severity: 'MEDIUM',
         deviceCount: uniqueUserAgents.size,
-        details: `检测到 ${uniqueUserAgents.size} 个不同设备`
+        details: `检测到 ${uniqueUserAgents.size} 个不同设备`,
       });
     }
 
