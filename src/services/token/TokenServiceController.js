@@ -6,6 +6,17 @@ import { TokenSecurityService } from './TokenSecurityService.js';
 import { SessionService } from './SessionService.js';
 import { SessionHistoryService } from './SessionHistoryService.js';
 
+// 轻量级日志控制，减少 serverless I/O 负担
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
+function log(level, ...args) {
+  if ((LOG_ORDER[level] || 999) >= (LOG_ORDER[LOG_LEVEL] || 20)) {
+    // 仅在达到设定阈值时输出
+    // eslint-disable-next-line no-console
+    console[level](...args);
+  }
+}
+
 export class TokenServiceController {
   constructor() {
     this.tokenService = new RefreshTokenService();
@@ -23,40 +34,72 @@ export class TokenServiceController {
    * @param {number} expiresIn 过期时间（秒）
    * @returns {Promise<Object>}
    */
-  async createRefreshToken(userId, deviceInfo, clientId = null, parentId = null, expiresIn = 60 * 60 * 24 * 15) {
-    // 1. 检测异常活动
+  async createRefreshToken(
+    userId,
+    deviceInfo,
+    clientId = null,
+    parentId = null,
+    expiresIn = 60 * 60 * 24 * 15
+  ) {
+    // 并发执行独立的安全检测，但严格保留原有优先级：异常活动优先，其次是重用攻击
+    let anomalyReport = null;
+    let reuseReport = null;
+
+    // 并发发起
+    const anomalyPromise = this.securityService
+      .detectAnomalousActivity(userId)
+      .then((r) => (anomalyReport = r))
+      .catch((err) => {
+        // 安全检测失败不应阻断Token创建，但要记录
+        log('error', '[TokenController] 安全检测失败:', err);
+      });
+
+    const reusePromise = parentId
+      ? this.securityService
+          .detectTokenReuse(parentId)
+          .then((r) => (reuseReport = r))
+          .catch((err) => {
+            log('error', '[TokenController] Token重用检测失败:', err);
+          })
+      : Promise.resolve();
+
+    // 等待两项检测都到达已决状态（不抛出）
+    await Promise.allSettled([anomalyPromise, reusePromise]);
+
+    // 维持原行为：若检测到异常活动且建议吊销，则优先吊销并报错
     try {
-      const anomalyReport = await this.securityService.detectAnomalousActivity(userId);
-      if (anomalyReport.anomaliesDetected) {
-        console.warn(`[TokenController] 用户${userId}检测到异常活动:`, anomalyReport.anomalies);
-        
-        // 根据建议执行安全措施
+      if (anomalyReport && anomalyReport.anomaliesDetected) {
+        log(
+          'warn',
+          `[TokenController] 用户${userId}检测到异常活动:`,
+          anomalyReport.anomalies
+        );
+
         if (anomalyReport.recommendation === 'REVOKE_ALL_USER_TOKENS') {
           await this.tokenService.revokeAllUserTokens(userId);
           throw new Error('检测到安全风险，已吊销所有Token，请重新登录');
         }
       }
-    } catch (error) {
-      // 安全检测失败不应阻断Token创建，但要记录
-      console.error('[TokenController] 安全检测失败:', error);
-    }
 
-    // 2. 如果有父Token，检测重用攻击
-    if (parentId) {
-      try {
-        const reuseReport = await this.securityService.detectTokenReuse(parentId);
-        if (reuseReport.reused) {
-          console.error(`[TokenController] 检测到Token重用攻击:`, reuseReport);
-          await this.tokenService.revokeAllUserTokens(userId);
-          throw new Error('检测到Token重用攻击，已吊销所有Token');
-        }
-      } catch (error) {
-        console.error('[TokenController] Token重用检测失败:', error);
+      // 之后再看是否存在 Token 重用攻击
+      if (parentId && reuseReport && reuseReport.reused) {
+        log('error', `[TokenController] 检测到Token重用攻击:`, reuseReport);
+        await this.tokenService.revokeAllUserTokens(userId);
+        throw new Error('检测到Token重用攻击，已吊销所有Token');
       }
+    } catch (error) {
+      // 任何上述分支抛错均按原逻辑直接中断创建
+      throw error;
     }
 
-    // 3. 创建新Token
-    return this.tokenService.createToken(userId, deviceInfo, clientId, parentId, expiresIn);
+    // 3. 创建新Token（逻辑保持不变）
+    return this.tokenService.createToken(
+      userId,
+      deviceInfo,
+      clientId,
+      parentId,
+      expiresIn
+    );
   }
 
   /**
@@ -161,24 +204,21 @@ export class TokenServiceController {
    * @returns {Promise<Object>}
    */
   async performMaintenance(options = {}) {
-    const { 
-      cleanupExpired = true,
-      batchSize = 1000 
-    } = options;
+    const { cleanupExpired = true, batchSize = 1000 } = options;
 
     const results = {};
-
     try {
       if (cleanupExpired) {
-        const cleaned = await this.sessionService.cleanupExpiredSessions(batchSize);
+        const cleaned = await this.sessionService.cleanupExpiredSessions(
+          batchSize
+        );
         results.expiredSessionsCleaned = cleaned;
       }
 
-      console.log('[TokenController] 维护任务完成:', results);
+      log('info', '[TokenController] 维护任务完成:', results);
       return results;
-
     } catch (error) {
-      console.error('[TokenController] 维护任务失败:', error);
+      log('error', '[TokenController] 维护任务失败:', error);
       throw new Error('维护任务执行失败');
     }
   }

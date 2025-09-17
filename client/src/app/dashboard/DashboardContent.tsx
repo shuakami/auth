@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type FormEvent,
 } from 'react';
 import dynamic from 'next/dynamic';
@@ -35,21 +36,22 @@ import {
   SecuritySection,
   ConnectionsSection,
 } from './DashboardSections';
-import LocalLoadingSpinner from './components/LocalLoadingSpinner'; // 导入新的局部加载组件
+import LocalLoadingSpinner from './components/LocalLoadingSpinner';
 
-// 动态导入管理组件
-const UserManagement = dynamic(() => import('./components/UserManagement'), { 
+// 动态导入管理组件（按需加载）
+const UserManagement = dynamic(() => import('./components/UserManagement'), {
   ssr: false,
-  loading: () => <LocalLoadingSpinner /> // 使用新的局部加载组件
+  loading: () => <LocalLoadingSpinner />,
+});
+const OAuthManagement = dynamic(() => import('./components/OAuthManagement'), {
+  ssr: false,
+  loading: () => <LocalLoadingSpinner />,
 });
 
-// 动态导入OAuth管理组件
-const OAuthManagement = dynamic(() => import('./components/OAuthManagement'), { 
+// 动态导入 ConfirmModal（按需挂载）
+const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), {
   ssr: false,
-  loading: () => <LocalLoadingSpinner /> // 使用新的局部加载组件
 });
-
-const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), { ssr: false });
 
 /* -------------------------------------------------------------------------- */
 /* 小工具：错误信息抽取 & 统一弹窗打开                                         */
@@ -79,6 +81,8 @@ type ModalState = Record<ModalKey, boolean>;
 function modalReducer(state: ModalState, action: { type: 'open' | 'close'; key: ModalKey }): ModalState {
   return { ...state, [action.key]: action.type === 'open' };
 }
+
+type SectionKey = 'general' | 'security' | 'connections' | 'admin' | 'oauth';
 
 /* -------------------------------------------------------------------------- */
 /* 组件                                                                       */
@@ -120,22 +124,33 @@ interface FormState {
 
 export default function DashboardContent() {
   const { user, logout, checkAuth } = useAuth();
-  const popupCheckInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // 更稳健的定时器引用类型（兼容浏览器/Node）
+  const popupCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* --------------------------- 视口 / 分区切换 ---------------------------- */
   const [activeSection, setActiveSection] = useReducer(
-    (_: 'general' | 'security' | 'connections' | 'admin' | 'oauth', next: 'general' | 'security' | 'connections' | 'admin' | 'oauth') => next,
-    // 从localStorage恢复上次的选择，默认为'general'
-    (typeof window !== 'undefined' ? localStorage.getItem('dashboard-active-section') as any : null) || 'general',
+    (_: SectionKey, next: SectionKey) => next,
+    (typeof window !== 'undefined'
+      ? ((localStorage.getItem('dashboard-active-section') as SectionKey | null) ??
+        'general')
+      : 'general') as SectionKey,
   );
 
-  // 保存activeSection到localStorage
+  // 将 activeSection 写入 localStorage，但放到空闲时段，避免阻塞主线程
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard-active-section', activeSection);
+    if (typeof window === 'undefined') return;
+    const write = () => localStorage.setItem('dashboard-active-section', activeSection);
+    const w = window as any;
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(write);
+      return () => typeof w.cancelIdleCallback === 'function' && w.cancelIdleCallback(id);
+    } else {
+      const id = setTimeout(write, 0);
+      return () => clearTimeout(id);
     }
   }, [activeSection]);
-  
+
   /* --------------------------- 管理员权限检查 ---------------------------- */
   const [isAdmin, setIsAdmin] = useReducer((_: boolean, next: boolean) => next, false);
   useEffect(() => {
@@ -143,16 +158,30 @@ export default function DashboardContent() {
       .then(setIsAdmin)
       .catch(() => setIsAdmin(false));
   }, [user]);
-  const [isMobile, setIsMobile] = useReducer(() => window.matchMedia('(max-width: 1023px)').matches, false);
+
+  // 统一的移动端检测，兼容 addListener
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const mql = window.matchMedia('(max-width: 1023px)');
-    setIsMobile();
-    const l = () => setIsMobile();
-    mql.addEventListener('change', l);
-    return () => mql.removeEventListener('change', l);
+    const apply = () => setIsMobile(mql.matches);
+    apply();
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    } else {
+      // Safari/旧 WebView
+      // @ts-ignore
+      mql.addListener(onChange);
+      return () => {
+        // @ts-ignore
+        mql.removeListener(onChange);
+      };
+    }
   }, []);
 
-  /* --------------------------- 全局 form state --------------------------- */
+  /* --------------------------- 全局 modal state -------------------------- */
   const [modalOpen, setModalOpen] = useReducer(modalReducer, {
     pwd: false,
     setup2faPwd: false,
@@ -165,9 +194,10 @@ export default function DashboardContent() {
     delete: false,
   });
 
-  const openModal = (key: ModalKey) => setModalOpen({ type: 'open', key });
-  const closeModal = (key: ModalKey) => setModalOpen({ type: 'close', key });
+  const openModal = useCallback((key: ModalKey) => setModalOpen({ type: 'open', key }), []);
+  const closeModal = useCallback((key: ModalKey) => setModalOpen({ type: 'close', key }), []);
 
+  /* --------------------------- 全局 form state --------------------------- */
   const [form, setForm] = useReducer(
     (s: FormState, p: Partial<FormState>) => ({ ...s, ...p }),
     {
@@ -205,6 +235,12 @@ export default function DashboardContent() {
     },
   );
 
+  // 使用 ref 保持最新的状态供稳定 handler 读取，避免将 form/user 放入依赖
+  const formRef = useRef<FormState>(form);
+  const userRef = useRef<typeof user>(user);
+  useEffect(() => { formRef.current = form; }, [form]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   /* --------------------------- 副作用：剩余备份码 ------------------------- */
   useEffect(() => {
     if (user?.totp_enabled) {
@@ -224,11 +260,13 @@ export default function DashboardContent() {
   const monitorPopup = useCallback(
     (popup: Window | null) => {
       if (!popup) return;
-      popupCheckInterval.current && clearInterval(popupCheckInterval.current);
+      if (popupCheckInterval.current) clearInterval(popupCheckInterval.current);
       popupCheckInterval.current = setInterval(() => {
         if (!popup || popup.closed) {
-          popupCheckInterval.current && clearInterval(popupCheckInterval.current);
-          popupCheckInterval.current = null;
+          if (popupCheckInterval.current) {
+            clearInterval(popupCheckInterval.current);
+            popupCheckInterval.current = null;
+          }
           checkAuth();
         }
       }, 1000);
@@ -236,16 +274,26 @@ export default function DashboardContent() {
     [checkAuth],
   );
 
-  /* --------------------------- 所有 handler ------------------------------ */
+  /* --------------------------- 管理模块预取 ------------------------------- */
+  const preloadAdminChunks = useCallback(() => {
+    if (!isAdmin) return;
+    // 仅预热，不改变现有逻辑
+    void import('./components/UserManagement');
+    void import('./components/OAuthManagement');
+  }, [isAdmin]);
 
-  /* 删除账户 */
-  const handleDeleteAccount = async (e?: FormEvent) => {
+  /* --------------------------- 所有 handler（稳定引用） ------------------- */
+
+  // 删除账户
+  const handleDeleteAccount = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ deleteLoading: true, deleteMsg: '' });
     try {
+      const u = userRef.current;
+      const f = formRef.current;
       await deleteAccount({
-        password: user?.has_password ? form.deletePwd : undefined,
-        code: user?.totp_enabled ? form.deleteCode : undefined,
+        password: u?.has_password ? f.deletePwd : undefined,
+        code: u?.totp_enabled ? f.deleteCode : undefined,
       });
       closeModal('delete');
       alert('账号已成功删除。');
@@ -255,16 +303,18 @@ export default function DashboardContent() {
     } finally {
       setForm({ deleteLoading: false });
     }
-  };
+  }, [closeModal, logout]);
 
-  /* 密码 */
-  const handlePwdSubmit = async (e?: FormEvent) => {
+  // 修改/设置密码
+  const handlePwdSubmit = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
-    if (!user) return;
+    const u = userRef.current;
+    if (!u) return;
     setForm({ pwdLoading: true, pwdMsg: '' });
     try {
+      const f = formRef.current;
       await updatePassword(
-        user.has_password ? { oldPassword: form.oldPwd, newPassword: form.newPwd } : { newPassword: form.newPwd },
+        u.has_password ? { oldPassword: f.oldPwd, newPassword: f.newPwd } : { newPassword: f.newPwd },
       );
       setForm({ pwdMsg: '密码设置成功！' });
       setTimeout(() => {
@@ -276,14 +326,15 @@ export default function DashboardContent() {
     } finally {
       setForm({ pwdLoading: false });
     }
-  };
+  }, [closeModal]);
 
-  /* 启用 2FA 第一步：输入密码 */
-  const handleSetup2faPwd = async (e?: FormEvent) => {
+  // 启用 2FA 第一步：输入密码
+  const handleSetup2faPwd = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ setup2faPwdMsg: '' });
     try {
-      const res = await setup2FA(form.setup2faPwd);
+      const f = formRef.current;
+      const res = await setup2FA(f.setup2faPwd);
       setForm({
         qr: res.data.qr,
         secret: res.data.secret,
@@ -295,14 +346,15 @@ export default function DashboardContent() {
     } catch (err) {
       setForm({ setup2faPwdMsg: getErrMsg(err, '密码验证失败') });
     }
-  };
+  }, [closeModal, openModal]);
 
-  /* 启用 2FA 第二步：输入验证码 */
-  const handleVerify2FA = async (e?: FormEvent) => {
+  // 启用 2FA 第二步：输入验证码
+  const handleVerify2FA = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ totpLoading: true, totpMsg: '' });
     try {
-      await verify2FA({ token: form.totpToken });
+      const f = formRef.current;
+      await verify2FA({ email: user?.email || '', totp: f.totpToken });
       setForm({ totpMsg: '2FA 启用成功！正在刷新...' });
       setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
@@ -310,17 +362,19 @@ export default function DashboardContent() {
     } finally {
       setForm({ totpLoading: false });
     }
-  };
+  }, []);
 
-  /* 生成新备份码 */
-  const handleGenBackupCodes = async () => {
+  // 生成新备份码（打开密码验证弹窗）
+  const handleGenBackupCodes = useCallback(() => {
     openModal('genBackupPwd');
-  };
-  const handleGenBackupPwdSubmit = async (e?: FormEvent) => {
+  }, [openModal]);
+
+  const handleGenBackupPwdSubmit = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ genBackupPwdMsg: '' });
     try {
-      const res = await generateBackupCodes(form.genBackupPwd);
+      const f = formRef.current;
+      const res = await generateBackupCodes(f.genBackupPwd);
       setForm({
         backupCodes: res.data.codes,
         backupMsg: '新备份码已生成，请妥善保存！',
@@ -332,14 +386,18 @@ export default function DashboardContent() {
     } catch (err) {
       setForm({ genBackupPwdMsg: getErrMsg(err, '密码验证失败') });
     }
-  };
+  }, [closeModal, openModal]);
 
-  /* 关闭 2FA */
-  const handleDisable2FA = async (e?: FormEvent) => {
+  // 关闭 2FA
+  const handleDisable2FA = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ disable2faLoading: true, disable2faMsg: '' });
     try {
-      await disable2FA({ token: form.totpToken || undefined, backupCode: form.disableBackupCode || undefined });
+      const f = formRef.current;
+      await disable2FA({
+        token: f.totpToken || undefined,
+        backupCode: f.disableBackupCode || undefined,
+      });
       setForm({ disable2faMsg: '2FA已关闭，正在刷新...' });
       setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
@@ -347,14 +405,15 @@ export default function DashboardContent() {
     } finally {
       setForm({ disable2faLoading: false });
     }
-  };
+  }, []);
 
-  /* 用户名 */
-  const handleUsernameSubmit = async (e?: FormEvent) => {
+  // 用户名
+  const handleUsernameSubmit = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ usernameLoading: true, usernameMsg: '' });
     try {
-      await updateUsername(form.newUsername);
+      const f = formRef.current;
+      await updateUsername(f.newUsername);
       setForm({ usernameMsg: '用户名设置成功！' });
       await checkAuth();
       setTimeout(() => {
@@ -366,14 +425,15 @@ export default function DashboardContent() {
     } finally {
       setForm({ usernameLoading: false });
     }
-  };
+  }, [checkAuth, closeModal]);
 
-  /* 更换邮箱 */
-  const handleEmailSubmit = async (e?: FormEvent) => {
+  // 更换邮箱
+  const handleEmailSubmit = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     setForm({ emailLoading: true, emailMsg: '' });
     try {
-      const r = await updateEmail({ newEmail: form.newEmail, password: form.emailPwd });
+      const f = formRef.current;
+      const r = await updateEmail({ newEmail: f.newEmail, password: f.emailPwd });
       setForm({ emailMsg: r.data.message || '验证邮件已发送至新邮箱，请查收。' });
       await checkAuth();
       setTimeout(() => {
@@ -385,11 +445,17 @@ export default function DashboardContent() {
     } finally {
       setForm({ emailLoading: false });
     }
-  };
+  }, [checkAuth, closeModal]);
 
-  /* OAuth 绑定 */
-  const handleBindGithub = () => monitorPopup(window.open('/api/github', 'github_oauth', 'width=1000,height=700'));
-  const handleBindGoogle = () => monitorPopup(window.open('/api/google', 'google_oauth', 'width=1000,height=700'));
+  // OAuth 绑定
+  const handleBindGithub = useCallback(
+    () => monitorPopup(window.open('/api/github', 'github_oauth', 'width=1000,height=700')),
+    [monitorPopup],
+  );
+  const handleBindGoogle = useCallback(
+    () => monitorPopup(window.open('/api/google', 'google_oauth', 'width=1000,height=700')),
+    [monitorPopup],
+  );
 
   /* --------------------------- render helpers ---------------------------- */
   const renderEmailStatus = useCallback(
@@ -408,7 +474,6 @@ export default function DashboardContent() {
 
   /* --------------------------- mainContent ------------------------------- */
   const mainContent = useMemo(() => {
-    // 当用户信息仍在加载时，显示主加载指示器
     if (!user) return <LoadingIndicator />;
 
     const general = (
@@ -448,8 +513,6 @@ export default function DashboardContent() {
     const admin = isAdmin ? <UserManagement /> : null;
     const oauth = isAdmin ? <OAuthManagement /> : null;
 
-    if (isMobile) return <>{general}{security}{connections}{admin}{oauth}</>;
-
     switch (activeSection) {
       case 'general':
         return general;
@@ -462,15 +525,12 @@ export default function DashboardContent() {
       case 'oauth':
         return oauth;
       default:
-        // 添加一个检查，如果用户仍在加载中，显示一个加载指示器
-        if (!user) return <LoadingIndicator />;
-        return null;
+        return general;
     }
   }, [
     user,
-    isMobile,
-    activeSection,
     isAdmin,
+    activeSection,
     form.showUserId,
     form.backupCount,
     form.backupMsg,
@@ -478,6 +538,7 @@ export default function DashboardContent() {
     handleBindGithub,
     handleBindGoogle,
     handleGenBackupCodes,
+    openModal,
   ]);
 
   /* --------------------------- render 页面 ------------------------------- */
@@ -486,30 +547,114 @@ export default function DashboardContent() {
       <Header user={user} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-12">
-          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">用户中心</h1>
-          <p className="mt-2 text-base text-neutral-500 dark:text-zinc-400">管理您的账户设置和偏好</p>
+        <div className="mb-6 sm:mb-12">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">用户中心</h1>
+          <p className="mt-2 text-sm sm:text-base text-neutral-500 dark:text-zinc-400">管理您的账户设置和偏好</p>
         </div>
 
+        {/* 移动端分段导航（仅在小屏显示），吸顶、横向滚动 */}
+        <nav className="sticky top-16 z-20 -mx-4 mb-6 border-b border-neutral-200 bg-white/90 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto py-2">
+            <button
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                activeSection === 'general'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+              }`}
+              onClick={() => setActiveSection('general')}
+            >
+              通用设置
+            </button>
+            <button
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                activeSection === 'security'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+              }`}
+              onClick={() => setActiveSection('security')}
+            >
+              安全设置
+            </button>
+            <button
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                activeSection === 'connections'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+              }`}
+              onClick={() => setActiveSection('connections')}
+            >
+              账号绑定
+            </button>
+            {isAdmin && (
+              <>
+                <button
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                    activeSection === 'admin'
+                      ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                      : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                  }`}
+                  onClick={() => setActiveSection('admin')}
+                  onMouseEnter={preloadAdminChunks}
+                  onFocus={preloadAdminChunks}
+                >
+                  用户管理
+                </button>
+                <button
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                    activeSection === 'oauth'
+                      ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                      : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                  }`}
+                  onClick={() => setActiveSection('oauth')}
+                  onMouseEnter={preloadAdminChunks}
+                  onFocus={preloadAdminChunks}
+                >
+                  OAuth应用
+                </button>
+              </>
+            )}
+          </div>
+        </nav>
+
         <div className="flex gap-8">
+          {/* 桌面端侧边导航 */}
           <nav className="hidden w-56 shrink-0 lg:block">
             <div className="sticky top-24 space-y-1">
-              <NavItem active={activeSection === 'general'} onClick={() => setActiveSection('general')}>
+              <NavItem
+                active={activeSection === 'general'}
+                onClick={() => setActiveSection('general')}
+              >
                 通用设置
               </NavItem>
-              <NavItem active={activeSection === 'security'} onClick={() => setActiveSection('security')}>
+              <NavItem
+                active={activeSection === 'security'}
+                onClick={() => setActiveSection('security')}
+              >
                 安全设置
               </NavItem>
-              <NavItem active={activeSection === 'connections'} onClick={() => setActiveSection('connections')}>
+              <NavItem
+                active={activeSection === 'connections'}
+                onClick={() => setActiveSection('connections')}
+              >
                 账号绑定
               </NavItem>
               {isAdmin && (
-                <NavItem active={activeSection === 'admin'} onClick={() => setActiveSection('admin')}>
+                <NavItem
+                  active={activeSection === 'admin'}
+                  onClick={() => setActiveSection('admin')}
+                  onMouseEnter={preloadAdminChunks}
+                  onFocus={preloadAdminChunks}
+                >
                   用户管理
                 </NavItem>
               )}
               {isAdmin && (
-                <NavItem active={activeSection === 'oauth'} onClick={() => setActiveSection('oauth')}>
+                <NavItem
+                  active={activeSection === 'oauth'}
+                  onClick={() => setActiveSection('oauth')}
+                  onMouseEnter={preloadAdminChunks}
+                  onFocus={preloadAdminChunks}
+                >
                   OAuth应用
                 </NavItem>
               )}
@@ -522,286 +667,367 @@ export default function DashboardContent() {
 
       <Footer />
 
-      {/* --------------------------- ConfirmModal 列表 ----------------------- */}
+      {/* --------------------------- ConfirmModal（按需挂载） ---------------- */}
       {/* 密码 */}
-      <ConfirmModal
-        isOpen={modalOpen.pwd}
-        onClose={() => closeModal('pwd')}
-        onConfirm={handlePwdSubmit}
-        title={user?.has_password ? '修改密码' : '设置密码'}
-        message={
-          <form className="space-y-4" onSubmit={handlePwdSubmit}>
-            {user?.has_password && (
+      {modalOpen.pwd && (
+        <ConfirmModal
+          isOpen={modalOpen.pwd}
+          onClose={() => closeModal('pwd')}
+          onConfirm={handlePwdSubmit}
+          title={user?.has_password ? '修改密码' : '设置密码'}
+          message={
+            <form className="space-y-4" onSubmit={handlePwdSubmit}>
+              {user?.has_password && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">旧密码</label>
+                  <Input type="password" value={form.oldPwd} onChange={(e) => setForm({ oldPwd: e.target.value })} required />
+                </div>
+              )}
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">旧密码</label>
-                <Input type="password" value={form.oldPwd} onChange={(e) => setForm({ oldPwd: e.target.value })} required />
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新密码</label>
+                <Input type="password" value={form.newPwd} onChange={(e) => setForm({ newPwd: e.target.value })} required />
               </div>
-            )}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新密码</label>
-              <Input type="password" value={form.newPwd} onChange={(e) => setForm({ newPwd: e.target.value })} required />
-            </div>
-            {form.pwdMsg && (
-              <div className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {form.pwdMsg}
-              </div>
-            )}
-          </form>
-        }
-        type="default"
-        confirmText={form.pwdLoading ? '提交中...' : '提交'}
-        cancelText="取消"
-        isLoading={form.pwdLoading}
-      />
+              {form.pwdMsg && (
+                <div
+                  className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  aria-live="polite"
+                >
+                  {form.pwdMsg}
+                </div>
+              )}
+            </form>
+          }
+          type="default"
+          confirmText={form.pwdLoading ? '提交中...' : '提交'}
+          cancelText="取消"
+          isLoading={form.pwdLoading}
+        />
+      )}
 
       {/* 启用 2FA — 输入密码 */}
-      <ConfirmModal
-        isOpen={modalOpen.setup2faPwd}
-        onClose={() => closeModal('setup2faPwd')}
-        onConfirm={handleSetup2faPwd}
-        title="验证密码以启用 2FA"
-        message={
-          <form className="space-y-4" onSubmit={handleSetup2faPwd}>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
-              <Input
-                type="password"
-                value={form.setup2faPwd}
-                onChange={(e) => setForm({ setup2faPwd: e.target.value })}
-                required
-                placeholder="请输入当前密码"
-              />
-            </div>
-            {form.setup2faPwdMsg && <div className="text-sm text-red-600 dark:text-red-400">{form.setup2faPwdMsg}</div>}
-          </form>
-        }
-        type="default"
-        confirmText="验证"
-        cancelText="取消"
-      />
+      {modalOpen.setup2faPwd && (
+        <ConfirmModal
+          isOpen={modalOpen.setup2faPwd}
+          onClose={() => closeModal('setup2faPwd')}
+          onConfirm={handleSetup2faPwd}
+          title="验证密码以启用 2FA"
+          message={
+            <form className="space-y-4" onSubmit={handleSetup2faPwd}>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <Input
+                  type="password"
+                  value={form.setup2faPwd}
+                  onChange={(e) => setForm({ setup2faPwd: e.target.value })}
+                  required
+                  placeholder="请输入当前密码"
+                />
+              </div>
+              {form.setup2faPwdMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.setup2faPwdMsg}</div>}
+            </form>
+          }
+          type="default"
+          confirmText="验证"
+          cancelText="取消"
+        />
+      )}
 
       {/* 启用 2FA — 扫码 & 输入验证码 */}
-      <ConfirmModal
-        isOpen={modalOpen.totp}
-        onClose={() => closeModal('totp')}
-        onConfirm={handleVerify2FA}
-        title="启用二步验证"
-        message={
-          <form className="space-y-4" onSubmit={handleVerify2FA}>
-            <p className="text-sm text-neutral-600 dark:text-zinc-400">请使用 Authenticator 扫描二维码或手动输入密钥。</p>
-            {form.qr && (
-              <Image src={form.qr} alt="QR Code" width={160} height={160} className="mx-auto block rounded border border-neutral-300 p-1 dark:border-zinc-600" />
-            )}
-            <div className="text-center">
-              <label className="block text-xs font-medium text-neutral-500 dark:text-zinc-500">密钥</label>
-              <span className="select-all font-mono text-sm text-neutral-700 dark:text-zinc-300">{form.secret}</span>
-            </div>
-            <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
-              <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">重要提示：请妥善保存以下备份码！</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+      {modalOpen.totp && (
+        <ConfirmModal
+          isOpen={modalOpen.totp}
+          onClose={() => closeModal('totp')}
+          onConfirm={handleVerify2FA}
+          title="启用二步验证"
+          message={
+            <form className="space-y-4" onSubmit={handleVerify2FA}>
+              <p className="text-sm text-neutral-600 dark:text-zinc-400">请使用 Authenticator 扫描二维码或手动输入密钥。</p>
+              {form.qr && (
+                <Image
+                  src={form.qr}
+                  alt="QR Code"
+                  width={160}
+                  height={160}
+                  className="mx-auto block rounded border border-neutral-300 p-1 dark:border-zinc-600"
+                />
+              )}
+              <div className="text-center">
+                <label className="block text-xs font-medium text-neutral-500 dark:text-zinc-500">密钥</label>
+                <span className="select-all font-mono text-sm text-neutral-700 dark:text-zinc-300">{form.secret}</span>
+              </div>
+              <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
+                <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">重要提示：请妥善保存以下备份码！</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {form.backupCodes.map((c: string) => (
+                    <span key={c} className="select-all rounded px-2 py-0.5 font-mono text-xs text-neutral-700 dark:text-zinc-200">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">输入 6 位验证码</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.totpToken}
+                  onChange={(e) => setForm({ totpToken: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                  maxLength={6}
+                  required
+                  pattern="\d{6}"
+                  placeholder="123456"
+                />
+              </div>
+              {form.totpMsg && (
+                <div
+                  className={`text-sm ${form.totpMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  aria-live="polite"
+                >
+                  {form.totpMsg}
+                </div>
+              )}
+            </form>
+          }
+          type="default"
+          confirmText={form.totpLoading ? '验证中...' : '完成启用'}
+          cancelText="取消"
+          isLoading={form.totpLoading}
+        />
+      )}
+
+      {/* 新备份码展示 */}
+      {modalOpen.backupCodes && (
+        <ConfirmModal
+          isOpen={modalOpen.backupCodes}
+          onClose={() => closeModal('backupCodes')}
+          onConfirm={() => closeModal('backupCodes')}
+          title="新备份码"
+          message={
+            <div className="space-y-4">
+              <p className="text-sm text-neutral-600 dark:text-zinc-400">已生成新的备份码，请妥善保存。</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-neutral-200 p-3 dark:border-zinc-700">
                 {form.backupCodes.map((c: string) => (
-                  <span key={c} className="select-all rounded px-2 py-0.5 font-mono text-xs text-neutral-700 dark:text-zinc-200">
+                  <span key={c} className="select-all rounded bg-neutral-100 px-2 py-0.5 font-mono text-sm text-neutral-700 dark:bg-zinc-700 dark:text-zinc-200">
                     {c}
                   </span>
                 ))}
               </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">输入 6 位验证码</label>
-              <Input
-                type="text"
-                value={form.totpToken}
-                onChange={(e) => setForm({ totpToken: e.target.value })}
-                maxLength={6}
-                required
-                pattern="\d{6}"
-                placeholder="123456"
-              />
-            </div>
-            {form.totpMsg && (
-              <div className={`text-sm ${form.totpMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {form.totpMsg}
-              </div>
-            )}
-          </form>
-        }
-        type="default"
-        confirmText={form.totpLoading ? '验证中...' : '完成启用'}
-        cancelText="取消"
-        isLoading={form.totpLoading}
-      />
-
-      {/* 新备份码展示 */}
-      <ConfirmModal
-        isOpen={modalOpen.backupCodes}
-        onClose={() => closeModal('backupCodes')}
-        onConfirm={() => closeModal('backupCodes')}
-        title="新备份码"
-        message={
-          <div className="space-y-4">
-            <p className="text-sm text-neutral-600 dark:text-zinc-400">已生成新的备份码，请妥善保存。</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-neutral-200 p-3 dark:border-zinc-700">
-              {form.backupCodes.map((c: string) => (
-                <span key={c} className="select-all rounded bg-neutral-100 px-2 py-0.5 font-mono text-sm text-neutral-700 dark:bg-zinc-700 dark:text-zinc-200">
-                  {c}
-                </span>
-              ))}
-            </div>
-          </div>
-        }
-        type="default"
-        confirmText="我知道了"
-        cancelText="关闭"
-      />
+          }
+          type="default"
+          confirmText="我知道了"
+          cancelText="关闭"
+        />
+      )}
 
       {/* 关闭 2FA */}
-      <ConfirmModal
-        isOpen={modalOpen.disable2fa}
-        onClose={() => closeModal('disable2fa')}
-        onConfirm={handleDisable2FA}
-        title="关闭二步验证"
-        message={
-          <form className="space-y-4" onSubmit={handleDisable2FA}>
-            <p className="text-sm text-neutral-600 dark:text-zinc-400">输入 6 位验证码或一个备份码以关闭 2FA。</p>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">验证码 / 备份码</label>
-              <Input
-                type="text"
-                value={form.totpToken || form.disableBackupCode}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  /^\d{0,6}$/.test(v)
-                    ? setForm({ totpToken: v, disableBackupCode: '' })
-                    : setForm({ disableBackupCode: v, totpToken: '' });
-                }}
-                placeholder="6 位验证码或备份码"
-                required
-              />
-            </div>
-            {form.disable2faMsg && (
-              <div className={`text-sm ${form.disable2faMsg.includes('成功') || form.disable2faMsg.includes('刷新') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {form.disable2faMsg}
+      {modalOpen.disable2fa && (
+        <ConfirmModal
+          isOpen={modalOpen.disable2fa}
+          onClose={() => closeModal('disable2fa')}
+          onConfirm={handleDisable2FA}
+          title="关闭二步验证"
+          message={
+            <form className="space-y-4" onSubmit={handleDisable2FA}>
+              <p className="text-sm text-neutral-600 dark:text-zinc-400">输入 6 位验证码或一个备份码以关闭 2FA。</p>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">验证码 / 备份码</label>
+                <Input
+                  type="text"
+                  value={form.totpToken || form.disableBackupCode}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // 数字视为 TOTP，其余视为备份码
+                    const onlyDigits = v.replace(/\D/g, '').slice(0, 6);
+                    if (onlyDigits === v) {
+                      setForm({ totpToken: onlyDigits, disableBackupCode: '' });
+                    } else {
+                      setForm({ disableBackupCode: v, totpToken: '' });
+                    }
+                  }}
+                  placeholder="6 位验证码或备份码"
+                  required
+                />
               </div>
-            )}
-          </form>
-        }
-        type="danger"
-        confirmText={form.disable2faLoading ? '提交中...' : '确认关闭'}
-        cancelText="取消"
-        isLoading={form.disable2faLoading}
-      />
+              {form.disable2faMsg && (
+                <div
+                  className={`text-sm ${
+                    form.disable2faMsg.includes('成功') || form.disable2faMsg.includes('刷新')
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                  aria-live="polite"
+                >
+                  {form.disable2faMsg}
+                </div>
+              )}
+            </form>
+          }
+          type="danger"
+          confirmText={form.disable2faLoading ? '提交中...' : '确认关闭'}
+          cancelText="取消"
+          isLoading={form.disable2faLoading}
+        />
+      )}
 
       {/* 修改用户名 */}
-      <ConfirmModal
-        isOpen={modalOpen.username}
-        onClose={() => closeModal('username')}
-        onConfirm={handleUsernameSubmit}
-        title={user?.username ? '修改用户名' : '设置用户名'}
-        message={
-          <form className="space-y-4" onSubmit={handleUsernameSubmit}>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">用户名</label>
-              <Input type="text" value={form.newUsername} onChange={(e) => setForm({ newUsername: e.target.value })} required placeholder="请输入新用户名" />
-              <div className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">可包含字母、数字、下划线和连字符</div>
-            </div>
-            {form.usernameMsg && (
-              <div className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {form.usernameMsg}
+      {modalOpen.username && (
+        <ConfirmModal
+          isOpen={modalOpen.username}
+          onClose={() => closeModal('username')}
+          onConfirm={handleUsernameSubmit}
+          title={user?.username ? '修改用户名' : '设置用户名'}
+          message={
+            <form className="space-y-4" onSubmit={handleUsernameSubmit}>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">用户名</label>
+                <Input
+                  type="text"
+                  value={form.newUsername}
+                  onChange={(e) => setForm({ newUsername: e.target.value })}
+                  required
+                  placeholder="请输入新用户名"
+                />
+                <div className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">可包含字母、数字、下划线和连字符</div>
               </div>
-            )}
-          </form>
-        }
-        type="default"
-        confirmText={form.usernameLoading ? '提交中...' : '提交'}
-        cancelText="取消"
-        isLoading={form.usernameLoading}
-      />
+              {form.usernameMsg && (
+                <div
+                  className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  aria-live="polite"
+                >
+                  {form.usernameMsg}
+                </div>
+              )}
+            </form>
+          }
+          type="default"
+          confirmText={form.usernameLoading ? '提交中...' : '提交'}
+          cancelText="取消"
+          isLoading={form.usernameLoading}
+        />
+      )}
 
       {/* 生成新备份码前密码验证 */}
-      <ConfirmModal
-        isOpen={modalOpen.genBackupPwd}
-        onClose={() => closeModal('genBackupPwd')}
-        onConfirm={handleGenBackupPwdSubmit}
-        title="验证密码以生成新备份码"
-        message={
-          <form className="space-y-4" onSubmit={handleGenBackupPwdSubmit}>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
-              <Input
-                type="password"
-                value={form.genBackupPwd}
-                onChange={(e) => setForm({ genBackupPwd: e.target.value })}
-                required
-                placeholder="请输入当前密码"
-              />
-            </div>
-            {form.genBackupPwdMsg && <div className="text-sm text-red-600 dark:text-red-400">{form.genBackupPwdMsg}</div>}
-          </form>
-        }
-        type="default"
-        confirmText="验证"
-        cancelText="取消"
-      />
-
-      {/* 更换邮箱 */}
-      <ConfirmModal
-        isOpen={modalOpen.email}
-        onClose={() => closeModal('email')}
-        onConfirm={handleEmailSubmit}
-        title="更换邮箱"
-        message={
-          <form className="space-y-4" onSubmit={handleEmailSubmit}>
-            <p className="text-sm text-neutral-600 dark:text-zinc-400">更换邮箱后需通过新邮箱验证。</p>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新邮箱地址</label>
-              <Input type="email" value={form.newEmail} onChange={(e) => setForm({ newEmail: e.target.value })} required placeholder="请输入新邮箱" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
-              <Input type="password" value={form.emailPwd} onChange={(e) => setForm({ emailPwd: e.target.value })} required placeholder="请输入当前密码" />
-            </div>
-            {form.emailMsg && (
-              <div className={`text-sm ${form.emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                {form.emailMsg}
-              </div>
-            )}
-          </form>
-        }
-        type="default"
-        confirmText={form.emailLoading ? '提交中...' : '提交'}
-        cancelText="取消"
-        isLoading={form.emailLoading}
-      />
-
-      {/* 删除账户 */}
-      <ConfirmModal
-        isOpen={modalOpen.delete}
-        onClose={() => closeModal('delete')}
-        onConfirm={handleDeleteAccount}
-        title="确认删除账户"
-        message={
-          <form className="space-y-4" onSubmit={handleDeleteAccount}>
-            <p className="text-sm text-red-600 dark:text-red-400">此操作无法撤销！请输入您的凭据以确认删除。</p>
-            {user?.has_password && (
+      {modalOpen.genBackupPwd && (
+        <ConfirmModal
+          isOpen={modalOpen.genBackupPwd}
+          onClose={() => closeModal('genBackupPwd')}
+          onConfirm={handleGenBackupPwdSubmit}
+          title="验证密码以生成新备份码"
+          message={
+            <form className="space-y-4" onSubmit={handleGenBackupPwdSubmit}>
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
-                <Input type="password" value={form.deletePwd} onChange={(e) => setForm({ deletePwd: e.target.value })} required placeholder="请输入当前密码" autoFocus />
+                <Input
+                  type="password"
+                  value={form.genBackupPwd}
+                  onChange={(e) => setForm({ genBackupPwd: e.target.value })}
+                  required
+                  placeholder="请输入当前密码"
+                />
               </div>
-            )}
-            {user?.totp_enabled && (
+              {form.genBackupPwdMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.genBackupPwdMsg}</div>}
+            </form>
+          }
+          type="default"
+          confirmText="验证"
+          cancelText="取消"
+        />
+      )}
+
+      {/* 更换邮箱 */}
+      {modalOpen.email && (
+        <ConfirmModal
+          isOpen={modalOpen.email}
+          onClose={() => closeModal('email')}
+          onConfirm={handleEmailSubmit}
+          title="更换邮箱"
+          message={
+            <form className="space-y-4" onSubmit={handleEmailSubmit}>
+              <p className="text-sm text-neutral-600 dark:text-zinc-400">更换邮箱后需通过新邮箱验证。</p>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">2FA 验证码 / 备份码</label>
-                <Input type="text" value={form.deleteCode} onChange={(e) => setForm({ deleteCode: e.target.value })} required placeholder="6 位验证码或备份码" />
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新邮箱地址</label>
+                <Input
+                  type="email"
+                  value={form.newEmail}
+                  onChange={(e) => setForm({ newEmail: e.target.value })}
+                  required
+                  placeholder="请输入新邮箱"
+                />
               </div>
-            )}
-            {form.deleteMsg && <div className="text-sm text-red-600 dark:text-red-400">{form.deleteMsg}</div>}
-          </form>
-        }
-        type="danger"
-        confirmText={form.deleteLoading ? '删除中...' : '确认删除'}
-        cancelText="取消"
-        isLoading={form.deleteLoading}
-      />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <Input
+                  type="password"
+                  value={form.emailPwd}
+                  onChange={(e) => setForm({ emailPwd: e.target.value })}
+                  required
+                  placeholder="请输入当前密码"
+                />
+              </div>
+              {form.emailMsg && (
+                <div
+                  className={`text-sm ${
+                    form.emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                  }`}
+                  aria-live="polite"
+                >
+                  {form.emailMsg}
+                </div>
+              )}
+            </form>
+          }
+          type="default"
+          confirmText={form.emailLoading ? '提交中...' : '提交'}
+          cancelText="取消"
+          isLoading={form.emailLoading}
+        />
+      )}
+
+      {/* 删除账户 */}
+      {modalOpen.delete && (
+        <ConfirmModal
+          isOpen={modalOpen.delete}
+          onClose={() => closeModal('delete')}
+          onConfirm={handleDeleteAccount}
+          title="确认删除账户"
+          message={
+            <form className="space-y-4" onSubmit={handleDeleteAccount}>
+              <p className="text-sm text-red-600 dark:text-red-400">此操作无法撤销！请输入您的凭据以确认删除。</p>
+              {user?.has_password && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                  <Input
+                    type="password"
+                    value={form.deletePwd}
+                    onChange={(e) => setForm({ deletePwd: e.target.value })}
+                    required
+                    placeholder="请输入当前密码"
+                    autoFocus
+                  />
+                </div>
+              )}
+              {user?.totp_enabled && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">2FA 验证码 / 备份码</label>
+                  <Input
+                    type="text"
+                    value={form.deleteCode}
+                    onChange={(e) => setForm({ deleteCode: e.target.value })}
+                    required
+                    placeholder="6 位验证码或备份码"
+                  />
+                </div>
+              )}
+              {form.deleteMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.deleteMsg}</div>}
+            </form>
+          }
+          type="danger"
+          confirmText={form.deleteLoading ? '删除中...' : '确认删除'}
+          cancelText="取消"
+          isLoading={form.deleteLoading}
+        />
+      )}
     </div>
   );
 }
