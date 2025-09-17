@@ -30,8 +30,16 @@ router.post('/logout', async (req, res) => {
   }
   await RefreshTokenService.revokeRefreshTokenById(dbToken.id, '用户主动登出');
   // 清除Cookie
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/' });
+  // 为了确保 Cookie 能被正确清除，必须使用与设置时完全一致的选项
+  const isProduction = NODE_ENV === 'production';
+  const clearOpts = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  };
+  res.clearCookie('accessToken', clearOpts);
+  res.clearCookie('refreshToken', clearOpts);
   res.json({ ok: true, message: '登出成功，Token已吊销' });
 });
 
