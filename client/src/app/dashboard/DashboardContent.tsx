@@ -550,13 +550,13 @@ export default function DashboardContent() {
     >
       <Header user={user} />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10 lg:px-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 lg:px-8">
         <header className="mb-8">
           <h1 className="text-[28px] font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">
             用户中心
           </h1>
           <p className="mt-2 text-sm text-neutral-500 dark:text-zinc-400">
-            管理你的账户、安全与绑定。桌面端采用编辑型排版，无“卡片套娃”。
+            管理你的账户、安全与绑定。
           </p>
         </header>
 

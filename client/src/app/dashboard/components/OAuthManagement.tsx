@@ -10,8 +10,7 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import LoadingIndicator from '@/components/ui/LoadingIndicator';
-import { 
+import {
   Plus,
   Settings,
   Trash2,
@@ -24,7 +23,6 @@ import {
   Smartphone,
   Monitor,
   Server,
-  Code,
   BookOpen,
   Shield
 } from 'lucide-react';
@@ -94,28 +92,24 @@ type StateAction = Partial<OAuthManagementState> & {
 
 function stateReducer(state: OAuthManagementState, action: StateAction): OAuthManagementState {
   switch (action.type) {
-    case 'TOGGLE_SECRET':
+    case 'TOGGLE_SECRET': {
       if (!action.appId) return state;
-      const newVisible = new Set(state.visibleSecrets);
-      if (newVisible.has(action.appId)) {
-        newVisible.delete(action.appId);
-      } else {
-        newVisible.add(action.appId);
-      }
-      return { ...state, visibleSecrets: newVisible };
-
-    case 'COPY_SECRET':
+      const next = new Set(state.visibleSecrets);
+      next.has(action.appId) ? next.delete(action.appId) : next.add(action.appId);
+      return { ...state, visibleSecrets: next };
+    }
+    case 'COPY_SECRET': {
       if (!action.appId) return state;
-      const newCopied = new Set(state.copiedSecrets);
-      newCopied.add(action.appId);
-      return { ...state, copiedSecrets: newCopied };
-
-    case 'CLEAR_COPY':
+      const next = new Set(state.copiedSecrets);
+      next.add(action.appId);
+      return { ...state, copiedSecrets: next };
+    }
+    case 'CLEAR_COPY': {
       if (!action.appId) return state;
-      const clearCopied = new Set(state.copiedSecrets);
-      clearCopied.delete(action.appId);
-      return { ...state, copiedSecrets: clearCopied };
-
+      const next = new Set(state.copiedSecrets);
+      next.delete(action.appId);
+      return { ...state, copiedSecrets: next };
+    }
     default:
       return { ...state, ...action };
   }
@@ -149,26 +143,15 @@ export default function OAuthManagement() {
       const result = await getOAuthApps();
       dispatch({ apps: result.apps, loading: false });
     } catch (error: any) {
-      dispatch({ 
-        loading: false, 
-        error: error.response?.data?.error || error.message || '加载OAuth应用失败' 
-      });
+      dispatch({ loading: false, error: error?.response?.data?.error || error?.message || '加载OAuth应用失败' });
     }
   }, []);
 
   // 创建应用
   const handleCreateApp = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
-    
-    if (!form.name.trim()) {
-      showMessage('error', '请输入应用名称');
-      return;
-    }
-
-    if (!form.redirectUris.trim()) {
-      showMessage('error', '请输入重定向URI');
-      return;
-    }
+    if (!form.name.trim()) return showMessage('error', '请输入应用名称');
+    if (!form.redirectUris.trim()) return showMessage('error', '请输入重定向URI');
 
     try {
       const createRequest: CreateOAuthAppRequest = {
@@ -179,18 +162,13 @@ export default function OAuthManagement() {
         scopes: form.scopes,
         issueRefreshToken: form.issueRefreshToken,
       };
-
-      const result = await createOAuthApp(createRequest);
-      
-      // 重新加载应用列表
+      await createOAuthApp(createRequest);
       await loadApps();
-      
       dispatch({ showCreateForm: false });
       setForm(initialForm);
       showMessage('success', '应用创建成功！');
-      
     } catch (error: any) {
-      showMessage('error', error.response?.data?.error || error.message || '创建应用失败');
+      showMessage('error', error?.response?.data?.error || error?.message || '创建应用失败');
     }
   }, [form, showMessage, loadApps]);
 
@@ -198,7 +176,6 @@ export default function OAuthManagement() {
   const handleUpdateApp = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     if (!state.editingApp || !state.editingAppForm) return;
-
     try {
       const updateRequest: UpdateOAuthAppRequest = {
         name: state.editingAppForm.name?.trim(),
@@ -207,15 +184,12 @@ export default function OAuthManagement() {
         scopes: state.editingAppForm.scopes,
         issueRefreshToken: state.editingAppForm.issueRefreshToken,
       };
-
       await updateOAuthApp(state.editingApp.id, updateRequest);
-      
       await loadApps();
-      
       dispatch({ editingApp: null, editingAppForm: null });
       showMessage('success', '应用更新成功');
     } catch (error: any) {
-      showMessage('error', error.response?.data?.error || '更新失败');
+      showMessage('error', error?.response?.data?.error || '更新失败');
     }
   }, [state.editingApp, state.editingAppForm, showMessage, loadApps]);
 
@@ -223,14 +197,11 @@ export default function OAuthManagement() {
   const handleDeleteApp = useCallback(async (appId: string) => {
     try {
       await deleteOAuthApp(appId);
-      
-      // 重新加载应用列表
       await loadApps();
-      
       dispatch({ showDeleteConfirm: null });
       showMessage('success', '应用删除成功');
     } catch (error: any) {
-      showMessage('error', error.response?.data?.error || error.message || '删除失败');
+      showMessage('error', error?.response?.data?.error || error?.message || '删除失败');
     }
   }, [showMessage, loadApps]);
 
@@ -239,92 +210,68 @@ export default function OAuthManagement() {
     try {
       await navigator.clipboard.writeText(text);
       dispatch({ type: 'COPY_SECRET', appId });
-      setTimeout(() => {
-        dispatch({ type: 'CLEAR_COPY', appId });
-      }, 2000);
-    } catch (error) {
+      setTimeout(() => dispatch({ type: 'CLEAR_COPY', appId }), 2000);
+    } catch {
       showMessage('error', '复制失败');
     }
   }, [showMessage]);
 
-  // 应用类型图标
+  // 应用类型图标/标签
   const getTypeIcon = useCallback((type: string) => {
-    const iconClass = "w-4 h-4";
+    const cls = 'w-4 h-4';
     switch (type) {
-      case 'web':
-        return <Globe className={iconClass} />;
-      case 'mobile':
-        return <Smartphone className={iconClass} />;
-      case 'desktop':
-        return <Monitor className={iconClass} />;
-      case 'server':
-        return <Server className={iconClass} />;
-      default:
-        return <Globe className={iconClass} />;
+      case 'web': return <Globe className={cls} />;
+      case 'mobile': return <Smartphone className={cls} />;
+      case 'desktop': return <Monitor className={cls} />;
+      case 'server': return <Server className={cls} />;
+      default: return <Globe className={cls} />;
     }
   }, []);
-
-  // 应用类型标签
   const getTypeLabel = useCallback((type: string) => {
-    const labels = {
-      web: 'Web应用',
-      mobile: '移动应用',
-      desktop: '桌面应用',
-      server: '服务端应用'
-    };
+    const labels = { web: 'Web应用', mobile: '移动应用', desktop: '桌面应用', server: '服务端应用' };
     return labels[type as keyof typeof labels] || type;
   }, []);
 
   // 初始化
-  useEffect(() => {
-    loadApps();
-  }, [loadApps]);
+  useEffect(() => { loadApps(); }, [loadApps]);
 
-  // 渲染骨架屏
+  // 骨架屏
   const AppsSkeleton = () => (
-    <div className="space-y-4">
+    <div className="divide-y divide-black/5 dark:divide-white/10">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="flex items-start justify-between mb-3">
+        <div key={i} className="py-4">
+          <div className="mb-3 flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-6 w-6 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+              <div className="h-6 w-6 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
               <div className="space-y-2">
-                <div className="h-4 w-24 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-                <div className="h-3 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+                <div className="h-4 w-28 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
+                <div className="h-3 w-20 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
               </div>
             </div>
             <div className="flex gap-2">
-              <div className="h-8 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-              <div className="h-8 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
+              <div className="h-8 w-16 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
+              <div className="h-8 w-16 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <div className="h-3 w-16 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-              <div className="h-6 w-full bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            </div>
-            <div className="space-y-1">
-              <div className="h-3 w-20 bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-              <div className="h-6 w-full bg-neutral-200 dark:bg-zinc-700 rounded animate-pulse"></div>
-            </div>
+            <div className="h-6 w-full rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
+            <div className="h-6 w-full rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
           </div>
         </div>
       ))}
     </div>
   );
 
-  // 渲染应用列表
+  // 列表
   const renderAppList = useMemo(() => {
-    if (state.loading) {
-      return <AppsSkeleton />;
-    }
+    if (state.loading) return <AppsSkeleton />;
 
     if (state.error) {
       return (
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 text-neutral-400 dark:text-zinc-500 mb-4">
-              <Shield className="w-full h-full" />
+            <div className="mx-auto mb-4 h-12 w-12 text-neutral-400 dark:text-zinc-500">
+              <Shield className="h-full w-full" />
             </div>
             <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
           </div>
@@ -336,17 +283,13 @@ export default function OAuthManagement() {
       return (
         <div className="flex items-center justify-center p-12">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 text-neutral-400 dark:text-zinc-500 mb-4">
-              <Shield className="w-full h-full" />
+            <div className="mx-auto mb-4 h-16 w-16 text-neutral-400 dark:text-zinc-500">
+              <Shield className="h-full w-full" />
             </div>
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-2">
-              还没有OAuth应用
-            </h3>
-            <p className="text-sm text-neutral-500 dark:text-zinc-400 mb-4">
-              创建您的第一个OAuth应用，开始集成单点登录功能
-            </p>
+            <h3 className="mb-2 text-lg font-medium text-neutral-900 dark:text-neutral-100">还没有 OAuth 应用</h3>
+            <p className="mb-4 text-sm text-neutral-500 dark:text-zinc-400">创建你的第一个应用以集成登录</p>
             <Button onClick={() => dispatch({ showCreateForm: true })}>
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               创建应用
             </Button>
           </div>
@@ -355,39 +298,31 @@ export default function OAuthManagement() {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="divide-y divide-black/5 dark:divide-white/10">
         {state.apps.map((app) => (
-          <div key={app.id} className="rounded-lg border border-neutral-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded bg-neutral-100 dark:bg-zinc-800 text-neutral-500">
-                    {getTypeIcon(app.type)}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
-                      {app.name}
-                    </h3>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-neutral-500 dark:text-zinc-400">
-                        {getTypeLabel(app.type)}
-                      </span>
-                      <span className={`text-xs ${
-                        app.isActive
-                          ? 'text-green-600 dark:text-green-500'
-                          : 'text-red-600 dark:text-red-500'
-                      }`}>
-                        {app.isActive ? '已启用' : '已禁用'}
-                      </span>
-                    </div>
+          <div key={app.id} className="py-4">
+            <div className="mb-3 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded bg-black/[0.04] p-1.5 text-neutral-600 dark:bg-white/[0.06] dark:text-zinc-300">
+                  {getTypeIcon(app.type)}
+                </div>
+                <div>
+                  <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">{app.name}</h3>
+                  <div className="mt-0.5 flex items-center gap-3">
+                    <span className="text-xs text-neutral-500 dark:text-zinc-400">{getTypeLabel(app.type)}</span>
+                    <span className={`text-xs ${app.isActive ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
+                      {app.isActive ? '已启用' : '已禁用'}
+                    </span>
                   </div>
                 </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => dispatch({ 
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    dispatch({
                       editingApp: app,
                       activeSettingsTab: 'general',
                       editingAppForm: {
@@ -396,94 +331,83 @@ export default function OAuthManagement() {
                         redirectUris: app.redirectUris.join('\n'),
                         scopes: app.scopes,
                         issueRefreshToken: app.issueRefreshToken,
-                      }
-                    })}
-                    className="h-8 px-3"
+                      },
+                    })
+                  }
+                  className="h-8 px-3"
+                >
+                  <Settings className="mr-1.5 h-4 w-4" />
+                  设置
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => dispatch({ showDeleteConfirm: app.id })}
+                  className="h-8 px-3 text-red-600 hover:bg-red-100 dark:text-red-500 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  删除
+                </Button>
+              </div>
+            </div>
+
+            {app.description && (
+              <p className="mb-3 text-sm text-neutral-600 dark:text-zinc-400">{app.description}</p>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-1 text-xs font-medium text-neutral-500 dark:text-zinc-500">Client ID</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-neutral-50 px-2 py-1.5 font-mono text-xs text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    {app.clientId}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => copyToClipboard(app.clientId, app.id)}
+                    className="h-7 w-7 p-0"
+                    aria-label="复制 Client ID"
                   >
-                    <Settings className="w-4 h-4 mr-1.5" />
-                    设置
+                    {state.copiedSecrets.has(app.id) ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 text-xs font-medium text-neutral-500 dark:text-zinc-500">Client Secret</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded bg-neutral-50 px-2 py-1.5 font-mono text-xs text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    {state.visibleSecrets.has(app.id) ? app.clientSecret : '••••••••••••••••'}
+                  </code>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: app.id })}
+                    className="h-7 w-7 p-0"
+                    aria-label="切换 Client Secret 可见性"
+                  >
+                    {state.visibleSecrets.has(app.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => dispatch({ showDeleteConfirm: app.id })}
-                    className="h-8 px-3 text-red-600 hover:bg-red-100 dark:text-red-500 dark:hover:bg-red-900/30"
+                    onClick={() => copyToClipboard(app.clientSecret, app.id)}
+                    className="h-7 w-7 p-0"
+                    aria-label="复制 Client Secret"
                   >
-                    <Trash2 className="w-4 h-4 mr-1.5" />
-                    删除
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
+            </div>
 
-              {app.description && (
-                <p className="text-sm text-neutral-600 dark:text-zinc-400 mb-3">
-                  {app.description}
-                </p>
-              )}
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
-                    Client ID
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 truncate">
-                      {app.clientId}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(app.clientId, app.id)}
-                      className="h-7 w-7 p-0 shrink-0"
-                    >
-                      {state.copiedSecrets.has(app.id) ? (
-                        <Check className="w-3.5 h-3.5" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
-                    Client Secret
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 break-all">
-                      {state.visibleSecrets.has(app.id) ? app.clientSecret : '••••••••••••••••'}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: app.id })}
-                      className="h-7 w-7 p-0 shrink-0"
-                    >
-                      {state.visibleSecrets.has(app.id) ? (
-                        <EyeOff className="w-3.5 h-3.5" />
-                      ) : (
-                        <Eye className="w-3.5 h-3.5" />
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(app.clientSecret, app.id)}
-                      className="h-7 w-7 p-0 shrink-0"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-neutral-500 dark:text-zinc-400">
+              <div className="flex items-center gap-4">
+                <span>使用 {app.usageCount} 次</span>
+                <span>范围: {app.scopes.join(', ')}</span>
               </div>
-
-              <div className="mt-3 flex items-center justify-between text-xs text-neutral-500 dark:text-zinc-400">
-                <div className="flex items-center gap-4">
-                  <span>使用 {app.usageCount} 次</span>
-                  <span>范围: {app.scopes.join(', ')}</span>
-                </div>
-                <span>{new Date(app.createdAt).toLocaleDateString('zh-CN')}</span>
-              </div>
+              <span>{new Date(app.createdAt).toLocaleDateString('zh-CN')}</span>
             </div>
           </div>
         ))}
@@ -493,30 +417,27 @@ export default function OAuthManagement() {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题和操作 */}
+      {/* 标题与操作 */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-            OAuth应用管理
-          </h3>
-          <p className="text-sm text-neutral-600 dark:text-zinc-400">
-            管理OAuth2/OIDC应用，实现第三方系统的单点登录集成
-          </p>
+          <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">OAuth 应用管理</h3>
+          <p className="text-sm text-neutral-600 dark:text-zinc-400">管理 OAuth2/OIDC 应用与凭证</p>
         </div>
-        
         <Button onClick={() => dispatch({ showCreateForm: true })}>
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           创建应用
         </Button>
       </div>
 
-      {/* 消息提示 */}
+      {/* 消息 */}
       {message && (
-        <div className={`rounded-lg p-4 ${
-          message.type === 'success'
-            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800'
-            : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800'
-        }`}>
+        <div
+          className={`rounded-md border p-3 text-sm ${
+            message.type === 'success'
+              ? 'border-emerald-300/50 bg-emerald-50/60 text-emerald-700 dark:border-emerald-600/40 dark:bg-emerald-900/20 dark:text-emerald-300'
+              : 'border-red-300/50 bg-red-50/60 text-red-700 dark:border-red-600/40 dark:bg-red-900/20 dark:text-red-300'
+          }`}
+        >
           {message.text}
         </div>
       )}
@@ -529,32 +450,27 @@ export default function OAuthManagement() {
         isOpen={state.showCreateForm}
         onClose={() => dispatch({ showCreateForm: false })}
         onConfirm={handleCreateApp}
-        title="创建OAuth应用"
+        title="创建 OAuth 应用"
         message={
           <form className="space-y-4" onSubmit={handleCreateApp}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                  应用名称 *
-                </label>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用名称 *</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
                   placeholder="我的应用"
                 />
               </div>
-              
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                  应用类型 *
-                </label>
+                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用类型 *</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
                 >
                   <option value="web">Web应用</option>
                   <option value="mobile">移动应用</option>
@@ -563,41 +479,33 @@ export default function OAuthManagement() {
                 </select>
               </div>
             </div>
-            
+
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                应用描述
-              </label>
+              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用描述</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+                className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
                 placeholder="应用的详细描述（可选）"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                重定向URI *
-              </label>
+              <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">重定向 URI *</label>
               <textarea
                 value={form.redirectUris}
                 onChange={(e) => setForm({ ...form, redirectUris: e.target.value })}
                 required
                 rows={2}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700 dark:text-neutral-100 focus:ring-1 focus:ring-neutral-500 focus:border-neutral-500"
+                className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
                 placeholder="https://example.com/auth/callback"
               />
-              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">
-                每行一个URI
-              </p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个 URI</p>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                权限范围
-              </label>
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">权限范围</label>
               <div className="grid gap-2 sm:grid-cols-2">
                 {AVAILABLE_SCOPES.map((scope) => (
                   <label key={scope.value} className="flex items-center text-sm">
@@ -606,25 +514,17 @@ export default function OAuthManagement() {
                       checked={form.scopes.includes(scope.value)}
                       onChange={(e) => {
                         if (scope.required) return;
-                        
                         const newScopes = e.target.checked
                           ? [...form.scopes, scope.value]
                           : form.scopes.filter(s => s !== scope.value);
-
-                        const isOfflineAccessSelected = newScopes.includes('offline_access');
-                        
-                        setForm({ 
-                          ...form, 
-                          scopes: newScopes, 
-                          issueRefreshToken: isOfflineAccessSelected ? form.issueRefreshToken : false 
-                        });
+                        const offline = newScopes.includes('offline_access');
+                        setForm({ ...form, scopes: newScopes, issueRefreshToken: offline ? form.issueRefreshToken : false });
                       }}
                       disabled={scope.required}
-                      className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                      className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
                     />
                     <span className="ml-2 text-neutral-700 dark:text-zinc-300">
-                      {scope.label}
-                      {scope.required && <span className="text-red-500 ml-1">*</span>}
+                      {scope.label}{scope.required && <span className="ml-1 text-red-500">*</span>}
                     </span>
                   </label>
                 ))}
@@ -638,15 +538,11 @@ export default function OAuthManagement() {
                   checked={form.issueRefreshToken}
                   onChange={(e) => setForm({ ...form, issueRefreshToken: e.target.checked })}
                   disabled={!form.scopes.includes('offline_access')}
-                  className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                  className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
                 />
-                <span className="ml-2 text-neutral-700 dark:text-zinc-300">
-                  允许发放 Refresh Token (客户端级开关)
-                </span>
+                <span className="ml-2 text-neutral-700 dark:text-zinc-300">允许发放 Refresh Token (客户端级开关)</span>
               </label>
-              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">
-                必须先在上方选择 "离线访问" 权限范围。
-              </p>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">需先选择 “offline_access”。</p>
             </div>
           </form>
         }
@@ -668,52 +564,32 @@ export default function OAuthManagement() {
         message={
           state.editingApp && state.editingAppForm && (
             <div className="text-left">
-              <div className="border-b border-neutral-200 dark:border-zinc-700 mb-4">
+              <div className="mb-4 border-b border-black/5 dark:border-white/10">
                 <nav className="-mb-px flex gap-6" aria-label="Tabs">
-                  <button
-                    onClick={() => dispatch({ activeSettingsTab: 'general' })}
-                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                      state.activeSettingsTab === 'general'
-                        ? 'border-black dark:border-white text-black dark:text-white'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    常规设置
-                  </button>
-                  <button
-                    onClick={() => dispatch({ activeSettingsTab: 'credentials' })}
-                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                      state.activeSettingsTab === 'credentials'
-                        ? 'border-black dark:border-white text-black dark:text-white'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    应用凭证
-                  </button>
-                  <button
-                    onClick={() => dispatch({ activeSettingsTab: 'guide' })}
-                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                      state.activeSettingsTab === 'guide'
-                        ? 'border-black dark:border-white text-black dark:text-white'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    集成指南
-                  </button>
-                  <button
-                    onClick={() => dispatch({ activeSettingsTab: 'danger' })}
-                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                      state.activeSettingsTab === 'danger'
-                        ? 'border-red-600 text-red-600'
-                        : 'border-transparent text-neutral-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500'
-                    }`}
-                  >
-                    危险区域
-                  </button>
+                  {(['general', 'credentials', 'guide', 'danger'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => dispatch({ activeSettingsTab: tab })}
+                      className={`whitespace-nowrap px-1 py-3 text-sm font-medium ${
+                        state.activeSettingsTab === tab
+                          ? (tab === 'danger'
+                              ? 'border-b-2 border-red-600 text-red-600'
+                              : 'border-b-2 border-black text-black dark:border-white dark:text-white')
+                          : (tab === 'danger'
+                              ? 'text-neutral-500 hover:text-red-600'
+                              : 'text-neutral-500 hover:text-neutral-700 dark:text-zinc-400 dark:hover:text-zinc-200')
+                      }`}
+                    >
+                      {tab === 'general' && '常规设置'}
+                      {tab === 'credentials' && '应用凭证'}
+                      {tab === 'guide' && '集成指南'}
+                      {tab === 'danger' && '危险区域'}
+                    </button>
+                  ))}
                 </nav>
               </div>
 
-              <div className="max-h-[65vh] overflow-y-auto pr-2">
+              <div className="max-h-[65vh] overflow-y-auto pr-1">
                 {state.activeSettingsTab === 'general' && (
                   <form className="space-y-4" onSubmit={handleUpdateApp}>
                     <div>
@@ -721,62 +597,55 @@ export default function OAuthManagement() {
                       <input
                         type="text"
                         value={state.editingAppForm.name}
-                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, name: e.target.value }})}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, name: e.target.value } })}
+                        className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900"
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">应用描述</label>
                       <textarea
                         value={state.editingAppForm.description}
-                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, description: e.target.value }})}
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, description: e.target.value } })}
                         rows={3}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                        className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">重定向URI</label>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">重定向 URI</label>
                       <textarea
                         value={state.editingAppForm.redirectUris}
-                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, redirectUris: e.target.value }})}
+                        onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, redirectUris: e.target.value } })}
                         rows={3}
-                        className="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-700"
+                        className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900"
                       />
-                      <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个URI</p>
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">每行一个 URI</p>
                     </div>
 
                     <div className="pt-2">
-                      <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">
-                        权限范围
-                      </label>
+                      <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">权限范围</label>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {AVAILABLE_SCOPES.map((scope) => (
                           <label key={scope.value} className="flex items-center text-sm">
                             <input
                               type="checkbox"
-                              checked={state.editingAppForm!.scopes?.includes(scope.value)}
+                              checked={!!state.editingAppForm!.scopes?.includes(scope.value)}
                               onChange={(e) => {
                                 if (scope.required) return;
-                                const currentScopes = state.editingAppForm!.scopes || [];
-                                const newScopes = e.target.checked
-                                  ? [...currentScopes, scope.value]
-                                  : currentScopes.filter(s => s !== scope.value);
-                                
-                                const isOfflineSelected = newScopes.includes('offline_access');
-                                dispatch({ 
-                                  editingAppForm: { 
-                                    ...state.editingAppForm, 
-                                    scopes: newScopes,
-                                    issueRefreshToken: isOfflineSelected ? state.editingAppForm!.issueRefreshToken : false
-                                  }
+                                const current = state.editingAppForm!.scopes || [];
+                                const next = e.target.checked ? [...current, scope.value] : current.filter(s => s !== scope.value);
+                                const offline = next.includes('offline_access');
+                                dispatch({
+                                  editingAppForm: {
+                                    ...state.editingAppForm!,
+                                    scopes: next,
+                                    issueRefreshToken: offline ? state.editingAppForm!.issueRefreshToken : false,
+                                  },
                                 });
                               }}
                               disabled={scope.required}
-                              className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                              className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
                             />
-                            <span className="ml-2 text-neutral-700 dark:text-zinc-300">
-                              {scope.label}
-                            </span>
+                            <span className="ml-2 text-neutral-700 dark:text-zinc-300">{scope.label}</span>
                           </label>
                         ))}
                       </div>
@@ -786,33 +655,27 @@ export default function OAuthManagement() {
                       <label className={`flex items-center text-sm ${!state.editingAppForm!.scopes?.includes('offline_access') ? 'cursor-not-allowed opacity-50' : ''}`}>
                         <input
                           type="checkbox"
-                          checked={state.editingAppForm.issueRefreshToken}
-                          onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm, issueRefreshToken: e.target.checked }})}
+                          checked={!!state.editingAppForm.issueRefreshToken}
+                          onChange={(e) => dispatch({ editingAppForm: { ...state.editingAppForm!, issueRefreshToken: e.target.checked } })}
                           disabled={!state.editingAppForm!.scopes?.includes('offline_access')}
-                          className="w-4 h-4 text-black bg-neutral-100 border-neutral-300 rounded focus:ring-neutral-500 dark:focus:ring-neutral-600 dark:ring-offset-gray-800 dark:bg-neutral-700 dark:border-neutral-600"
+                          className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
                         />
-                        <span className="ml-2 text-neutral-700 dark:text-zinc-300">
-                          允许发放 Refresh Token
-                        </span>
+                        <span className="ml-2 text-neutral-700 dark:text-zinc-300">允许发放 Refresh Token</span>
                       </label>
-                       <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">
-                        需要 `offline_access` 范围。此设置为客户端级开关。
-                      </p>
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">需要 `offline_access` 范围。</p>
                     </div>
                   </form>
                 )}
 
-                {state.activeSettingsTab === 'credentials' && (
+                {state.activeSettingsTab === 'credentials' && state.editingApp && (
                   <div className="space-y-4">
                     <p className="text-sm text-neutral-600 dark:text-zinc-400">
-                      这是您的应用凭证，请妥善保管。Client Secret 只会在这里显示一次。
+                      以下为应用凭证，请妥善保管。Client Secret 仅在此处可见。
                     </p>
                     <div>
-                      <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
-                        Client ID
-                      </div>
+                      <div className="mb-1 text-xs font-medium text-neutral-500 dark:text-zinc-500">Client ID</div>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 truncate">
+                        <code className="flex-1 truncate rounded bg-neutral-50 px-2 py-1.5 font-mono text-xs text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
                           {state.editingApp.clientId}
                         </code>
                         <Button
@@ -821,16 +684,14 @@ export default function OAuthManagement() {
                           onClick={() => copyToClipboard(state.editingApp!.clientId, state.editingApp!.id)}
                           className="h-7 w-7 p-0"
                         >
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-neutral-500 dark:text-zinc-500 mb-1">
-                        Client Secret
-                      </div>
+                      <div className="mb-1 text-xs font-medium text-neutral-500 dark:text-zinc-500">Client Secret</div>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded bg-neutral-50 px-2 py-1.5 text-xs font-mono text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300 break-all">
+                        <code className="flex-1 break-all rounded bg-neutral-50 px-2 py-1.5 font-mono text-xs text-neutral-700 dark:bg-zinc-800 dark:text-zinc-300">
                           {state.visibleSecrets.has(state.editingApp.id) ? state.editingApp.clientSecret : '••••••••••••••••'}
                         </code>
                         <Button
@@ -839,7 +700,7 @@ export default function OAuthManagement() {
                           onClick={() => dispatch({ type: 'TOGGLE_SECRET', appId: state.editingApp!.id })}
                           className="h-7 w-7 p-0"
                         >
-                          {state.visibleSecrets.has(state.editingApp.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {state.visibleSecrets.has(state.editingApp.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         </Button>
                         <Button
                           size="sm"
@@ -847,62 +708,62 @@ export default function OAuthManagement() {
                           onClick={() => copyToClipboard(state.editingApp!.clientSecret, state.editingApp!.id)}
                           className="h-7 w-7 p-0"
                         >
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
                   </div>
                 )}
-                
-                {state.activeSettingsTab === 'guide' && (
+
+                {state.activeSettingsTab === 'guide' && state.editingApp && (
                   <div className="text-sm text-neutral-700 dark:text-zinc-300">
-                    <div className="text-center py-8">
-                      <BookOpen className="w-16 h-16 text-indigo-600 mx-auto mb-4" />
-                      <h4 className="text-lg font-semibold mb-2">完整集成指南</h4>
-                      <p className="text-neutral-600 dark:text-zinc-400 mb-6">
-                        我们为您准备了详细的OAuth2/OIDC集成文档，包含完整的代码示例、安全最佳实践和故障排除指南。
+                    <div className="py-8 text-center">
+                      <BookOpen className="mx-auto mb-4 h-14 w-14 text-neutral-700 dark:text-zinc-200" />
+                      <h4 className="mb-2 text-lg font-semibold">完整集成指南</h4>
+                      <p className="mx-auto mb-6 max-w-2xl text-neutral-600 dark:text-zinc-400">
+                        我们提供 OAuth2/OIDC 集成文档、示例与最佳实践，帮助你快速完成对接。
                       </p>
                       <a
                         href="/oauth/integration-guide"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                        className="inline-flex items-center gap-2 rounded-md bg-neutral-900 px-6 py-3 font-medium text-white hover:bg-neutral-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                       >
-                        <BookOpen className="w-5 h-5" />
-                        查看完整集成指南
-                        <ExternalLink className="w-4 h-4" />
+                        <BookOpen className="h-5 w-5" />
+                        查看集成指南
+                        <ExternalLink className="h-4 w-4" />
                       </a>
                     </div>
-                    
-                    <div className="mt-6 grid gap-4 md:grid-cols-2 text-xs">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                        <h5 className="font-medium text-blue-900 dark:text-blue-200 mb-2">快速参考</h5>
-                        <div className="space-y-1 text-blue-800 dark:text-blue-300">
+
+                    <div className="mt-6 grid gap-4 text-xs md:grid-cols-2">
+                      <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+                        <h5 className="mb-2 font-medium text-neutral-900 dark:text-neutral-100">快速参考</h5>
+                        <div className="space-y-1 text-neutral-700 dark:text-zinc-300">
                           <div>• 授权端点: <code>/oauth/authorize</code></div>
                           <div>• 令牌端点: <code>/oauth/token</code></div>
                           <div>• 用户信息: <code>/oauth/userinfo</code></div>
                           <div>• Client ID: <code>{state.editingApp.clientId}</code></div>
                         </div>
                       </div>
-                      
-                      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-                        <h5 className="font-medium text-amber-900 dark:text-amber-200 mb-2">包含内容</h5>
-                        <div className="space-y-1 text-amber-800 dark:text-amber-300">
-                          <div>• 完整的OAuth2流程详解</div>
-                          <div>• 多种编程语言示例</div>
-                          <div>• PKCE和安全最佳实践</div>
-                          <div>• 故障排除和调试指南</div>
+
+                      <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+                        <h5 className="mb-2 font-medium text-neutral-900 dark:text-neutral-100">包含内容</h5>
+                        <div className="space-y-1 text-neutral-700 dark:text-zinc-300">
+                          <div>• 完整 OAuth2 流程详解</div>
+                          <div>• 多语言代码示例</div>
+                          <div>• PKCE 与安全最佳实践</div>
+                          <div>• 故障排除与调试指南</div>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {state.activeSettingsTab === 'danger' && (
+                {state.activeSettingsTab === 'danger' && state.editingApp && (
                   <div className="space-y-4">
                     <h4 className="font-semibold text-red-600">删除此应用</h4>
                     <p className="text-sm text-neutral-600 dark:text-zinc-400">
-                      一旦删除应用，将无法恢复。所有使用此应用的用户将无法登录。
+                      一旦删除，所有使用该应用的认证将立即失效，且不可恢复。
                     </p>
                     <Button
                       variant="error"
@@ -924,25 +785,17 @@ export default function OAuthManagement() {
       <ConfirmModal
         isOpen={!!state.showDeleteConfirm}
         onClose={() => dispatch({ showDeleteConfirm: null })}
-        onConfirm={() => {
-          if (state.showDeleteConfirm) {
-            handleDeleteApp(state.showDeleteConfirm);
-          }
-        }}
+        onConfirm={() => { if (state.showDeleteConfirm) handleDeleteApp(state.showDeleteConfirm); }}
         title="确认删除应用"
         message={
-          <div className="space-y-3">
-            <p className="text-sm text-neutral-600 dark:text-zinc-400">
-              删除OAuth应用将会：
-            </p>
-            <ul className="text-sm text-neutral-600 dark:text-zinc-400 space-y-1 list-disc list-inside">
+          <div className="space-y-3 text-sm">
+            <p className="text-neutral-600 dark:text-zinc-400">删除 OAuth 应用将会：</p>
+            <ul className="list-inside list-disc space-y-1 text-neutral-600 dark:text-zinc-400">
               <li>立即停止所有使用该应用的认证服务</li>
-              <li>使现有的access token失效</li>
+              <li>使现有 access token 失效</li>
               <li>无法恢复应用配置和统计数据</li>
             </ul>
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              此操作无法撤销，请谨慎操作。
-            </p>
+            <p className="font-medium text-red-600 dark:text-red-400">此操作无法撤销，请谨慎操作。</p>
           </div>
         }
         type="danger"
