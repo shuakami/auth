@@ -541,6 +541,7 @@ export default function DashboardContent() {
     openModal,
   ]);
 
+
   /* --------------------------- 页面渲染 ---------------------------------- */
   return (
     <div
@@ -586,14 +587,68 @@ export default function DashboardContent() {
           </div>
         </nav>
 
-        {/* 桌面 Editorial 12 栏布局：移除左右侧边栏，仅保留主内容 */}
+        {/* 桌面 Editorial 12 栏布局：2 / 7 / 3 */}
         <div className="grid grid-cols-12 gap-8">
-          {/* 主内容 */}
-          <section className="mx-auto w-full max-w-3xl">
+          {/* 左侧：文字侧边导航（无卡面） */}
+          <nav className="relative col-span-2 hidden lg:block">
+            <div className="sticky top-24">
+              <div className="space-y-1">
+                <NavItem
+                  active={activeSection === 'general'}
+                  onClick={() => setActiveSection('general')}
+                >
+                  通用设置
+                </NavItem>
+                <NavItem
+                  active={activeSection === 'security'}
+                  onClick={() => setActiveSection('security')}
+                >
+                  安全设置
+                </NavItem>
+                <NavItem
+                  active={activeSection === 'connections'}
+                  onClick={() => setActiveSection('connections')}
+                >
+                  账号绑定
+                </NavItem>
+
+                {isAdmin && (
+                  <div className="mt-4 pt-4 text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-zinc-500 border-t border-black/5 dark:border-white/10">
+                    管理
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <NavItem
+                    active={activeSection === 'admin'}
+                    onClick={() => setActiveSection('admin')}
+                    onMouseEnter={preloadAdminChunks}
+                    onFocus={preloadAdminChunks}
+                  >
+                    用户管理
+                  </NavItem>
+                )}
+                {isAdmin && (
+                  <NavItem
+                    active={activeSection === 'oauth'}
+                    onClick={() => setActiveSection('oauth')}
+                    onMouseEnter={preloadAdminChunks}
+                    onFocus={preloadAdminChunks}
+                  >
+                    OAuth 应用
+                  </NavItem>
+                )}
+              </div>
+            </div>
+          </nav>
+
+          {/* 中间：主内容（无卡面；自然留白 + divide-y） */}
+          <section className="col-span-12 lg:col-span-10">
             <div className="space-y-12 divide-y divide-black/5 dark:divide-white/10 [&>section]:pt-8 first:[&>section]:pt-0">
               {mainContent}
             </div>
           </section>
+
         </div>
       </main>
 
