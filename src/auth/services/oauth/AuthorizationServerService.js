@@ -192,8 +192,10 @@ export class AuthorizationServerService {
       };
       
       const idToken = signIdToken(idTokenPayload, '1h');
-      
-      // 8. 生成refresh token (可选，基于scope和客户端配置)
+
+      // 8. 统计使用次数
+      await client.query('UPDATE oauth_applications SET usage_count = usage_count + 1, updated_at = CURRENT_TIMESTAMP WHERE client_id = $1', [clientId]);
+      // 9. 生成refresh token (可选，基于scope和客户端配置)
       let refreshToken = null;
       if (clientApp.issue_refresh_token && authCode.scopes.includes('offline_access')) {
         const tokenController = new TokenServiceController();

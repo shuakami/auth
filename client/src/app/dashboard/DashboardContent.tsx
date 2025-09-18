@@ -541,74 +541,6 @@ export default function DashboardContent() {
     openModal,
   ]);
 
-  /* --------------------------- 右侧信息侧栏 ------------------------------- */
-  const RightRail = useMemo(() => {
-    return (
-      <aside className="sticky top-24 space-y-10">
-        {/* 快捷操作 */}
-        <section className="space-y-3">
-          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
-            快捷操作
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => openModal('pwd')}
-              className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-            >
-              修改密码
-            </button>
-            <button
-              onClick={() => openModal('email')}
-              className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-            >
-              更换邮箱
-            </button>
-            {!user?.totp_enabled ? (
-              <button
-                onClick={() => openModal('setup2faPwd')}
-                className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-              >
-                启用 2FA
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => openModal('genBackupPwd')}
-                  className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                >
-                  生成备份码
-                </button>
-                <button
-                  onClick={() => openModal('disable2fa')}
-                  className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                >
-                  关闭 2FA
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => openModal('delete')}
-              className="rounded-full border border-red-200/60 bg-transparent px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 active:bg-red-100 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-900/20"
-            >
-              删除账户
-            </button>
-          </div>
-        </section>
-
-        {/* 轻提示 */}
-        <section className="space-y-3">
-          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
-            提示
-          </h3>
-          <p className="text-xs leading-5 text-neutral-500 dark:text-zinc-400">
-            所有操作均即时生效且无需刷新；涉及安全项时会以弹窗二次确认。
-          </p>
-        </section>
-      </aside>
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.verified, user?.totp_enabled, form.backupCount, isAdmin]);
-
   /* --------------------------- 页面渲染 ---------------------------------- */
   return (
     <div
@@ -654,72 +586,14 @@ export default function DashboardContent() {
           </div>
         </nav>
 
-        {/* 桌面 Editorial 12 栏布局：2 / 7 / 3 */}
+        {/* 桌面 Editorial 12 栏布局：移除左右侧边栏，仅保留主内容 */}
         <div className="grid grid-cols-12 gap-8">
-          {/* 左侧：文字侧边导航（无卡面） */}
-          <nav className="relative col-span-2 hidden lg:block">
-            <div className="sticky top-24">
-              <div className="space-y-1">
-                <NavItem
-                  active={activeSection === 'general'}
-                  onClick={() => setActiveSection('general')}
-                >
-                  通用设置
-                </NavItem>
-                <NavItem
-                  active={activeSection === 'security'}
-                  onClick={() => setActiveSection('security')}
-                >
-                  安全设置
-                </NavItem>
-                <NavItem
-                  active={activeSection === 'connections'}
-                  onClick={() => setActiveSection('connections')}
-                >
-                  账号绑定
-                </NavItem>
-
-                {isAdmin && (
-                  <div className="mt-4 pt-4 text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-zinc-500 border-t border-black/5 dark:border-white/10">
-                    管理
-                  </div>
-                )}
-
-                {isAdmin && (
-                  <NavItem
-                    active={activeSection === 'admin'}
-                    onClick={() => setActiveSection('admin')}
-                    onMouseEnter={preloadAdminChunks}
-                    onFocus={preloadAdminChunks}
-                  >
-                    用户管理
-                  </NavItem>
-                )}
-                {isAdmin && (
-                  <NavItem
-                    active={activeSection === 'oauth'}
-                    onClick={() => setActiveSection('oauth')}
-                    onMouseEnter={preloadAdminChunks}
-                    onFocus={preloadAdminChunks}
-                  >
-                    OAuth 应用
-                  </NavItem>
-                )}
-              </div>
-            </div>
-          </nav>
-
-          {/* 中间：主内容（无卡面；自然留白 + divide-y） */}
-          <section className="col-span-12 lg:col-span-7">
+          {/* 主内容 */}
+          <section className="mx-auto w-full max-w-3xl">
             <div className="space-y-12 divide-y divide-black/5 dark:divide-white/10 [&>section]:pt-8 first:[&>section]:pt-0">
               {mainContent}
             </div>
           </section>
-
-          {/* 右侧：信息侧栏（无卡面） */}
-          <aside className="col-span-3 hidden xl:block">
-            {RightRail}
-          </aside>
         </div>
       </main>
 
