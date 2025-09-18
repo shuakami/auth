@@ -130,19 +130,14 @@ export const NavItem = memo(
     <button
       onClick={onClick}
       {...props}
-      className={`group relative flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors
+      className={`group relative flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors
         ${active
-          ? 'text-neutral-900 dark:text-zinc-100'
+          ? 'font-medium text-neutral-900 dark:text-zinc-100'
           : 'text-neutral-600 hover:text-neutral-900 dark:text-zinc-400 dark:hover:text-zinc-100'
         }
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 focus-visible:ring-offset-2 dark:focus-visible:ring-neutral-600 dark:focus-visible:ring-offset-zinc-900
       `}
     >
-      {/* 左侧细点：active 实心，hover 半透 */}
-      <span
-        className={`h-1.5 w-1.5 rounded-full transition-opacity
-          ${active ? 'bg-neutral-900 dark:bg-zinc-100 opacity-100' : 'bg-neutral-900/60 dark:bg-zinc-100/60 opacity-0 group-hover:opacity-60'}`}
-      />
       <span className="relative">{children}</span>
     </button>
   ),
