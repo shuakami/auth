@@ -294,8 +294,8 @@ function AuthorizePageContent() {
         description: '允许应用获取您账户绑定的主要电话号码。'
       },
       offline_access: {
-        title: '保持离线访问权限',
-        description: '应用将可以在您不在线时，继续访问您的数据。'
+        title: '保持登录状态',
+        description: '您不必每次都重新登录。应用会一直保持您的登录状态。'
       },
     };
 
