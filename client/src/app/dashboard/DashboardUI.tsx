@@ -14,7 +14,7 @@ import {
 export const Section = memo(
   ({ title, children }: { title: string; children: ReactNode }) => (
     <section className="space-y-4">
-      <h2 className="text-lg font-medium text-neutral-900 dark:text-zinc-100">{title}</h2>
+      <h2 className="text-lg font-medium tracking-tight text-neutral-900 dark:text-zinc-100">{title}</h2>
       {children}
     </section>
   ),
@@ -22,7 +22,7 @@ export const Section = memo(
 Section.displayName = 'Section';
 
 /* -------------------------------------------------------------------------- */
-/* Button                                                                     */
+/* Button（统一中性风格 + 极简交互）                                          */
 /* -------------------------------------------------------------------------- */
 
 export const Button = memo(
@@ -44,28 +44,25 @@ export const Button = memo(
     type?: 'button' | 'submit' | 'reset';
   }) => {
     const base =
-      'rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 transition ease-in-out duration-150';
+      'rounded-md font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 dark:focus-visible:ring-neutral-500 dark:focus-visible:ring-offset-zinc-900 transition ease-in-out duration-150';
     const sizeMap = {
       sm: 'px-3 py-1.5 text-xs',
       md: 'px-4 py-2 text-sm',
       lg: 'px-6 py-3 text-base',
     };
+    const disabledCls = disabled ? 'opacity-50 cursor-not-allowed' : '';
+
     const variantMap = {
-      primary: `bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`,
-      secondary: `bg-neutral-200 text-neutral-700 hover:bg-neutral-300 focus:ring-indigo-500 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`,
-      danger: `bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`,
-      ghost: `bg-transparent text-neutral-600 hover:bg-neutral-100 focus:ring-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-700 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`,
-      link: `bg-transparent text-blue-600 underline hover:text-blue-700 focus:ring-indigo-500 dark:text-blue-400 dark:hover:text-blue-500 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } p-0`,
+      // 亮色下黑底白字；暗色下白底黑字。贴近 Vercel/Apple 的中性主按钮。
+      primary: `bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 ${disabledCls}`,
+      // 细边框 + 透明/浅底：更克制的次级态
+      secondary: `border border-black/10 bg-white/70 text-neutral-900 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-100 dark:hover:bg-white/[0.06] ${disabledCls}`,
+      // 危险操作保留红色，但仅此处使用鲜明色
+      danger: `bg-red-600 text-white hover:bg-red-700 active:bg-red-700 ${disabledCls}`,
+      // 纯透明的最轻按钮
+      ghost: `bg-transparent text-neutral-600 hover:bg-black/[0.03] active:bg-black/[0.05] dark:text-zinc-400 dark:hover:bg-white/[0.05] ${disabledCls}`,
+      // 链接风格去蓝色，统一中性
+      link: `bg-transparent underline underline-offset-2 text-neutral-900 hover:opacity-80 active:opacity-70 dark:text-zinc-100 ${disabledCls} p-0`,
     };
 
     return (
@@ -83,7 +80,7 @@ export const Button = memo(
 Button.displayName = 'Button';
 
 /* -------------------------------------------------------------------------- */
-/* Input                                                                      */
+/* Input（统一边框/焦点，轻内阴影）                                            */
 /* -------------------------------------------------------------------------- */
 
 export const Input = memo(
@@ -118,9 +115,9 @@ export const Input = memo(
       required={required}
       disabled={disabled}
       autoFocus={autoFocus}
-      className={`w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder-zinc-500 ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${className}`}
+      className={`w-full rounded-md border border-black/10 bg-white/70 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-inner 
+        focus:border-neutral-400/60 focus:outline-none focus:ring-2 focus:ring-neutral-400/50 dark:border-white/10 dark:bg-zinc-950/40 dark:text-zinc-100 dark:placeholder-zinc-500 
+        dark:focus:ring-neutral-500/50 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
       {...props}
     />
   ),
@@ -128,7 +125,7 @@ export const Input = memo(
 Input.displayName = 'Input';
 
 /* -------------------------------------------------------------------------- */
-/* NavItem                                                                    */
+/* NavItem（左侧细指示条 + 克制 hover）                                       */
 /* -------------------------------------------------------------------------- */
 
 export const NavItem = memo(
@@ -136,13 +133,23 @@ export const NavItem = memo(
     <button
       onClick={onClick}
       {...props}
-      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-        active
-          ? 'bg-neutral-100 font-medium text-neutral-900 dark:bg-zinc-800 dark:text-zinc-100'
-          : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-100'
-      }`}
+      className={`group relative w-full rounded-md px-3 py-2 text-left text-sm transition-colors
+        ${active
+          ? 'bg-black/[0.03] text-neutral-900 dark:bg-white/[0.05] dark:text-zinc-100'
+          : 'text-neutral-600 hover:bg-black/[0.02] hover:text-neutral-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100'
+        }
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 dark:focus-visible:ring-neutral-500 dark:focus-visible:ring-offset-zinc-900
+      `}
     >
-      {children}
+      {/* 左侧细指示条（active 时实线，hover 时半透明） */}
+      <span
+        className={`pointer-events-none absolute inset-y-1 left-0 w-1 rounded-full content-[''] transition-opacity
+          ${active
+            ? 'bg-neutral-900 opacity-100 dark:bg-zinc-100'
+            : 'bg-neutral-900/60 opacity-0 group-hover:opacity-60 dark:bg-zinc-100/60'
+          }`}
+      />
+      <span className="relative z-10">{children}</span>
     </button>
   ),
 );

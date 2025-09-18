@@ -137,7 +137,7 @@ export default function DashboardContent() {
       : 'general') as SectionKey,
   );
 
-  // 将 activeSection 写入 localStorage，但放到空闲时段，避免阻塞主线程
+  // 将 activeSection 写入 localStorage，但放到空闲时段
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const write = () => localStorage.setItem('dashboard-active-section', activeSection);
@@ -159,7 +159,7 @@ export default function DashboardContent() {
       .catch(() => setIsAdmin(false));
   }, [user]);
 
-  // 统一的移动端检测，兼容 addListener
+  // 移动端检测
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -235,7 +235,7 @@ export default function DashboardContent() {
     },
   );
 
-  // 使用 ref 保持最新的状态供稳定 handler 读取，避免将 form/user 放入依赖
+  // 使用 ref 保持最新的状态供稳定 handler 读取
   const formRef = useRef<FormState>(form);
   const userRef = useRef<typeof user>(user);
   useEffect(() => { formRef.current = form; }, [form]);
@@ -459,16 +459,16 @@ export default function DashboardContent() {
 
   /* --------------------------- render helpers ---------------------------- */
   const renderEmailStatus = useCallback(
-    () =>
-      user?.verified ? (
-        <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-          已验证
-        </span>
-      ) : (
-        <span className="ml-2 rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
-          未验证
-        </span>
-      ),
+    () => (
+      <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/[0.03] px-2 py-0.5 text-xs font-medium text-neutral-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            user?.verified ? 'bg-emerald-500' : 'bg-amber-500'
+          }`}
+        />
+        {user?.verified ? '已验证' : '未验证'}
+      </span>
+    ),
     [user?.verified],
   );
 
@@ -543,43 +543,44 @@ export default function DashboardContent() {
 
   /* --------------------------- render 页面 ------------------------------- */
   return (
-    <div className="flex min-h-screen flex-col bg-white text-neutral-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="flex min-h-screen flex-col bg-white text-neutral-900 selection:bg-black/80 selection:text-white dark:bg-zinc-950 dark:text-zinc-100 dark:selection:bg-white/80 dark:selection:text-black
+      bg-[radial-gradient(1200px_400px_at_50%_-80px,rgba(0,0,0,0.06),transparent)] dark:bg-[radial-gradient(1200px_400px_at_50%_-80px,rgba(255,255,255,0.06),transparent)]">
       <Header user={user} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 sm:mb-12">
+        <div className="mb-6 sm:mb-10">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">用户中心</h1>
           <p className="mt-2 text-sm sm:text-base text-neutral-500 dark:text-zinc-400">管理您的账户设置和偏好</p>
         </div>
 
-        {/* 移动端分段导航（仅在小屏显示），吸顶、横向滚动 */}
-        <nav className="sticky top-16 z-20 -mx-4 mb-6 border-b border-neutral-200 bg-white/90 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 lg:hidden">
+        {/* 移动端分段导航（仅在小屏显示），吸顶、玻璃感 */}
+        <nav className="sticky top-16 z-20 -mx-4 mb-6 border-b border-black/5 bg-white/80 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/70 lg:hidden">
           <div className="flex gap-2 overflow-x-auto py-2">
             <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
                 activeSection === 'general'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
               }`}
               onClick={() => setActiveSection('general')}
             >
               通用设置
             </button>
             <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
                 activeSection === 'security'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
               }`}
               onClick={() => setActiveSection('security')}
             >
               安全设置
             </button>
             <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
                 activeSection === 'connections'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                  : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
               }`}
               onClick={() => setActiveSection('connections')}
             >
@@ -588,10 +589,10 @@ export default function DashboardContent() {
             {isAdmin && (
               <>
                 <button
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
                     activeSection === 'admin'
-                      ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                      : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                      ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
                   }`}
                   onClick={() => setActiveSection('admin')}
                   onMouseEnter={preloadAdminChunks}
@@ -600,10 +601,10 @@ export default function DashboardContent() {
                   用户管理
                 </button>
                 <button
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm ${
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
                     activeSection === 'oauth'
-                      ? 'bg-neutral-900 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                      : 'bg-neutral-100 text-neutral-700 dark:bg-zinc-800 dark:text-zinc-200'
+                      ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
                   }`}
                   onClick={() => setActiveSection('oauth')}
                   onMouseEnter={preloadAdminChunks}
@@ -617,9 +618,9 @@ export default function DashboardContent() {
         </nav>
 
         <div className="flex gap-8">
-          {/* 桌面端侧边导航 */}
-          <nav className="hidden w-56 shrink-0 lg:block">
-            <div className="sticky top-24 space-y-1">
+          {/* 桌面端侧边导航（玻璃卡片） */}
+          <nav className="hidden w-60 shrink-0 lg:block">
+            <div className="sticky top-24 rounded-xl border border-black/10 bg-white/60 p-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md shadow-sm dark:border-white/10 dark:bg-zinc-900/40">
               <NavItem
                 active={activeSection === 'general'}
                 onClick={() => setActiveSection('general')}
@@ -661,7 +662,12 @@ export default function DashboardContent() {
             </div>
           </nav>
 
-          <section className="min-h-[36rem] flex-1">{mainContent}</section>
+          {/* 主内容玻璃卡片 */}
+          <section className="min-h-[36rem] flex-1">
+            <div className="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:backdrop-blur-md md:p-8 dark:border-white/10 dark:bg-zinc-900/40">
+              {mainContent}
+            </div>
+          </section>
         </div>
       </main>
 
@@ -679,17 +685,17 @@ export default function DashboardContent() {
             <form className="space-y-4" onSubmit={handlePwdSubmit}>
               {user?.has_password && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">旧密码</label>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">旧密码</label>
                   <Input type="password" value={form.oldPwd} onChange={(e) => setForm({ oldPwd: e.target.value })} required />
                 </div>
               )}
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新密码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">新密码</label>
                 <Input type="password" value={form.newPwd} onChange={(e) => setForm({ newPwd: e.target.value })} required />
               </div>
               {form.pwdMsg && (
                 <div
-                  className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
                   aria-live="polite"
                 >
                   {form.pwdMsg}
@@ -714,7 +720,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleSetup2faPwd}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
                 <Input
                   type="password"
                   value={form.setup2faPwd}
@@ -748,15 +754,15 @@ export default function DashboardContent() {
                   alt="QR Code"
                   width={160}
                   height={160}
-                  className="mx-auto block rounded border border-neutral-300 p-1 dark:border-zinc-600"
+                  className="mx-auto block rounded border border-black/10 p-1 dark:border-white/10"
                 />
               )}
               <div className="text-center">
                 <label className="block text-xs font-medium text-neutral-500 dark:text-zinc-500">密钥</label>
-                <span className="select-all font-mono text-sm text-neutral-700 dark:text-zinc-300">{form.secret}</span>
+                <span className="select-all font-mono text-sm text-neutral-800 dark:text-zinc-200">{form.secret}</span>
               </div>
-              <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
-                <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">重要提示：请妥善保存以下备份码！</p>
+              <div className="rounded-md bg-amber-50 p-3 dark:bg-amber-900/20">
+                <p className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-300">重要提示：请妥善保存以下备份码！</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                   {form.backupCodes.map((c: string) => (
                     <span key={c} className="select-all rounded px-2 py-0.5 font-mono text-xs text-neutral-700 dark:text-zinc-200">
@@ -766,7 +772,7 @@ export default function DashboardContent() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">输入 6 位验证码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">输入 6 位验证码</label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -780,7 +786,7 @@ export default function DashboardContent() {
               </div>
               {form.totpMsg && (
                 <div
-                  className={`text-sm ${form.totpMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.totpMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
                   aria-live="polite"
                 >
                   {form.totpMsg}
@@ -805,9 +811,9 @@ export default function DashboardContent() {
           message={
             <div className="space-y-4">
               <p className="text-sm text-neutral-600 dark:text-zinc-400">已生成新的备份码，请妥善保存。</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-neutral-200 p-3 dark:border-zinc-700">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-black/10 p-3 dark:border-white/10">
                 {form.backupCodes.map((c: string) => (
-                  <span key={c} className="select-all rounded bg-neutral-100 px-2 py-0.5 font-mono text-sm text-neutral-700 dark:bg-zinc-700 dark:text-zinc-200">
+                  <span key={c} className="select-all rounded bg-black/[0.04] px-2 py-0.5 font-mono text-sm text-neutral-700 dark:bg-white/[0.06] dark:text-zinc-200">
                     {c}
                   </span>
                 ))}
@@ -831,7 +837,7 @@ export default function DashboardContent() {
             <form className="space-y-4" onSubmit={handleDisable2FA}>
               <p className="text-sm text-neutral-600 dark:text-zinc-400">输入 6 位验证码或一个备份码以关闭 2FA。</p>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">验证码 / 备份码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">验证码 / 备份码</label>
                 <Input
                   type="text"
                   value={form.totpToken || form.disableBackupCode}
@@ -853,7 +859,7 @@ export default function DashboardContent() {
                 <div
                   className={`text-sm ${
                     form.disable2faMsg.includes('成功') || form.disable2faMsg.includes('刷新')
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-emerald-600 dark:text-emerald-400'
                       : 'text-red-600 dark:text-red-400'
                   }`}
                   aria-live="polite"
@@ -880,7 +886,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleUsernameSubmit}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">用户名</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">用户名</label>
                 <Input
                   type="text"
                   value={form.newUsername}
@@ -892,7 +898,7 @@ export default function DashboardContent() {
               </div>
               {form.usernameMsg && (
                 <div
-                  className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
                   aria-live="polite"
                 >
                   {form.usernameMsg}
@@ -917,7 +923,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleGenBackupPwdSubmit}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
                 <Input
                   type="password"
                   value={form.genBackupPwd}
@@ -946,7 +952,7 @@ export default function DashboardContent() {
             <form className="space-y-4" onSubmit={handleEmailSubmit}>
               <p className="text-sm text-neutral-600 dark:text-zinc-400">更换邮箱后需通过新邮箱验证。</p>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">新邮箱地址</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">新邮箱地址</label>
                 <Input
                   type="email"
                   value={form.newEmail}
@@ -956,7 +962,7 @@ export default function DashboardContent() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
                 <Input
                   type="password"
                   value={form.emailPwd}
@@ -968,7 +974,7 @@ export default function DashboardContent() {
               {form.emailMsg && (
                 <div
                   className={`text-sm ${
-                    form.emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                    form.emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}
                   aria-live="polite"
                 >
@@ -996,7 +1002,7 @@ export default function DashboardContent() {
               <p className="text-sm text-red-600 dark:text-red-400">此操作无法撤销！请输入您的凭据以确认删除。</p>
               {user?.has_password && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">当前密码</label>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
                   <Input
                     type="password"
                     value={form.deletePwd}
@@ -1009,7 +1015,7 @@ export default function DashboardContent() {
               )}
               {user?.totp_enabled && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-zinc-300">2FA 验证码 / 备份码</label>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">2FA 验证码 / 备份码</label>
                   <Input
                     type="text"
                     value={form.deleteCode}
