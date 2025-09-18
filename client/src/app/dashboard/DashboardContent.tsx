@@ -590,7 +590,7 @@ export default function DashboardContent() {
         {/* 桌面 Editorial 12 栏布局：2 / 7 / 3 */}
         <div className="grid grid-cols-12 gap-8">
           {/* 左侧：文字侧边导航（无卡面） */}
-          <nav className="relative col-span-2 hidden lg:block">
+          <nav className="relative col-span-3 hidden lg:block">
             <div className="sticky top-24">
               <div className="space-y-1">
                 <NavItem
@@ -643,7 +643,7 @@ export default function DashboardContent() {
           </nav>
 
           {/* 中间：主内容（无卡面；自然留白 + divide-y） */}
-          <section className="col-span-12 lg:col-span-10">
+          <section className="col-span-12 lg:col-span-9">
             <div className="space-y-12 divide-y divide-black/5 dark:divide-white/10 [&>section]:pt-8 first:[&>section]:pt-0">
               {mainContent}
             </div>
