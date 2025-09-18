@@ -238,7 +238,7 @@ export class SessionHistoryService {
         MAX(CASE WHEN rn_asc  = 1 THEN login_at END) AS first_login_at,
         MAX(CASE WHEN rn_desc = 1 THEN login_at END) AS last_login_at,
         MAX(CASE WHEN rn_desc = 1 THEN ip_enc   END) AS last_ip_enc,
-        MAX(CASE WHEN rn_desc = 1 THEN location END) AS last_location
+        MAX(CASE WHEN rn_desc = 1 THEN location::text END) AS last_location
       FROM ranked
       GROUP BY user_agent
       `,
