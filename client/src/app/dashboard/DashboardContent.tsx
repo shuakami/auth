@@ -545,33 +545,6 @@ export default function DashboardContent() {
   const RightRail = useMemo(() => {
     return (
       <aside className="sticky top-24 space-y-10">
-        {/* 账户快照 */}
-        <section className="space-y-3">
-          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
-            账户快照
-          </h3>
-          <ul className="space-y-2 text-sm text-neutral-700 dark:text-zinc-300">
-            <li className="flex items-center gap-2">
-              <span className={`h-1.5 w-1.5 rounded-full ${user?.verified ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span>邮箱状态：{user?.verified ? '已验证' : '未验证'}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className={`h-1.5 w-1.5 rounded-full ${user?.totp_enabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span>二步验证：{user?.totp_enabled ? '已开启' : '未开启'}</span>
-            </li>
-            {user?.totp_enabled && (
-              <li className="flex items-center gap-2 text-neutral-600 dark:text-zinc-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
-                <span>剩余备份码：{form.backupCount ?? '—'}</span>
-              </li>
-            )}
-            <li className="flex items-center gap-2">
-              <span className={`h-1.5 w-1.5 rounded-full ${isAdmin ? 'bg-neutral-900 dark:bg-zinc-100' : 'bg-neutral-400'}`} />
-              <span>角色：{isAdmin ? '管理员' : '普通用户'}</span>
-            </li>
-          </ul>
-        </section>
-
         {/* 快捷操作 */}
         <section className="space-y-3">
           <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
