@@ -472,7 +472,7 @@ export default function DashboardContent() {
     [user?.verified],
   );
 
-  /* --------------------------- mainContent ------------------------------- */
+  /* --------------------------- 主内容映射 -------------------------------- */
   const mainContent = useMemo(() => {
     if (!user) return <LoadingIndicator />;
 
@@ -541,133 +541,212 @@ export default function DashboardContent() {
     openModal,
   ]);
 
-  /* --------------------------- render 页面 ------------------------------- */
-  return (
-    <div className="flex min-h-screen flex-col bg-white text-neutral-900 selection:bg-black/80 selection:text-white dark:bg-zinc-950 dark:text-zinc-100 dark:selection:bg-white/80 dark:selection:text-black
-      bg-[radial-gradient(1200px_400px_at_50%_-80px,rgba(0,0,0,0.06),transparent)] dark:bg-[radial-gradient(1200px_400px_at_50%_-80px,rgba(255,255,255,0.06),transparent)]">
-      <Header user={user} />
+  /* --------------------------- 右侧信息侧栏 ------------------------------- */
+  const RightRail = useMemo(() => {
+    return (
+      <aside className="sticky top-24 space-y-10">
+        {/* 账户快照 */}
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
+            账户快照
+          </h3>
+          <ul className="space-y-2 text-sm text-neutral-700 dark:text-zinc-300">
+            <li className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${user?.verified ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span>邮箱状态：{user?.verified ? '已验证' : '未验证'}</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${user?.totp_enabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span>二步验证：{user?.totp_enabled ? '已开启' : '未开启'}</span>
+            </li>
+            {user?.totp_enabled && (
+              <li className="flex items-center gap-2 text-neutral-600 dark:text-zinc-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                <span>剩余备份码：{form.backupCount ?? '—'}</span>
+              </li>
+            )}
+            <li className="flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${isAdmin ? 'bg-neutral-900 dark:bg-zinc-100' : 'bg-neutral-400'}`} />
+              <span>角色：{isAdmin ? '管理员' : '普通用户'}</span>
+            </li>
+          </ul>
+        </section>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 sm:mb-10">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">用户中心</h1>
-          <p className="mt-2 text-sm sm:text-base text-neutral-500 dark:text-zinc-400">管理您的账户设置和偏好</p>
-        </div>
-
-        {/* 移动端分段导航（仅在小屏显示），吸顶、玻璃感 */}
-        <nav className="sticky top-16 z-20 -mx-4 mb-6 border-b border-black/5 bg-white/80 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/70 lg:hidden">
-          <div className="flex gap-2 overflow-x-auto py-2">
+        {/* 快捷操作 */}
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
+            快捷操作
+          </h3>
+          <div className="flex flex-wrap gap-2">
             <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                activeSection === 'general'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-              }`}
-              onClick={() => setActiveSection('general')}
+              onClick={() => openModal('pwd')}
+              className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
             >
-              通用设置
+              修改密码
             </button>
             <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                activeSection === 'security'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-              }`}
-              onClick={() => setActiveSection('security')}
+              onClick={() => openModal('email')}
+              className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
             >
-              安全设置
+              更换邮箱
             </button>
-            <button
-              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                activeSection === 'connections'
-                  ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                  : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-              }`}
-              onClick={() => setActiveSection('connections')}
-            >
-              账号绑定
-            </button>
-            {isAdmin && (
+            {!user?.totp_enabled ? (
+              <button
+                onClick={() => openModal('setup2faPwd')}
+                className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+              >
+                启用 2FA
+              </button>
+            ) : (
               <>
                 <button
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                    activeSection === 'admin'
-                      ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-                  }`}
-                  onClick={() => setActiveSection('admin')}
-                  onMouseEnter={preloadAdminChunks}
-                  onFocus={preloadAdminChunks}
+                  onClick={() => openModal('genBackupPwd')}
+                  className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                 >
-                  用户管理
+                  生成备份码
                 </button>
                 <button
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                    activeSection === 'oauth'
-                      ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-                  }`}
-                  onClick={() => setActiveSection('oauth')}
-                  onMouseEnter={preloadAdminChunks}
-                  onFocus={preloadAdminChunks}
+                  onClick={() => openModal('disable2fa')}
+                  className="rounded-full border border-black/10 bg-transparent px-3 py-1.5 text-xs text-neutral-800 hover:bg-black/[0.03] active:bg-black/[0.05] dark:border-white/10 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                 >
-                  OAuth应用
+                  关闭 2FA
                 </button>
               </>
             )}
+            <button
+              onClick={() => openModal('delete')}
+              className="rounded-full border border-red-200/60 bg-transparent px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 active:bg-red-100 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-900/20"
+            >
+              删除账户
+            </button>
+          </div>
+        </section>
+
+        {/* 轻提示 */}
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold tracking-widest text-neutral-500 dark:text-zinc-400">
+            提示
+          </h3>
+          <p className="text-xs leading-5 text-neutral-500 dark:text-zinc-400">
+            所有操作均即时生效且无需刷新；涉及安全项时会以弹窗二次确认。
+          </p>
+        </section>
+      </aside>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.verified, user?.totp_enabled, form.backupCount, isAdmin]);
+
+  /* --------------------------- 页面渲染 ---------------------------------- */
+  return (
+    <div
+      className="flex min-h-screen flex-col bg-white text-neutral-900 selection:bg-black/80 selection:text-white dark:bg-zinc-950 dark:text-zinc-100 dark:selection:bg-white/80 dark:selection:text-black
+      bg-[radial-gradient(1000px_400px_at_50%_-120px,rgba(0,0,0,0.05),transparent)] dark:bg-[radial-gradient(1000px_400px_at_50%_-120px,rgba(255,255,255,0.06),transparent)]"
+    >
+      <Header user={user} />
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10 lg:px-8">
+        <header className="mb-8">
+          <h1 className="text-[28px] font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">
+            用户中心
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500 dark:text-zinc-400">
+            管理你的账户、安全与绑定。桌面端采用编辑型排版，无“卡片套娃”。
+          </p>
+        </header>
+
+        {/* 移动端横向分段导航（PC 隐藏） */}
+        <nav className="sticky top-16 z-20 -mx-6 mb-6 border-b border-black/5 bg-white/80 px-6 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/70 lg:hidden">
+          <div className="flex gap-2 overflow-x-auto py-2">
+            {[
+              { key: 'general', label: '通用设置' },
+              { key: 'security', label: '安全设置' },
+              { key: 'connections', label: '账号绑定' },
+              ...(isAdmin ? [{ key: 'admin', label: '用户管理' }] : []),
+              ...(isAdmin ? [{ key: 'oauth', label: 'OAuth应用' }] : []),
+            ].map((it) => (
+              <button
+                key={it.key}
+                onClick={() => setActiveSection(it.key as SectionKey)}
+                onMouseEnter={preloadAdminChunks}
+                onFocus={preloadAdminChunks}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
+                  activeSection === it.key
+                    ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                    : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
+                }`}
+              >
+                {it.label}
+              </button>
+            ))}
           </div>
         </nav>
 
-        <div className="flex gap-8">
-          {/* 桌面端侧边导航（玻璃卡片） */}
-          <nav className="hidden w-60 shrink-0 lg:block">
-            <div className="sticky top-24 rounded-xl border border-black/10 bg-white/60 p-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md shadow-sm dark:border-white/10 dark:bg-zinc-900/40">
-              <NavItem
-                active={activeSection === 'general'}
-                onClick={() => setActiveSection('general')}
-              >
-                通用设置
-              </NavItem>
-              <NavItem
-                active={activeSection === 'security'}
-                onClick={() => setActiveSection('security')}
-              >
-                安全设置
-              </NavItem>
-              <NavItem
-                active={activeSection === 'connections'}
-                onClick={() => setActiveSection('connections')}
-              >
-                账号绑定
-              </NavItem>
-              {isAdmin && (
+        {/* 桌面 Editorial 12 栏布局：2 / 7 / 3 */}
+        <div className="grid grid-cols-12 gap-8">
+          {/* 左侧：文字侧边导航（无卡面） */}
+          <nav className="relative col-span-2 hidden lg:block">
+            <div className="sticky top-24">
+              <div className="space-y-1">
                 <NavItem
-                  active={activeSection === 'admin'}
-                  onClick={() => setActiveSection('admin')}
-                  onMouseEnter={preloadAdminChunks}
-                  onFocus={preloadAdminChunks}
+                  active={activeSection === 'general'}
+                  onClick={() => setActiveSection('general')}
                 >
-                  用户管理
+                  通用设置
                 </NavItem>
-              )}
-              {isAdmin && (
                 <NavItem
-                  active={activeSection === 'oauth'}
-                  onClick={() => setActiveSection('oauth')}
-                  onMouseEnter={preloadAdminChunks}
-                  onFocus={preloadAdminChunks}
+                  active={activeSection === 'security'}
+                  onClick={() => setActiveSection('security')}
                 >
-                  OAuth应用
+                  安全设置
                 </NavItem>
-              )}
+                <NavItem
+                  active={activeSection === 'connections'}
+                  onClick={() => setActiveSection('connections')}
+                >
+                  账号绑定
+                </NavItem>
+
+                {isAdmin && (
+                  <div className="mt-4 pt-4 text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-zinc-500 border-t border-black/5 dark:border-white/10">
+                    管理
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <NavItem
+                    active={activeSection === 'admin'}
+                    onClick={() => setActiveSection('admin')}
+                    onMouseEnter={preloadAdminChunks}
+                    onFocus={preloadAdminChunks}
+                  >
+                    用户管理
+                  </NavItem>
+                )}
+                {isAdmin && (
+                  <NavItem
+                    active={activeSection === 'oauth'}
+                    onClick={() => setActiveSection('oauth')}
+                    onMouseEnter={preloadAdminChunks}
+                    onFocus={preloadAdminChunks}
+                  >
+                    OAuth 应用
+                  </NavItem>
+                )}
+              </div>
             </div>
           </nav>
 
-          {/* 主内容玻璃卡片 */}
-          <section className="min-h-[36rem] flex-1">
-            <div className="rounded-2xl border border-black/10 bg-white/60 p-6 shadow-sm backdrop-blur supports-[backdrop-filter]:backdrop-blur-md md:p-8 dark:border-white/10 dark:bg-zinc-900/40">
+          {/* 中间：主内容（无卡面；自然留白 + divide-y） */}
+          <section className="col-span-12 lg:col-span-7">
+            <div className="space-y-12 divide-y divide-black/5 dark:divide-white/10 [&>section]:pt-8 first:[&>section]:pt-0">
               {mainContent}
             </div>
           </section>
+
+          {/* 右侧：信息侧栏（无卡面） */}
+          <aside className="col-span-3 hidden xl:block">
+            {RightRail}
+          </aside>
         </div>
       </main>
 
