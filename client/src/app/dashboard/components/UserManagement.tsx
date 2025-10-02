@@ -119,13 +119,11 @@ export default function UserManagement() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [searchInputValue, setSearchInputValue] = useState('');
 
-  // 显示消息
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 5000);
   }, []);
 
-  // 搜索值防抖处理
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInputValue !== state.searchQuery) {
@@ -135,7 +133,6 @@ export default function UserManagement() {
     return () => clearTimeout(timer);
   }, [searchInputValue, state.searchQuery]);
 
-  // 加载用户列表
   const loadUsers = useCallback(async () => {
     dispatch({ loading: true, error: '' });
     try {
@@ -164,23 +161,20 @@ export default function UserManagement() {
     }
   }, [state.currentPage, state.sortBy, state.sortOrder, state.searchQuery, state.roleFilter, state.verifiedFilter]);
 
-  // 加载可用角色
   const loadRoles = useCallback(async () => {
     try {
       const roles = await getAvailableRoles();
       dispatch({ availableRoles: roles });
-    } catch (error) {
-      // 静默失败
+    } catch {
+      // ignore
     }
   }, []);
 
-  // 初始化与依赖变化
   useEffect(() => {
     loadUsers();
     loadRoles();
   }, [loadUsers, loadRoles]);
 
-  // 编辑用户
   const handleEditUser = useCallback((user: User) => {
     dispatch({
       editingUser: {
@@ -193,7 +187,6 @@ export default function UserManagement() {
     });
   }, []);
 
-  // 保存用户编辑
   const handleSaveUser = useCallback(async (e?: FormEvent) => {
     e?.preventDefault();
     if (!state.editingUser) return;
@@ -218,7 +211,6 @@ export default function UserManagement() {
     }
   }, [state.editingUser, state.users, showMessage, loadUsers]);
 
-  // 删除用户
   const handleDeleteUser = useCallback(async (userId: string) => {
     try {
       await deleteUser(userId);
@@ -230,7 +222,6 @@ export default function UserManagement() {
     }
   }, [showMessage, loadUsers]);
 
-  // 批量操作
   const handleBatchOperation = useCallback(async (action: string, data?: any) => {
     if (state.selectedUsers.size === 0) {
       showMessage('error', '请先选择用户');
@@ -253,35 +244,33 @@ export default function UserManagement() {
     }
   }, [state.selectedUsers, showMessage, loadUsers]);
 
-  // 角色标签配置
   const getRoleConfig = useCallback((role: UserRole) => {
     const configs = {
-      user: { icon: <Users className="w-4 h-4 text-neutral-500" />, label: '用户' },
-      admin: { icon: <Shield className="w-4 h-4 text-neutral-500" />, label: '管理员' },
-      super_admin: { icon: <Crown className="w-4 h-4 text-neutral-500" />, label: '超级管理员' },
+      user: { icon: <Users className="w-4 h-4 text-muted-foreground" />, label: '用户' },
+      admin: { icon: <Shield className="w-4 h-4 text-muted-foreground" />, label: '管理员' },
+      super_admin: { icon: <Crown className="w-4 h-4 text-muted-foreground" />, label: '超级管理员' },
     };
     return configs[role];
   }, []);
 
-  // 骨架屏
   const UserTableSkeleton = () => (
-    <div className="overflow-x-auto">
-      <table className="min-w-full table-fixed divide-y divide-black/5 dark:divide-white/10">
-        <thead className="bg-neutral-50 dark:bg-zinc-800/60">
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="min-w-full table-fixed divide-y divide-border">
+        <thead className="bg-muted/40">
           <tr>
             {[...Array(6)].map((_, i) => (
-              <th key={i} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">
-                <div className="h-3 w-24 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
+              <th key={i} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <div className="h-3 w-24 rounded bg-muted animate-pulse" />
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-black/5 dark:divide-white/10">
+        <tbody className="divide-y divide-border">
           {[...Array(5)].map((_, i) => (
             <tr key={i}>
               {[...Array(6)].map((__, j) => (
                 <td key={j} className="px-6 py-4">
-                  <div className="h-4 w-40 rounded bg-neutral-200 dark:bg-zinc-700 animate-pulse" />
+                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
                 </td>
               ))}
             </tr>
@@ -291,18 +280,17 @@ export default function UserManagement() {
     </div>
   );
 
-  // 用户表格
   const renderUserTable = useMemo(() => {
     if (state.loading) return <UserTableSkeleton />;
 
     if (state.error) {
       return (
-        <div className="flex items-center justify-center p-8">
+        <div className="flex items-center justify-center rounded-md border border-border p-8">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 text-neutral-400 dark:text-zinc-500">
+            <div className="mx-auto mb-4 h-12 w-12 text-muted-foreground">
               <Users className="h-full w-full" />
             </div>
-            <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+            <p className="text-sm text-red-600">{state.error}</p>
           </div>
         </div>
       );
@@ -310,20 +298,20 @@ export default function UserManagement() {
 
     if (state.users.length === 0) {
       return (
-        <div className="flex items-center justify-center p-10">
+        <div className="flex items-center justify-center rounded-md border border-border p-10">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 text-neutral-400 dark:text-zinc-500">
+            <div className="mx-auto mb-4 h-12 w-12 text-muted-foreground">
               <Users className="h-full w-full" />
             </div>
-            <p className="text-sm text-neutral-500 dark:text-zinc-400">没有找到用户</p>
+            <p className="text-sm text-muted-foreground">没有找到用户</p>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-fixed divide-y divide-black/5 dark:divide-white/10">
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-full table-fixed divide-y divide-border">
           <colgroup>
             <col className="w-14" />
             <col />
@@ -333,92 +321,92 @@ export default function UserManagement() {
             <col className="w-40" />
           </colgroup>
 
-          <thead className="bg-neutral-50 dark:bg-zinc-800/60">
+          <thead className="bg-muted/40">
             <tr>
               <th className="px-6 py-3 text-left">
                 <input
                   type="checkbox"
                   checked={state.selectedUsers.size === state.users.length && state.users.length > 0}
                   onChange={(e) => dispatch({ type: e.target.checked ? 'SELECT_ALL' : 'CLEAR_SELECTION' })}
-                  className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
+                  className="h-4 w-4 rounded border-border bg-background text-foreground focus:ring-foreground/30"
                 />
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">用户信息</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">角色</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">状态</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">创建时间</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-zinc-400">操作</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">用户信息</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">角色</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">状态</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">创建时间</th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">操作</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-black/5 dark:divide-white/10">
+          <tbody className="divide-y divide-border">
             {state.users.map((user) => {
               const roleConfig = getRoleConfig(user.role);
               return (
-                <tr key={user.id} className="transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.04]">
+                <tr key={user.id} className="transition-colors hover:bg-muted/30">
                   <td className="px-6 py-3.5">
                     <input
                       type="checkbox"
                       checked={state.selectedUsers.has(user.id)}
                       onChange={() => dispatch({ type: 'TOGGLE_SELECT', userId: user.id })}
-                      className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
+                      className="h-4 w-4 rounded border-border bg-background text-foreground focus:ring-foreground/30"
                     />
                   </td>
                   <td className="px-6 py-3.5 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
-                      <div className="flex w-10 flex-shrink-0 items-center space-x-1.5 text-neutral-400 dark:text-zinc-500">
+                      <div className="flex w-10 flex-shrink-0 items-center space-x-1.5 text-muted-foreground">
                         {user.githubLinked && <Github className="h-4 w-4" />}
                         {user.googleLinked && <Chrome className="h-4 w-4" />}
                       </div>
                       <div className="truncate">
-                        <div className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                        <div className="truncate text-sm font-medium text-foreground">
                           {user.username || '未设置用户名'}
                         </div>
-                        <div className="truncate text-sm text-neutral-500 dark:text-zinc-400">{user.email}</div>
+                        <div className="truncate text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       {roleConfig.icon}
-                      <span className="text-sm font-medium text-neutral-800 dark:text-zinc-200">{roleConfig.label}</span>
+                      <span className="text-sm font-medium text-foreground">{roleConfig.label}</span>
                     </div>
                   </td>
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-4">
                       <span title={user.verified ? '邮箱已验证' : '邮箱未验证'}>
                         {user.verified ? (
-                          <MailCheck className="h-4 w-4 text-neutral-700 dark:text-zinc-300" />
+                          <MailCheck className="h-4 w-4 text-foreground/80" />
                         ) : (
-                          <MailX className="h-4 w-4 text-neutral-400 dark:text-zinc-500" />
+                          <MailX className="h-4 w-4 text-muted-foreground" />
                         )}
                       </span>
                       <span title={user.totpEnabled ? '2FA 已启用' : '2FA 未启用'}>
                         {user.totpEnabled ? (
-                          <ShieldCheck className="h-4 w-4 text-neutral-700 dark:text-zinc-300" />
+                          <ShieldCheck className="h-4 w-4 text-foreground/80" />
                         ) : (
-                          <ShieldOff className="h-4 w-4 text-neutral-400 dark:text-zinc-500" />
+                          <ShieldOff className="h-4 w-4 text-muted-foreground" />
                         )}
                       </span>
                       <span title={user.biometricEnabled ? '生物验证已启用' : '生物验证未启用'}>
-                        <Fingerprint className={`h-4 w-4 ${user.biometricEnabled ? 'text-neutral-700 dark:text-zinc-300' : 'text-neutral-400 dark:text-zinc-500'}`} />
+                        <Fingerprint className={`h-4 w-4 ${user.biometricEnabled ? 'text-foreground/80' : 'text-muted-foreground'}`} />
                       </span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-3.5 text-sm text-neutral-600 dark:text-zinc-400">
+                  <td className="whitespace-nowrap px-6 py-3.5 text-sm text-foreground/80">
                     {new Date(user.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                   </td>
                   <td className="whitespace-nowrap px-6 py-3.5 text-right">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleEditUser(user)} className="h-8 px-3">
+                      <Button size="sm" variant="outline" onClick={() => handleEditUser(user)} className="h-8 px-3">
                         <Edit className="mr-1.5 h-4 w-4" />
                         编辑
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => dispatch({ showDeleteConfirm: user.id })}
-                        className="h-8 px-3 text-red-600 hover:bg-red-100 dark:text-red-500 dark:hover:bg-red-900/20"
+                        className="h-8 px-3 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="mr-1.5 h-4 w-4" />
                         删除
@@ -433,11 +421,11 @@ export default function UserManagement() {
 
         {/* 分页 */}
         {state.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-black/5 px-6 py-4 text-sm dark:border-white/10">
-            <div className="text-neutral-600 dark:text-zinc-400">
-              共 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.totalUsers}</span> 个用户，
-              第 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.currentPage}</span> /
-              <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.totalPages}</span> 页
+          <div className="flex items-center justify-between border-t border-border px-6 py-4 text-sm">
+            <div className="text-muted-foreground">
+              共 <span className="font-medium text-foreground">{state.totalUsers}</span> 个用户，
+              第 <span className="font-medium text-foreground">{state.currentPage}</span> /
+              <span className="font-medium text-foreground">{state.totalPages}</span> 页
             </div>
             <div className="flex gap-2">
               <Button
@@ -469,8 +457,8 @@ export default function UserManagement() {
     <div className="space-y-6">
       {/* 标题 */}
       <div className="space-y-2">
-        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">用户管理</h3>
-        <p className="text-sm text-neutral-600 dark:text-zinc-400">管理系统用户，控制角色权限和账户状态</p>
+        <h3 className="text-xl font-semibold text-foreground">用户管理</h3>
+        <p className="text-sm text-muted-foreground">管理系统用户，控制角色权限和账户状态</p>
       </div>
 
       {/* 消息 */}
@@ -478,8 +466,8 @@ export default function UserManagement() {
         <div
           className={`rounded-md border p-3 text-sm ${
             message.type === 'success'
-              ? 'border-emerald-300/50 bg-emerald-50/60 text-emerald-700 dark:border-emerald-600/40 dark:bg-emerald-900/20 dark:text-emerald-300'
-              : 'border-red-300/50 bg-red-50/60 text-red-700 dark:border-red-600/40 dark:bg-red-900/20 dark:text-red-300'
+              ? 'border-emerald-300/50 bg-emerald-50/60 text-emerald-700 dark:bg-emerald-900/20'
+              : 'border-red-300/50 bg-red-50/60 text-red-700 dark:bg-red-900/20'
           }`}
         >
           {message.text}
@@ -489,13 +477,13 @@ export default function UserManagement() {
       {/* 工具栏 */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-zinc-500" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="通过用户名或邮箱搜索…"
             value={searchInputValue}
             onChange={(e) => setSearchInputValue(e.target.value)}
-            className="w-full rounded-md border border-black/10 bg-white pl-10 pr-4 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:ring-2 focus:ring-neutral-400/40 dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 dark:placeholder-zinc-500 dark:focus:ring-neutral-500/40 md:max-w-xs"
+            className="w-full rounded-md border border-border bg-background pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground md:max-w-xs"
           />
         </div>
 
@@ -503,7 +491,7 @@ export default function UserManagement() {
           <select
             value={state.roleFilter}
             onChange={(e) => dispatch({ roleFilter: e.target.value as UserRole | '', currentPage: 1 })}
-            className="rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
             <option value="">所有角色</option>
             <option value="user">普通用户</option>
@@ -514,7 +502,7 @@ export default function UserManagement() {
           <select
             value={state.verifiedFilter.toString()}
             onChange={(e) => dispatch({ verifiedFilter: e.target.value === '' ? '' : e.target.value === 'true', currentPage: 1 })}
-            className="rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-900 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
             <option value="">所有状态</option>
             <option value="true">已验证</option>
@@ -525,10 +513,10 @@ export default function UserManagement() {
 
       {/* 批量操作条 */}
       {state.selectedUsers.size > 0 && (
-        <div className="rounded-md border border-black/10 bg-black/[0.02] px-6 py-4 text-sm dark:border-white/10 dark:bg-white/[0.04]">
+        <div className="rounded-md border border-border bg-muted/40 px-6 py-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-neutral-600 dark:text-zinc-400">
-              已选择 <span className="font-medium text-neutral-900 dark:text-neutral-100">{state.selectedUsers.size}</span> 个用户
+            <span className="text-muted-foreground">
+              已选择 <span className="font-medium text-foreground">{state.selectedUsers.size}</span> 个用户
             </span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => handleBatchOperation('verify')} className="h-8">
@@ -539,7 +527,7 @@ export default function UserManagement() {
                 <Mail className="mr-1 h-4 w-4" />
                 取消验证
               </Button>
-              <Button size="sm" variant="error" onClick={() => dispatch({ showBatchDeleteConfirm: true })} className="h-8">
+              <Button size="sm" variant="destructive" onClick={() => dispatch({ showBatchDeleteConfirm: true })} className="h-8">
                 <Trash2 className="mr-1 h-4 w-4" />
                 批量删除
               </Button>
@@ -561,31 +549,31 @@ export default function UserManagement() {
           state.editingUser && (
             <form className="space-y-4" onSubmit={handleSaveUser}>
               <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">邮箱地址</label>
+                <label className="mb-2 block text-sm font-medium text-foreground">邮箱地址</label>
                 <input
                   type="email"
                   value={state.editingUser.email}
                   onChange={(e) => dispatch({ editingUser: { ...state.editingUser!, email: e.target.value } })}
                   required
-                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-950 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">用户名</label>
+                <label className="mb-2 block text-sm font-medium text-foreground">用户名</label>
                 <input
                   type="text"
                   value={state.editingUser.username}
                   onChange={(e) => dispatch({ editingUser: { ...state.editingUser!, username: e.target.value } })}
-                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-950 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                   placeholder="可选"
                 />
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-zinc-300">用户角色</label>
+                <label className="mb-2 block text-sm font-medium text-foreground">用户角色</label>
                 <select
                   value={state.editingUser.role}
                   onChange={(e) => dispatch({ editingUser: { ...state.editingUser!, role: e.target.value as UserRole } })}
-                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-zinc-950 dark:text-neutral-100 focus:ring-2 focus:ring-neutral-400/40 dark:focus:ring-neutral-500/40"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
                   {state.availableRoles.map((role) => (
                     <option key={role.value} value={role.value}>
@@ -600,9 +588,9 @@ export default function UserManagement() {
                   id="verified"
                   checked={state.editingUser.verified}
                   onChange={(e) => dispatch({ editingUser: { ...state.editingUser!, verified: e.target.checked } })}
-                  className="h-4 w-4 rounded border-neutral-300 bg-neutral-100 text-black focus:ring-neutral-500 dark:border-neutral-600 dark:bg-neutral-700 dark:focus:ring-neutral-600"
+                  className="h-4 w-4 rounded border-border bg-background text-foreground focus:ring-foreground/30"
                 />
-                <label htmlFor="verified" className="ml-2 text-sm text-neutral-700 dark:text-zinc-300">
+                <label htmlFor="verified" className="ml-2 text-sm text-foreground">
                   邮箱已验证
                 </label>
               </div>
@@ -622,13 +610,13 @@ export default function UserManagement() {
         title="确认删除用户"
         message={
           <div className="space-y-3 text-sm">
-            <p className="text-neutral-600 dark:text-zinc-400">您确定要删除这个用户吗？此操作将会：</p>
-            <ul className="list-inside list-disc space-y-1 text-neutral-600 dark:text-zinc-400">
+            <p className="text-muted-foreground">您确定要删除这个用户吗？此操作将会：</p>
+            <ul className="list-inside list-disc space-y-1 text-muted-foreground">
               <li>永久删除用户账户</li>
               <li>清除所有相关数据</li>
               <li>用户将无法再次登录</li>
             </ul>
-            <p className="font-medium text-red-600 dark:text-red-400">此操作无法撤销，请谨慎操作。</p>
+            <p className="font-medium text-red-600">此操作无法撤销，请谨慎操作。</p>
           </div>
         }
         type="danger"
@@ -647,15 +635,15 @@ export default function UserManagement() {
         title={`确认批量删除 ${state.selectedUsers.size} 个用户`}
         message={
           <div className="space-y-3 text-sm">
-            <p className="text-neutral-600 dark:text-zinc-400">
+            <p className="text-muted-foreground">
               您确定要删除选中的 <strong>{state.selectedUsers.size}</strong> 个用户吗？此操作将会：
             </p>
-            <ul className="list-inside list-disc space-y-1 text-neutral-600 dark:text-zinc-400">
+            <ul className="list-inside list-disc space-y-1 text-muted-foreground">
               <li>永久删除这些用户账户</li>
               <li>清除所有相关数据</li>
               <li>这些用户将无法再次登录</li>
             </ul>
-            <p className="font-medium text-red-600 dark:text-red-400">此操作无法撤销，请谨慎操作。</p>
+            <p className="font-medium text-red-600">此操作无法撤销，请谨慎操作。</p>
           </div>
         }
         type="danger"

@@ -11,10 +11,12 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import LocalLoadingSpinner from './components/LocalLoadingSpinner';
 import { useAuth } from '@/context/AuthContext';
 
 import {
@@ -30,15 +32,38 @@ import {
 } from '@/services/api';
 import { checkAdminPermission } from '@/services/admin';
 
-import { NavItem, Input } from './DashboardUI';
+import {
+  Settings,
+  Shield,
+  Key,
+  User,
+  Mail,
+  Github,
+  Chrome,
+  Users,
+  KeySquare,
+  Trash2,
+  Eye,
+  EyeOff,
+  Check,
+  ChevronRight,
+  Fingerprint,
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from './DashboardUI';
 import {
   GeneralSection,
   SecuritySection,
   ConnectionsSection,
 } from './DashboardSections';
-import LocalLoadingSpinner from './components/LocalLoadingSpinner';
 
-// 动态导入管理组件（按需加载）
+// 动态导入 ConfirmModal（按需挂载）
+const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), {
+  ssr: false,
+});
+
+// 动态导入管理模块
 const UserManagement = dynamic(() => import('./components/UserManagement'), {
   ssr: false,
   loading: () => <LocalLoadingSpinner />,
@@ -46,11 +71,6 @@ const UserManagement = dynamic(() => import('./components/UserManagement'), {
 const OAuthManagement = dynamic(() => import('./components/OAuthManagement'), {
   ssr: false,
   loading: () => <LocalLoadingSpinner />,
-});
-
-// 动态导入 ConfirmModal（按需挂载）
-const ConfirmModal = dynamic(() => import('@/components/ui/confirm-modal'), {
-  ssr: false,
 });
 
 /* -------------------------------------------------------------------------- */
@@ -82,7 +102,7 @@ function modalReducer(state: ModalState, action: { type: 'open' | 'close'; key: 
   return { ...state, [action.key]: action.type === 'open' };
 }
 
-type SectionKey = 'general' | 'security' | 'connections' | 'admin' | 'oauth';
+type SectionKey = 'general' | 'security' | 'connections' | 'admin' | 'oauth' | 'danger';
 
 /* -------------------------------------------------------------------------- */
 /* 组件                                                                       */
@@ -125,33 +145,13 @@ interface FormState {
 export default function DashboardContent() {
   const { user, logout, checkAuth } = useAuth();
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   // 更稳健的定时器引用类型（兼容浏览器/Node）
   const popupCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* --------------------------- 视口 / 分区切换 ---------------------------- */
-  const [activeSection, setActiveSection] = useReducer(
-    (_: SectionKey, next: SectionKey) => next,
-    (typeof window !== 'undefined'
-      ? ((localStorage.getItem('dashboard-active-section') as SectionKey | null) ??
-        'general')
-      : 'general') as SectionKey,
-  );
-
-  // 将 activeSection 写入 localStorage，但放到空闲时段
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const write = () => localStorage.setItem('dashboard-active-section', activeSection);
-    const w = window as any;
-    if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(write);
-      return () => typeof w.cancelIdleCallback === 'function' && w.cancelIdleCallback(id);
-    } else {
-      const id = setTimeout(write, 0);
-      return () => clearTimeout(id);
-    }
-  }, [activeSection]);
-
-  /* --------------------------- 管理员权限检查 ---------------------------- */
+  /* --------------------------- URL 同步的 tab ----------------------------- */
   const [isAdmin, setIsAdmin] = useReducer((_: boolean, next: boolean) => next, false);
   useEffect(() => {
     checkAdminPermission()
@@ -159,7 +159,36 @@ export default function DashboardContent() {
       .catch(() => setIsAdmin(false));
   }, [user]);
 
-  // 移动端检测
+  const baseTabs: Array<{
+    id: SectionKey;
+    name: string;
+    icon: any;
+    title: string;
+    description: string;
+    danger?: boolean;
+    adminOnly?: boolean;
+  }> = [
+    { id: 'general', name: '基本设置', icon: Settings, title: '基本设置', description: '管理你的基础资料与偏好' },
+    { id: 'security', name: '安全与登录', icon: Shield, title: '安全与登录', description: '两步验证、会话与生物认证' },
+    { id: 'connections', name: '账号绑定', icon: Key, title: '账号绑定', description: '绑定第三方账号以便快速登录' },
+    { id: 'oauth', name: 'OAuth 应用', icon: KeySquare, title: 'OAuth 应用', description: '管理 OAuth2/OIDC 应用与凭证', adminOnly: true },
+    { id: 'admin', name: '用户管理', icon: Users, title: '用户管理', description: '系统用户与权限管理', adminOnly: true },
+    { id: 'danger', name: '危险操作', icon: Trash2, title: '危险操作', description: '这些操作不可撤销，请谨慎执行', danger: true },
+  ];
+  const tabs = baseTabs.filter(t => (t.adminOnly ? isAdmin : true));
+
+  const urlTab = (searchParams.get('tab') as SectionKey | null) || null;
+  const defaultTab: SectionKey = 'general';
+  const activeTab: SectionKey = urlTab && tabs.some(t => t.id === urlTab) ? urlTab : defaultTab;
+  const currentTab = tabs.find(t => t.id === activeTab) || tabs[0];
+
+  const handleTabChange = (tabId: SectionKey) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('tab', tabId);
+    router.replace(`/dashboard?${sp.toString()}`, { scroll: false });
+  };
+
+  /* --------------------------- 移动端检测（可选） ------------------------- */
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -193,7 +222,6 @@ export default function DashboardContent() {
     email: false,
     delete: false,
   });
-
   const openModal = useCallback((key: ModalKey) => setModalOpen({ type: 'open', key }), []);
   const closeModal = useCallback((key: ModalKey) => setModalOpen({ type: 'close', key }), []);
 
@@ -235,7 +263,7 @@ export default function DashboardContent() {
     },
   );
 
-  // 使用 ref 保持最新的状态供稳定 handler 读取
+  // 使用 ref 保持最新 state 供稳定 handler 读取
   const formRef = useRef<FormState>(form);
   const userRef = useRef<typeof user>(user);
   useEffect(() => { formRef.current = form; }, [form]);
@@ -274,15 +302,14 @@ export default function DashboardContent() {
     [checkAuth],
   );
 
-  /* --------------------------- 管理模块预取 ------------------------------- */
+  /* --------------------------- 预加载 admin 组件 -------------------------- */
   const preloadAdminChunks = useCallback(() => {
     if (!isAdmin) return;
-    // 仅预热，不改变现有逻辑
     void import('./components/UserManagement');
     void import('./components/OAuthManagement');
   }, [isAdmin]);
 
-  /* --------------------------- 所有 handler（稳定引用） ------------------- */
+  /* --------------------------- handlers --------------------------------- */
 
   // 删除账户
   const handleDeleteAccount = useCallback(async (e?: FormEvent) => {
@@ -362,9 +389,9 @@ export default function DashboardContent() {
     } finally {
       setForm({ totpLoading: false });
     }
-  }, []);
+  }, [user?.email]);
 
-  // 生成新备份码（打开密码验证弹窗）
+  // 生成新备份码 – 打开密码验证
   const handleGenBackupCodes = useCallback(() => {
     openModal('genBackupPwd');
   }, [openModal]);
@@ -460,195 +487,189 @@ export default function DashboardContent() {
   /* --------------------------- render helpers ---------------------------- */
   const renderEmailStatus = useCallback(
     () => (
-      <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-black/10 bg-black/[0.03] px-2 py-0.5 text-xs font-medium text-neutral-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            user?.verified ? 'bg-emerald-500' : 'bg-amber-500'
-          }`}
-        />
+      <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        <span className={`h-1.5 w-1.5 rounded-full ${user?.verified ? 'bg-emerald-500' : 'bg-amber-500'}`} />
         {user?.verified ? '已验证' : '未验证'}
       </span>
     ),
     [user?.verified],
   );
 
-  /* --------------------------- 主内容映射 -------------------------------- */
-  const mainContent = useMemo(() => {
+  /* --------------------------- Tab 内容 ---------------------------------- */
+  const renderContent = useMemo(() => {
     if (!user) return <LoadingIndicator />;
 
-    const general = (
-      <GeneralSection
-        user={user}
-        showUserId={form.showUserId}
-        toggleShowUserId={() => setForm({ showUserId: !form.showUserId })}
-        openUsernameModal={() => openModal('username')}
-        openEmailModal={() => openModal('email')}
-        openPwdModal={() => openModal('pwd')}
-        renderEmailStatus={renderEmailStatus}
-      />
-    );
-
-    const security = (
-      <div className="space-y-12">
-        <SecuritySection
-          user={user}
-          backupCount={form.backupCount}
-          backupMsg={form.backupMsg}
-          handleGenBackupCodes={handleGenBackupCodes}
-          handleSetup2FA={() => openModal('setup2faPwd')}
-          openDisable2faModal={() => openModal('disable2fa')}
-          handleDeleteAccountClick={() => openModal('delete')}
-        />
-      </div>
-    );
-
-    const connections = (
-      <ConnectionsSection
-        user={user}
-        handleBindGithub={handleBindGithub}
-        handleBindGoogle={handleBindGoogle}
-      />
-    );
-
-    const admin = isAdmin ? <UserManagement /> : null;
-    const oauth = isAdmin ? <OAuthManagement /> : null;
-
-    switch (activeSection) {
+    switch (activeTab) {
       case 'general':
-        return general;
+        return (
+          <div className="flex flex-col gap-6">
+            <GeneralSection
+              user={user}
+              showUserId={form.showUserId}
+              toggleShowUserId={() => setForm({ showUserId: !form.showUserId })}
+              openUsernameModal={() => openModal('username')}
+              openEmailModal={() => openModal('email')}
+              openPwdModal={() => openModal('pwd')}
+              renderEmailStatus={renderEmailStatus}
+            />
+          </div>
+        );
+
       case 'security':
-        return security;
+        return (
+          <div className="flex flex-col gap-6">
+            <SecuritySection
+              user={user}
+              backupCount={form.backupCount}
+              backupMsg={form.backupMsg}
+              handleGenBackupCodes={handleGenBackupCodes}
+              handleSetup2FA={() => openModal('setup2faPwd')}
+              openDisable2faModal={() => openModal('disable2fa')}
+            />
+          </div>
+        );
+
       case 'connections':
-        return connections;
-      case 'admin':
-        return admin;
+        return (
+          <div className="flex flex-col gap-6">
+            <ConnectionsSection
+              user={user}
+              handleBindGithub={handleBindGithub}
+              handleBindGoogle={handleBindGoogle}
+            />
+          </div>
+        );
+
       case 'oauth':
-        return oauth;
+        return (
+          <div className="rounded-xl bg-card p-5">
+            <div className="mb-4 flex items-center gap-3">
+              <KeySquare className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-base font-medium text-foreground">OAuth 应用</p>
+                <p className="mt-1 text-sm text-muted-foreground">管理 OAuth2/OIDC 应用与凭证</p>
+              </div>
+            </div>
+            <OAuthManagement />
+          </div>
+        );
+
+      case 'admin':
+        return (
+          <div className="rounded-xl bg-card p-5">
+            <div className="mb-4 flex items-center gap-3">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-base font-medium text-foreground">用户管理</p>
+                <p className="mt-1 text-sm text-muted-foreground">系统用户与权限管理</p>
+              </div>
+            </div>
+            <UserManagement />
+          </div>
+        );
+
+      case 'danger':
+        return (
+          <div className="flex flex-col gap-6">
+            <div className="rounded-xl bg-card pl-5 pr-4 py-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                  <div>
+                    <p className="text-base font-medium text-foreground">删除账户</p>
+                    <p className="mt-1 text-sm leading-tight text-muted-foreground">
+                      删除后，所有数据将被永久清除且无法恢复。
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-none shrink-0">
+                  <Button
+                    variant="error"
+                    onClick={() => openModal('delete')}
+                    className="px-4 py-2 text-sm"
+                  >
+                    删除我的账户
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
-        return general;
+        return null;
     }
   }, [
     user,
-    isAdmin,
-    activeSection,
+    activeTab,
     form.showUserId,
     form.backupCount,
     form.backupMsg,
     renderEmailStatus,
+    handleGenBackupCodes,
     handleBindGithub,
     handleBindGoogle,
-    handleGenBackupCodes,
     openModal,
   ]);
-
 
   /* --------------------------- 页面渲染 ---------------------------------- */
   return (
     <div
-      className="flex min-h-screen flex-col bg-white text-neutral-900 selection:bg-black/80 selection:text-white dark:bg-zinc-950 dark:text-zinc-100 dark:selection:bg-white/80 dark:selection:text-black
-      bg-[radial-gradient(1000px_400px_at_50%_-120px,rgba(0,0,0,0.05),transparent)] dark:bg-[radial-gradient(1000px_400px_at_50%_-120px,rgba(255,255,255,0.06),transparent)]"
+      className="flex min-h-screen flex-col bg-background text-foreground"
     >
       <Header user={user} />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10 lg:px-8">
-        <header className="mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight text-neutral-900 dark:text-zinc-100">
-            用户中心
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-zinc-400">
-            管理你的账户、安全与绑定。
-          </p>
-        </header>
-
-        {/* 移动端横向分段导航（PC 隐藏） */}
-        <nav className="sticky top-16 z-20 -mx-6 mb-6 border-b border-black/5 bg-white/80 px-6 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/70 lg:hidden">
-          <div className="flex gap-2 overflow-x-auto py-2">
-            {[
-              { key: 'general', label: '通用设置' },
-              { key: 'security', label: '安全设置' },
-              { key: 'connections', label: '账号绑定' },
-              ...(isAdmin ? [{ key: 'admin', label: '用户管理' }] : []),
-              ...(isAdmin ? [{ key: 'oauth', label: 'OAuth应用' }] : []),
-            ].map((it) => (
-              <button
-                key={it.key}
-                onClick={() => setActiveSection(it.key as SectionKey)}
-                onMouseEnter={preloadAdminChunks}
-                onFocus={preloadAdminChunks}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                  activeSection === it.key
-                    ? 'bg-neutral-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                    : 'bg-black/[0.04] text-neutral-700 hover:bg-black/[0.06] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-                }`}
-              >
-                {it.label}
-              </button>
-            ))}
+      {/* Page Container */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-8 pt-10 pb-14">
+        {/* 面包屑 + 标题 */}
+        <div className="mb-6 flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <a href="/dashboard" className="hover:text-foreground transition-colors">用户中心</a>
+            <ChevronRight className="h-3 w-3" />
+            <span>设置</span>
           </div>
-        </nav>
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">{currentTab?.title || '设置'}</h1>
+            <p className="mt-1 text-base text-muted-foreground">{currentTab?.description || '管理账户与安全'}</p>
+          </div>
+        </div>
 
-        {/* 桌面 Editorial 12 栏布局：2 / 7 / 3 */}
-        <div className="grid grid-cols-12 gap-8">
-          {/* 左侧：文字侧边导航（无卡面） */}
-          <nav className="relative col-span-3 hidden lg:block">
-            <div className="sticky top-24">
-              <div className="space-y-1">
-                <NavItem
-                  active={activeSection === 'general'}
-                  onClick={() => setActiveSection('general')}
-                >
-                  通用设置
-                </NavItem>
-                <NavItem
-                  active={activeSection === 'security'}
-                  onClick={() => setActiveSection('security')}
-                >
-                  安全设置
-                </NavItem>
-                <NavItem
-                  active={activeSection === 'connections'}
-                  onClick={() => setActiveSection('connections')}
-                >
-                  账号绑定
-                </NavItem>
-
-                {isAdmin && (
-                  <div className="mt-4 pt-4 text-xs font-semibold uppercase tracking-widest text-neutral-500 dark:text-zinc-500 border-t border-black/5 dark:border-white/10">
-                    管理
-                  </div>
-                )}
-
-                {isAdmin && (
-                  <NavItem
-                    active={activeSection === 'admin'}
-                    onClick={() => setActiveSection('admin')}
-                    onMouseEnter={preloadAdminChunks}
-                    onFocus={preloadAdminChunks}
-                  >
-                    用户管理
-                  </NavItem>
-                )}
-                {isAdmin && (
-                  <NavItem
-                    active={activeSection === 'oauth'}
-                    onClick={() => setActiveSection('oauth')}
-                    onMouseEnter={preloadAdminChunks}
-                    onFocus={preloadAdminChunks}
-                  >
-                    OAuth 应用
-                  </NavItem>
-                )}
+        {/* 主体：左侧导航 + 右侧内容 */}
+        <div className="flex gap-8">
+          {/* 左侧导航 */}
+          <aside className="w-64 flex-shrink-0">
+            <nav className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1">
+                <h3 className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">设置</h3>
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  const cls = isActive
+                    ? (tab.danger ? 'text-red-600 bg-red-50 dark:bg-red-950' : 'text-foreground bg-muted')
+                    : (tab.danger
+                      ? 'text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50');
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      onMouseEnter={preloadAdminChunks}
+                      onFocus={preloadAdminChunks}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${cls}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.name}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </nav>
+            </nav>
+          </aside>
 
-          {/* 中间：主内容（无卡面；自然留白 + divide-y） */}
-          <section className="col-span-12 lg:col-span-9">
-            <div className="space-y-12 divide-y divide-black/5 dark:divide-white/10 [&>section]:pt-8 first:[&>section]:pt-0">
-              {mainContent}
-            </div>
+          {/* 右侧内容 */}
+          <section className="min-w-0 flex-1">
+            {renderContent}
           </section>
-
         </div>
       </main>
 
@@ -666,17 +687,17 @@ export default function DashboardContent() {
             <form className="space-y-4" onSubmit={handlePwdSubmit}>
               {user?.has_password && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">旧密码</label>
+                  <label className="mb-1 block text-sm font-medium">旧密码</label>
                   <Input type="password" value={form.oldPwd} onChange={(e) => setForm({ oldPwd: e.target.value })} required />
                 </div>
               )}
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">新密码</label>
+                <label className="mb-1 block text-sm font-medium">新密码</label>
                 <Input type="password" value={form.newPwd} onChange={(e) => setForm({ newPwd: e.target.value })} required />
               </div>
               {form.pwdMsg && (
                 <div
-                  className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.pwdMsg.includes('成功') ? 'text-emerald-600' : 'text-red-600'}`}
                   aria-live="polite"
                 >
                   {form.pwdMsg}
@@ -701,7 +722,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleSetup2faPwd}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
+                <label className="mb-1 block text-sm font-medium">当前密码</label>
                 <Input
                   type="password"
                   value={form.setup2faPwd}
@@ -710,7 +731,7 @@ export default function DashboardContent() {
                   placeholder="请输入当前密码"
                 />
               </div>
-              {form.setup2faPwdMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.setup2faPwdMsg}</div>}
+              {form.setup2faPwdMsg && <div className="text-sm text-red-600" aria-live="polite">{form.setup2faPwdMsg}</div>}
             </form>
           }
           type="default"
@@ -728,32 +749,32 @@ export default function DashboardContent() {
           title="启用二步验证"
           message={
             <form className="space-y-4" onSubmit={handleVerify2FA}>
-              <p className="text-sm text-neutral-600 dark:text-zinc-400">请使用 Authenticator 扫描二维码或手动输入密钥。</p>
+              <p className="text-sm text-muted-foreground">请使用 Authenticator 扫描二维码或手动输入密钥。</p>
               {form.qr && (
                 <Image
                   src={form.qr}
                   alt="QR Code"
                   width={160}
                   height={160}
-                  className="mx-auto block rounded border border-black/10 p-1 dark:border-white/10"
+                  className="mx-auto block rounded border border-border p-1"
                 />
               )}
               <div className="text-center">
-                <label className="block text-xs font-medium text-neutral-500 dark:text-zinc-500">密钥</label>
-                <span className="select-all font-mono text-sm text-neutral-800 dark:text-zinc-200">{form.secret}</span>
+                <label className="block text-xs font-medium text-muted-foreground">密钥</label>
+                <span className="select-all font-mono text-sm">{form.secret}</span>
               </div>
-              <div className="rounded-md bg-amber-50 p-3 dark:bg-amber-900/20">
-                <p className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-300">重要提示：请妥善保存以下备份码！</p>
+              <div className="rounded-md bg-yellow-50 p-3 dark:bg-yellow-950/40">
+                <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-300">重要提示：请妥善保存以下备份码！</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                   {form.backupCodes.map((c: string) => (
-                    <span key={c} className="select-all rounded px-2 py-0.5 font-mono text-xs text-neutral-700 dark:text-zinc-200">
+                    <span key={c} className="select-all rounded px-2 py-0.5 font-mono text-xs">
                       {c}
                     </span>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">输入 6 位验证码</label>
+                <label className="mb-1 block text-sm font-medium">输入 6 位验证码</label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -767,7 +788,7 @@ export default function DashboardContent() {
               </div>
               {form.totpMsg && (
                 <div
-                  className={`text-sm ${form.totpMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.totpMsg.includes('成功') ? 'text-emerald-600' : 'text-red-600'}`}
                   aria-live="polite"
                 >
                   {form.totpMsg}
@@ -791,10 +812,10 @@ export default function DashboardContent() {
           title="新备份码"
           message={
             <div className="space-y-4">
-              <p className="text-sm text-neutral-600 dark:text-zinc-400">已生成新的备份码，请妥善保存。</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-black/10 p-3 dark:border-white/10">
+              <p className="text-sm text-muted-foreground">已生成新的备份码，请妥善保存。</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-border p-3">
                 {form.backupCodes.map((c: string) => (
-                  <span key={c} className="select-all rounded bg-black/[0.04] px-2 py-0.5 font-mono text-sm text-neutral-700 dark:bg-white/[0.06] dark:text-zinc-200">
+                  <span key={c} className="select-all rounded bg-muted/50 px-2 py-0.5 font-mono text-sm">
                     {c}
                   </span>
                 ))}
@@ -816,15 +837,14 @@ export default function DashboardContent() {
           title="关闭二步验证"
           message={
             <form className="space-y-4" onSubmit={handleDisable2FA}>
-              <p className="text-sm text-neutral-600 dark:text-zinc-400">输入 6 位验证码或一个备份码以关闭 2FA。</p>
+              <p className="text-sm text-muted-foreground">输入 6 位验证码或一个备份码以关闭 2FA。</p>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">验证码 / 备份码</label>
+                <label className="mb-1 block text-sm font-medium">验证码 / 备份码</label>
                 <Input
                   type="text"
                   value={form.totpToken || form.disableBackupCode}
                   onChange={(e) => {
                     const v = e.target.value;
-                    // 数字视为 TOTP，其余视为备份码
                     const onlyDigits = v.replace(/\D/g, '').slice(0, 6);
                     if (onlyDigits === v) {
                       setForm({ totpToken: onlyDigits, disableBackupCode: '' });
@@ -840,8 +860,8 @@ export default function DashboardContent() {
                 <div
                   className={`text-sm ${
                     form.disable2faMsg.includes('成功') || form.disable2faMsg.includes('刷新')
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400'
+                      ? 'text-emerald-600'
+                      : 'text-red-600'
                   }`}
                   aria-live="polite"
                 >
@@ -867,7 +887,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleUsernameSubmit}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">用户名</label>
+                <label className="mb-1 block text-sm font-medium">用户名</label>
                 <Input
                   type="text"
                   value={form.newUsername}
@@ -875,11 +895,11 @@ export default function DashboardContent() {
                   required
                   placeholder="请输入新用户名"
                 />
-                <div className="mt-1 text-xs text-neutral-500 dark:text-zinc-500">可包含字母、数字、下划线和连字符</div>
+                <div className="mt-1 text-xs text-muted-foreground">可包含字母、数字、下划线和连字符</div>
               </div>
               {form.usernameMsg && (
                 <div
-                  className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+                  className={`text-sm ${form.usernameMsg.includes('成功') ? 'text-emerald-600' : 'text-red-600'}`}
                   aria-live="polite"
                 >
                   {form.usernameMsg}
@@ -904,7 +924,7 @@ export default function DashboardContent() {
           message={
             <form className="space-y-4" onSubmit={handleGenBackupPwdSubmit}>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
+                <label className="mb-1 block text-sm font-medium">当前密码</label>
                 <Input
                   type="password"
                   value={form.genBackupPwd}
@@ -913,7 +933,7 @@ export default function DashboardContent() {
                   placeholder="请输入当前密码"
                 />
               </div>
-              {form.genBackupPwdMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.genBackupPwdMsg}</div>}
+              {form.genBackupPwdMsg && <div className="text-sm text-red-600" aria-live="polite">{form.genBackupPwdMsg}</div>}
             </form>
           }
           type="default"
@@ -931,9 +951,9 @@ export default function DashboardContent() {
           title="更换邮箱"
           message={
             <form className="space-y-4" onSubmit={handleEmailSubmit}>
-              <p className="text-sm text-neutral-600 dark:text-zinc-400">更换邮箱后需通过新邮箱验证。</p>
+              <p className="text-sm text-muted-foreground">更换邮箱后需通过新邮箱验证。</p>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">新邮箱地址</label>
+                <label className="mb-1 block text-sm font-medium">新邮箱地址</label>
                 <Input
                   type="email"
                   value={form.newEmail}
@@ -943,7 +963,7 @@ export default function DashboardContent() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
+                <label className="mb-1 block text-sm font-medium">当前密码</label>
                 <Input
                   type="password"
                   value={form.emailPwd}
@@ -955,7 +975,7 @@ export default function DashboardContent() {
               {form.emailMsg && (
                 <div
                   className={`text-sm ${
-                    form.emailMsg.includes('失败') ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'
+                    form.emailMsg.includes('失败') ? 'text-red-600' : 'text-emerald-600'
                   }`}
                   aria-live="polite"
                 >
@@ -980,10 +1000,10 @@ export default function DashboardContent() {
           title="确认删除账户"
           message={
             <form className="space-y-4" onSubmit={handleDeleteAccount}>
-              <p className="text-sm text-red-600 dark:text-red-400">此操作无法撤销！请输入您的凭据以确认删除。</p>
+              <p className="text-sm text-red-600">此操作无法撤销！请输入您的凭据以确认删除。</p>
               {user?.has_password && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">当前密码</label>
+                  <label className="mb-1 block text-sm font-medium">当前密码</label>
                   <Input
                     type="password"
                     value={form.deletePwd}
@@ -996,7 +1016,7 @@ export default function DashboardContent() {
               )}
               {user?.totp_enabled && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-neutral-800 dark:text-zinc-200">2FA 验证码 / 备份码</label>
+                  <label className="mb-1 block text-sm font-medium">2FA 验证码 / 备份码</label>
                   <Input
                     type="text"
                     value={form.deleteCode}
@@ -1006,7 +1026,7 @@ export default function DashboardContent() {
                   />
                 </div>
               )}
-              {form.deleteMsg && <div className="text-sm text-red-600 dark:text-red-400" aria-live="polite">{form.deleteMsg}</div>}
+              {form.deleteMsg && <div className="text-sm text-red-600" aria-live="polite">{form.deleteMsg}</div>}
             </form>
           }
           type="danger"
