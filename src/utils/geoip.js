@@ -6,7 +6,7 @@ const CACHE_TTL = 60 * 60 * 1000; // 1小时
 
 /**
  * 查询IP地理位置，自动缓存，失败时返回null
- * 使用 uapis.cn 的IP查询API
+ * 使用多个备选API，优先使用国内精准API
  * @param {string} ip
  * @returns {Promise<Object|null>} geo信息对象或null
  */
@@ -21,73 +21,118 @@ export async function getGeoInfo(ip) {
     console.log('[GeoIP] 使用缓存:', ip);
     return cached.data;
   }
-  try {
-    console.log('[GeoIP] 查询IP:', ip);
-    // 使用 uapis.cn 的商业级IP查询API
-    const res = await axios.get(`https://uapis.cn/api/v1/network/ipinfo`, {
-      params: {
-        ip: ip,
-        source: 'commercial'
-      },
-      timeout: 5000
-    });
-    
-    console.log('[GeoIP] API响应:', JSON.stringify(res.data));
-    
-    // API 直接返回数据对象，检查是否有 region 字段
-    if (res.data && res.data.region) {
-      // 解析完整的地理位置字符串，格式：国家 省份/州 城市
-      const regionParts = res.data.region?.split(' ') || [];
-      const geo = {
-        country: regionParts[0] || '',
-        region: regionParts[1] || '',
-        city: regionParts[2] || regionParts[1] || '', // 如果没有第3部分，使用第2部分
-        lat: res.data.latitude,
-        lon: res.data.longitude,
-        isp: res.data.isp || res.data.llc,
-        timeZone: res.data.time_zone || null,
-        district: res.data.district || null
-      };
-      cache.set(ip, { data: geo, expires: now + CACHE_TTL });
-      console.log('[GeoIP] 查询成功:', JSON.stringify(geo));
-      return geo;
-    } else {
-      console.log('[GeoIP] API响应无region字段');
-    }
-  } catch (e) {
-    console.warn('[GeoIP] 商业API查询失败:', e.message);
-    // 商业级API失败，尝试标准API
-    try {
-      const res = await axios.get(`https://uapis.cn/api/v1/network/ipinfo`, {
-        params: {
-          ip: ip
-          // 不设置source参数，使用标准API
-        },
-        timeout: 5000
+
+  console.log('[GeoIP] 查询IP:', ip);
+
+  // 定义多个备选API
+  const apis = [
+    // 1. ip-api.com - 免费，国内外都精准，每分钟45次限制
+    async () => {
+      const res = await axios.get(`http://ip-api.com/json/${ip}`, {
+        params: { fields: 'status,country,regionName,city,lat,lon,isp,timezone' },
+        timeout: 3000
       });
-      
-      console.log('[GeoIP] 标准API响应:', JSON.stringify(res.data));
-      
-      // API 直接返回数据对象，检查是否有 region 字段
-      if (res.data && res.data.region) {
-        // 解析完整的地理位置字符串，格式：国家 省份/州 城市
-        const regionParts = res.data.region?.split(' ') || [];
-        const geo = {
-          country: regionParts[0] || '',
-          region: regionParts[1] || '',
-          city: regionParts[2] || regionParts[1] || '', // 如果没有第3部分，使用第2部分
+      if (res.data?.status === 'success') {
+        return {
+          country: res.data.country || '',
+          region: res.data.regionName || '',
+          city: res.data.city || '',
+          lat: res.data.lat,
+          lon: res.data.lon,
+          isp: res.data.isp || '',
+          timeZone: res.data.timezone || null
+        };
+      }
+      return null;
+    },
+
+    // 2. ipapi.co - 免费，每天1000次
+    async () => {
+      const res = await axios.get(`https://ipapi.co/${ip}/json/`, { timeout: 3000 });
+      if (res.data && !res.data.error) {
+        return {
+          country: res.data.country_name || '',
+          region: res.data.region || '',
+          city: res.data.city || '',
           lat: res.data.latitude,
           lon: res.data.longitude,
-          isp: res.data.isp || res.data.llc
+          isp: res.data.org || '',
+          timeZone: res.data.timezone || null
         };
+      }
+      return null;
+    },
+
+    // 3. ipwho.is - 免费，无限制
+    async () => {
+      const res = await axios.get(`https://ipwho.is/${ip}`, { timeout: 3000 });
+      if (res.data?.success) {
+        return {
+          country: res.data.country || '',
+          region: res.data.region || '',
+          city: res.data.city || '',
+          lat: res.data.latitude,
+          lon: res.data.longitude,
+          isp: res.data.connection?.isp || '',
+          timeZone: res.data.timezone?.id || null
+        };
+      }
+      return null;
+    },
+
+    // 4. uapis.cn 商业API - 国内精准
+    async () => {
+      const res = await axios.get(`https://uapis.cn/api/v1/network/ipinfo`, {
+        params: { ip, source: 'commercial' },
+        timeout: 3000
+      });
+      if (res.data?.region) {
+        const regionParts = res.data.region?.split(' ') || [];
+        return {
+          country: regionParts[0] || '',
+          region: regionParts[1] || '',
+          city: regionParts[2] || regionParts[1] || '',
+          lat: res.data.latitude,
+          lon: res.data.longitude,
+          isp: res.data.isp || res.data.llc || '',
+          timeZone: res.data.time_zone || null
+        };
+      }
+      return null;
+    },
+
+    // 5. ip.sb - 简单备选
+    async () => {
+      const res = await axios.get(`https://api.ip.sb/geoip/${ip}`, { timeout: 3000 });
+      if (res.data) {
+        return {
+          country: res.data.country || '',
+          region: res.data.region || '',
+          city: res.data.city || '',
+          lat: res.data.latitude,
+          lon: res.data.longitude,
+          isp: res.data.isp || res.data.organization || '',
+          timeZone: res.data.timezone || null
+        };
+      }
+      return null;
+    }
+  ];
+
+  // 依次尝试每个API
+  for (let i = 0; i < apis.length; i++) {
+    try {
+      const geo = await apis[i]();
+      if (geo && (geo.country || geo.city)) {
         cache.set(ip, { data: geo, expires: now + CACHE_TTL });
-        console.log('[GeoIP] 标准API查询成功:', JSON.stringify(geo));
+        console.log(`[GeoIP] API ${i + 1} 查询成功:`, JSON.stringify(geo));
         return geo;
       }
-    } catch (e2) {
-      // 查询失败，降级为null
-      console.warn('[GeoIP] 标准API也失败:', e2.message);
+    } catch (e) {
+      console.warn(`[GeoIP] API ${i + 1} 失败:`, e.message);
     }
   }
+
+  console.warn('[GeoIP] 所有API都失败');
   return null;
-} 
+}
