@@ -1,6 +1,33 @@
 import * as loginHistoryService from '../services/loginHistoryService.js';
 
 /**
+ * 查询 IP 地理位置
+ * @param {string} ip IP 地址
+ * @returns {Promise<Object|null>} 位置信息
+ */
+async function queryIpLocation(ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+    return null; // 内网 IP 不查询
+  }
+  
+  try {
+    const response = await fetch(`https://uapis.cn/api/v1/network/ipinfo?ip=${encodeURIComponent(ip)}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    return {
+      region: data.region || null,
+      isp: data.isp || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+    };
+  } catch (error) {
+    console.warn('[recordLoginLog] IP 地理位置查询失败:', error.message);
+    return null;
+  }
+}
+
+/**
  * 统一记录登录历史（成功/失败均可）
  * @param {Object} params
  * @param {Object} params.req - Express请求对象
@@ -27,12 +54,19 @@ export async function recordLoginLog({ req, user, success, reason, location, fin
     const ip = getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
     const fp = fingerprint || req.body?.fingerprint || '';
+    
+    // 如果没有传入 location，尝试查询 IP 地理位置
+    let finalLocation = location;
+    if (!finalLocation && ip) {
+      finalLocation = await queryIpLocation(ip);
+    }
+    
     await loginHistoryService.recordLogin({
       userId: user?.id || null,
       ip,
       fingerprint: fp,
       userAgent,
-      location,
+      location: finalLocation,
       success,
       failReason: reason
     });
