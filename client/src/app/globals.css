@@ -793,3 +793,42 @@ code.hljs {
 }
 
 
+
+
+/* 自定义滚动条 - 极简风格 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Firefox 滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted) / 0.3) transparent;
+}
+
+/* 暗色模式滚动条 */
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted) / 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted) / 0.4);
+}
+
+.dark * {
+  scrollbar-color: hsl(var(--muted) / 0.25) transparent;
+}
