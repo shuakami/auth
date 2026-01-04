@@ -87,12 +87,13 @@ export const useLogin = () => {
 
   const close2FA = useCallback(() => {
     setLoginState(prev => ({ ...prev, show2fa: false, error: '' }));
-    setTwoFAState(prev => ({ 
-      ...prev, 
+    setTwoFAState({ 
+      mode: 'totp',
       code: '', 
       message: '', 
-      messageType: 'error' 
-    }));
+      messageType: 'error',
+      loading: false,
+    });
   }, []);
 
   const handleLoginSuccess = useCallback(async (user: any) => {
@@ -149,11 +150,6 @@ export const useLogin = () => {
       });
 
       if (resp.status === 200 && resp.data.user) {
-        setTwoFAState(prev => ({
-          ...prev,
-          message: SUCCESS_MESSAGES.TWO_FA_VERIFICATION_SUCCESS,
-          messageType: 'info'
-        }));
         await handleLoginSuccess(resp.data.user);
       } else {
         const errorMessage = resp.data?.error || ERROR_MESSAGES.TWO_FA_ERROR;
@@ -161,7 +157,9 @@ export const useLogin = () => {
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.TWO_FA_ERROR;
-      setTwoFAState(prev => ({ ...prev, loading: false, message: errorMessage }));
+      setTwoFAState(prev => ({ ...prev, message: errorMessage }));
+    } finally {
+      setTwoFAState(prev => ({ ...prev, loading: false }));
     }
   }, [loginState.email, twoFAState.mode, twoFAState.code, handleLoginSuccess]);
 

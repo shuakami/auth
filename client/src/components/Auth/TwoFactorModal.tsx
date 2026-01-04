@@ -5,9 +5,9 @@
 
 'use client';
 
-import { memo, useRef, KeyboardEvent, ClipboardEvent } from 'react';
-import { Shield } from 'lucide-react';
+import { memo, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 import { AUTH_CONSTANTS, type TwoFAMode, type MessageType } from '@/constants/auth';
 
 interface TwoFactorModalProps {
@@ -36,6 +36,14 @@ const TwoFactorModal = memo(function TwoFactorModal({
   onModeToggle,
 }: TwoFactorModalProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const { toast } = useToast();
+
+  // 错误消息用 toast 显示
+  useEffect(() => {
+    if (message && messageType === 'error') {
+      toast(message);
+    }
+  }, [message, messageType, toast]);
 
   // TOTP 模式下的 6 位数字输入
   const codeArray = mode === 'totp' ? code.padEnd(6, '').split('').slice(0, 6) : [];
@@ -82,11 +90,6 @@ const TwoFactorModal = memo(function TwoFactorModal({
     <Modal isOpen={isOpen} onClose={onClose} size="sm">
       <form onSubmit={handleSubmit}>
         <div className="text-center mb-6">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center">
-              <Shield className="w-6 h-6" />
-            </div>
-          </div>
           <h2 className="text-lg font-medium text-regular">两步验证</h2>
           <p className="text-sm text-muted mt-2">
             {mode === 'totp' 
@@ -148,11 +151,6 @@ const TwoFactorModal = memo(function TwoFactorModal({
               className="w-full h-10 px-3 text-sm font-mono rounded-lg border border-muted bg-transparent text-regular placeholder:text-muted focus:outline-none focus:border-foreground/50 transition-colors disabled:opacity-50"
             />
           </div>
-        )}
-
-        {/* 错误消息 */}
-        {message && messageType === 'error' && (
-          <p className="text-sm text-red-500 text-center mb-4">{message}</p>
         )}
 
         {/* 模式切换 */}
