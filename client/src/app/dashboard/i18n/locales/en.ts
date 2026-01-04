@@ -42,6 +42,7 @@ export const en: Locale = {
     user: 'User',
     oauth: 'OAuth',
     returnHome: 'Return to Home',
+    logout: 'Log out',
   },
 
   // Welcome

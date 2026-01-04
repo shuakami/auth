@@ -7,9 +7,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { Sun, Monitor, BookOpen } from 'lucide-react';
+import { Sun, Monitor, BookOpen, LogOut } from 'lucide-react';
 import { navItems } from '../../constants/navigation';
 import { useI18n, interpolate } from '../../i18n';
+import { useAuth } from '@/context/AuthContext';
 import type { TabType } from '../../types';
 
 interface SidebarProps {
@@ -30,9 +31,14 @@ const tabRoutes: Record<TabType, string> = {
 export function Sidebar({ currentTab, userName }: SidebarProps) {
   const { setTheme, resolvedTheme } = useTheme();
   const { t } = useI18n();
+  const { logout } = useAuth();
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -111,6 +117,15 @@ export function Sidebar({ currentTab, userName }: SidebarProps) {
           >
             <BookOpen className="!size-5" />
           </Link>
+
+          {/* 退出登录 */}
+          <button
+            onClick={handleLogout}
+            className="cursor-pointer inline-flex items-center justify-center aspect-square min-h-10 p-3 rounded-full border border-primary/15 bg-transparent text-primary/75 hover:text-primary hover:bg-overlay-hover transition-colors"
+            title={t.nav.logout}
+          >
+            <LogOut className="!size-5" />
+          </button>
         </div>
       </div>
     </aside>

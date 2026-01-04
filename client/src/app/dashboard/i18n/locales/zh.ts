@@ -40,6 +40,7 @@ export const zh = {
     user: '用户',
     oauth: 'OAuth',
     returnHome: '返回首页',
+    logout: '退出登录',
   },
 
   // 欢迎语
