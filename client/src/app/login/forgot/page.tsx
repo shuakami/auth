@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import Footer from '@/components/shared/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useToast } from '@/components/ui/Toast';
+import { Loader } from '@/components/ui/Loader';
 
 // 高端动画配置
 const premiumEasing = [0.16, 1, 0.3, 1];
@@ -244,10 +245,7 @@ function ForgotPasswordContent() {
                       className="cursor-pointer flex w-full justify-center items-center h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all hover:bg-neutral-800 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
                     >
                       {loading ? (
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader size={16} />
                       ) : '发送重置链接'}
                     </button>
                   </div>

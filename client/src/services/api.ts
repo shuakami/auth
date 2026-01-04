@@ -67,7 +67,10 @@ apiClient.interceptors.response.use(
     if (originalRequest.url === '/refresh') {
       console.error('[API Interceptor] Refresh token本身已失效, 无法刷新。');
       tokenManager.stopAutoRefresh();
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      // 不在登录页和 OAuth 授权页面上重定向
+      if (typeof window !== 'undefined' && 
+          !window.location.pathname.startsWith('/login') &&
+          !window.location.pathname.startsWith('/oauth/')) {
         window.location.href = '/login?reason=session_expired';
       }
       return Promise.reject(error);
@@ -97,7 +100,11 @@ apiClient.interceptors.response.use(
       console.error('[API Interceptor] 刷新Token失败:', refreshError);
       processQueue(refreshError as Error);
       tokenManager.stopAutoRefresh();
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      // 不在登录页和 OAuth 授权页面上重定向
+      // OAuth 授权页面需要自己处理未登录状态，不应该被强制重定向
+      if (typeof window !== 'undefined' && 
+          !window.location.pathname.startsWith('/login') &&
+          !window.location.pathname.startsWith('/oauth/')) {
         window.location.href = '/login?reason=refresh_failed';
       }
       return Promise.reject(refreshError);

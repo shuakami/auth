@@ -22,7 +22,9 @@ interface UserInfo {
 }
 
 async function getMe(): Promise<{ user: UserInfo }> {
-  const res = await fetch('/api/me');
+  const res = await fetch('/api/me', {
+    credentials: 'include', // 确保发送 cookie
+  });
   if (!res.ok) {
     if (res.status === 401) throw new Error('Unauthorized');
     const errorData = await res.json();
@@ -36,6 +38,7 @@ async function postConsent(data: Record<string, unknown>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    credentials: 'include', // 确保发送 cookie
   });
   if (!res.ok) {
     const errorData = await res.json();
@@ -214,6 +217,9 @@ function AuthorizePageContent() {
         const { user: fetchedUser } = await getMe();
         setUser(fetchedUser);
       } catch (err: unknown) {
+        // 401 Unauthorized 是预期情况（用户未登录）
+        // 不需要设置错误，页面会显示没有用户信息的状态
+        // 用户可以通过正常流程重新登录
         if (err instanceof Error && err.message !== 'Unauthorized') {
           setError(err.message);
         }

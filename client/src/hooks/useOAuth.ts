@@ -33,6 +33,9 @@ export const useOAuth = ({ onError }: UseOAuthProps) => {
 
         if (result.returnUrl) {
           console.log('[useOAuth] OAuth成功，从后端获取到returnUrl:', result.returnUrl);
+          // 添加小延迟确保 cookie 被浏览器完全处理后再跳转
+          // 这解决了 cookie 设置后立即跳转导致后端无法读取 cookie 的问题
+          await new Promise(resolve => setTimeout(resolve, 100));
           window.location.href = result.returnUrl;
         } else {
           router.push(AUTH_CONSTANTS.ROUTES.DASHBOARD);

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
+import { Loader } from './Loader';
 
 interface ModalProps {
   isOpen: boolean;
@@ -118,7 +119,7 @@ export function Modal({
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="text-muted hover:text-regular transition-colors p-1 -m-1"
+                  className="cursor-pointer text-muted hover:text-regular transition-colors p-1 -m-1"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -147,6 +148,7 @@ interface ConfirmModalProps {
   cancelText?: string;
   variant?: 'default' | 'danger';
   icon?: React.ReactNode;
+  isLoading?: boolean;
 }
 
 export function ConfirmModal({
@@ -159,9 +161,15 @@ export function ConfirmModal({
   cancelText = 'Cancel',
   variant = 'default',
   icon,
+  isLoading = false,
 }: ConfirmModalProps) {
+  const handleConfirm = () => {
+    if (isLoading) return;
+    onConfirm();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} size="sm">
+    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} showCloseButton={false} size="sm">
       <div className="text-center">
         {icon && (
           <div className="flex justify-center mb-4">
@@ -178,22 +186,28 @@ export function ConfirmModal({
       <div className="flex gap-3 mt-6">
         <button
           onClick={onClose}
-          className="cursor-pointer flex-1 h-10 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors"
+          disabled={isLoading}
+          className="cursor-pointer flex-1 h-10 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {cancelText}
         </button>
         <button
-          onClick={() => {
-            onConfirm();
-            onClose();
-          }}
-          className={`cursor-pointer flex-1 h-10 font-medium text-sm rounded-full transition-colors ${
+          onClick={handleConfirm}
+          disabled={isLoading}
+          className={`cursor-pointer flex-1 h-10 font-medium text-sm rounded-full transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             variant === 'danger'
               ? 'bg-red-500 text-white hover:bg-red-600'
               : 'bg-foreground text-background hover:bg-foreground/90'
           }`}
         >
-          {confirmText}
+          {isLoading ? (
+            <>
+              <Loader size={16} />
+              <span>{confirmText}</span>
+            </>
+          ) : (
+            confirmText
+          )}
         </button>
       </div>
     </Modal>
@@ -224,11 +238,12 @@ export function FormModal({
 }: FormModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     onSubmit();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
+    <Modal isOpen={isOpen} onClose={isLoading ? () => {} : onClose} title={title}>
       <form onSubmit={handleSubmit}>
         <div className="space-y-4">
           {children}
@@ -237,16 +252,28 @@ export function FormModal({
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer h-9 px-4 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors"
+            disabled={isLoading}
+            className="cursor-pointer h-9 px-4 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelText}
           </button>
           <button
             type="submit"
             disabled={isLoading}
-            className="cursor-pointer h-9 px-4 font-medium text-sm rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-50"
+            className={`cursor-pointer h-9 px-4 font-medium text-sm rounded-full transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              isLoading
+                ? 'bg-foreground text-background'
+                : 'bg-foreground text-background hover:bg-foreground/90'
+            }`}
           >
-            {isLoading ? 'Saving...' : submitText}
+            {isLoading ? (
+              <>
+                <Loader size={16} />
+                <span>{submitText}</span>
+              </>
+            ) : (
+              submitText
+            )}
           </button>
         </div>
       </form>
