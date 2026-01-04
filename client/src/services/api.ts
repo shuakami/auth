@@ -127,8 +127,10 @@ export const login = async (
   const data: LoginPayload = { email, password };
   if (opts?.token) data.token = opts.token;
   if (opts?.backupCode) data.backupCode = opts.backupCode;
-  // 移除 validateStatus，让axios在4xx/5xx时自然地抛出错误
-  return apiClient.post('/login', data);
+  // 需要 validateStatus 来处理 401 TOTP_REQUIRED 响应
+  return apiClient.post('/login', data, {
+    validateStatus: (status) => status < 500,
+  });
 };
 
 export const register = async (email: string, password: string, username?: string | null) => {
@@ -166,7 +168,9 @@ export const setup2FA = async (password: string) => {
 };
 
 export const verify2FA = async (data: { email: string; totp?: string; backupCode?: string }) => {
-  return apiClient.post('/2fa/verify', data);
+  return apiClient.post('/2fa/verify', data, {
+    validateStatus: (status) => status < 500,
+  });
 };
 
 export const generateBackupCodes = async (password?: string) => {
