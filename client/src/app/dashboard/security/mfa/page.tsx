@@ -8,9 +8,11 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { PageHeader, Breadcrumb, SectionDivider } from '../../components/shared';
 import { useI18n } from '../../i18n';
+import { useSecurity } from '../../hooks';
 
 export default function MfaSelectPage() {
   const { t } = useI18n();
+  const { is2FAEnabled } = useSecurity();
 
   return (
     <>
@@ -37,7 +39,7 @@ export default function MfaSelectPage() {
               href="/dashboard/security/mfa/app"
               className="cursor-pointer relative isolate inline-flex shrink-0 items-center justify-center rounded-full border focus:outline focus:outline-2 focus:outline-offset-2 min-h-8 gap-x-2 px-4 py-1.5 text-sm border-primary/15 bg-transparent text-primary hover:bg-overlay-hover"
             >
-              {t.common.setup}
+              {is2FAEnabled ? t.common.manage : t.common.setup}
               <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
