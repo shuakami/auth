@@ -11,10 +11,20 @@ interface DataCardProps {
   description: string;
   action?: React.ReactNode;
   searchPlaceholder?: string;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   children: React.ReactNode;
 }
 
-export function DataCard({ title, description, action, searchPlaceholder, children }: DataCardProps) {
+export function DataCard({ 
+  title, 
+  description, 
+  action, 
+  searchPlaceholder, 
+  searchValue,
+  onSearchChange,
+  children 
+}: DataCardProps) {
   return (
     <div className="overflow-clip border transition-all border-muted shadow-sm dark:shadow-none divide-y rounded-xl bg-surface-l1 mt-4">
       {/* 头部 */}
@@ -44,6 +54,8 @@ export function DataCard({ title, description, action, searchPlaceholder, childr
                   </div>
                   <input
                     placeholder={searchPlaceholder}
+                    value={searchValue ?? ''}
+                    onChange={(e) => onSearchChange?.(e.target.value)}
                     className="h-full w-full bg-transparent py-2 pl-10 pr-4 text-sm focus:outline-none"
                     type="text"
                   />

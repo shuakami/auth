@@ -50,6 +50,20 @@ export function OAuthTab() {
     toggleSecretVisibility,
   } = useOAuth();
 
+  // 搜索
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 过滤后的应用列表
+  const filteredApps = apps.filter(app => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      app.name.toLowerCase().includes(query) ||
+      app.clientId.toLowerCase().includes(query) ||
+      (app.description?.toLowerCase().includes(query))
+    );
+  });
+
   // 弹窗状态
   const [selectedApp, setSelectedApp] = useState<OAuthApp | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -119,6 +133,8 @@ export function OAuthTab() {
           title={t.oauth.applications}
           description={t.oauth.applicationsDesc}
           searchPlaceholder={t.oauth.searchApps}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
           action={
             <Link
               href="/dashboard/oauth/create"
@@ -166,14 +182,14 @@ export function OAuthTab() {
                         <td className="px-2 py-3 sm:px-5" />
                       </tr>
                     ))
-                  ) : apps.length === 0 ? (
+                  ) : filteredApps.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-5 py-10 text-center text-muted">
-                        还没有 OAuth 应用，点击上方按钮创建
+                        {searchQuery ? '没有找到匹配的应用' : '还没有 OAuth 应用，点击上方按钮创建'}
                       </td>
                     </tr>
                   ) : (
-                    apps.map((app) => (
+                    filteredApps.map((app) => (
                       <tr
                         key={app.id}
                         className="border-b transition-colors hover:bg-overlay-hover group cursor-pointer"

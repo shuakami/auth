@@ -27,6 +27,8 @@ export function UserTab() {
     totalPages,
     currentPage,
     availableRoles,
+    searchQuery,
+    setSearchQuery,
     isLoading,
     isUpdating,
     updateUser,
@@ -107,6 +109,8 @@ export function UserTab() {
           title={t.users.allUsers}
           description={`共 ${totalUsers} 个用户`}
           searchPlaceholder={t.users.searchUsers}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
         >
           <div className="w-full">
             <div className="flow-root">
