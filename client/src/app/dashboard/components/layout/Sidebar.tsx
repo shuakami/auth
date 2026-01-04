@@ -7,7 +7,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { Sun, Monitor, BookOpen, LogOut } from 'lucide-react';
+import { Sun, Monitor, LogOut } from 'lucide-react';
 import { navItems } from '../../constants/navigation';
 import { useI18n, interpolate } from '../../i18n';
 import { useAuth } from '@/context/AuthContext';
@@ -109,14 +109,6 @@ export function Sidebar({ currentTab, userName }: SidebarProps) {
           >
             {resolvedTheme === 'dark' ? <Sun className="!size-5" /> : <Monitor className="!size-5" />}
           </button>
-
-          {/* 文档链接 */}
-          <Link
-            href="/docs"
-            className="inline-flex items-center justify-center aspect-square min-h-10 p-3 rounded-full border border-primary/15 bg-transparent text-primary/75 hover:text-primary hover:bg-overlay-hover transition-colors"
-          >
-            <BookOpen className="!size-5" />
-          </Link>
 
           {/* 退出登录 */}
           <button
