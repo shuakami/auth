@@ -39,9 +39,9 @@ export async function getGeoInfo(ip) {
           region: regionParts[1] || '',
           city: regionParts[2] || regionParts[1] || '',
           lat: res.data.latitude,
-          lon: res.data.longitude,
+          lng: res.data.longitude,
           isp: res.data.isp || res.data.llc || '',
-          timeZone: res.data.time_zone || null
+          timezone: res.data.time_zone || null
         };
       }
       return null;
@@ -59,9 +59,9 @@ export async function getGeoInfo(ip) {
           region: res.data.regionName || '',
           city: res.data.city || '',
           lat: res.data.lat,
-          lon: res.data.lon,
+          lng: res.data.lon,
           isp: res.data.isp || '',
-          timeZone: res.data.timezone || null
+          timezone: res.data.timezone || null
         };
       }
       return null;
@@ -76,9 +76,9 @@ export async function getGeoInfo(ip) {
           region: res.data.region || '',
           city: res.data.city || '',
           lat: res.data.latitude,
-          lon: res.data.longitude,
+          lng: res.data.longitude,
           isp: res.data.org || '',
-          timeZone: res.data.timezone || null
+          timezone: res.data.timezone || null
         };
       }
       return null;
@@ -93,9 +93,9 @@ export async function getGeoInfo(ip) {
           region: res.data.region || '',
           city: res.data.city || '',
           lat: res.data.latitude,
-          lon: res.data.longitude,
+          lng: res.data.longitude,
           isp: res.data.connection?.isp || '',
-          timeZone: res.data.timezone?.id || null
+          timezone: res.data.timezone?.id || null
         };
       }
       return null;
@@ -110,9 +110,9 @@ export async function getGeoInfo(ip) {
           region: res.data.region || '',
           city: res.data.city || '',
           lat: res.data.latitude,
-          lon: res.data.longitude,
+          lng: res.data.longitude,
           isp: res.data.isp || res.data.organization || '',
-          timeZone: res.data.timezone || null
+          timezone: res.data.timezone || null
         };
       }
       return null;
