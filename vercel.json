@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "src/index.js": {
-      "maxDuration": 20
-    }
-  },
   "builds": [
     {
       "src": "src/index.js",
