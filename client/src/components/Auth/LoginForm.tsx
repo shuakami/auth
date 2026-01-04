@@ -5,7 +5,6 @@ import { AUTH_CONSTANTS } from '@/constants/auth';
 interface LoginFormProps {
   email: string;
   password: string;
-  error: string;
   loading: boolean;
   onEmailChange: (email: string) => void;
   onPasswordChange: (password: string) => void;
@@ -15,7 +14,6 @@ interface LoginFormProps {
 const LoginForm = memo(function LoginForm({
   email,
   password,
-  error,
   loading,
   onEmailChange,
   onPasswordChange,
@@ -25,6 +23,9 @@ const LoginForm = memo(function LoginForm({
     e.preventDefault();
     onSubmit();
   };
+
+  // 统一输入框样式 - 更柔和的 focus 效果
+  const inputClasses = "mt-1.5 block w-full h-10 px-3 rounded-lg border border-neutral-200 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-neutral-500";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -41,7 +42,7 @@ const LoginForm = memo(function LoginForm({
           required
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-[#0582FF] focus:outline-none focus:ring-1 focus:ring-[#0582FF] dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-100 dark:placeholder-neutral-500"
+          className={inputClasses}
           placeholder="you@example.com"
           disabled={loading}
         />
@@ -53,14 +54,12 @@ const LoginForm = memo(function LoginForm({
           <label htmlFor="password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
             密码
           </label>
-          <div className="text-sm">
-            <Link 
-              href={AUTH_CONSTANTS.ROUTES.FORGOT_PASSWORD} 
-              className="font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF]"
-            >
-              忘记密码？
-            </Link>
-          </div>
+          <Link 
+            href={AUTH_CONSTANTS.ROUTES.FORGOT_PASSWORD} 
+            className="text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 transition-colors"
+          >
+            忘记密码？
+          </Link>
         </div>
         <input
           id="password"
@@ -70,30 +69,23 @@ const LoginForm = memo(function LoginForm({
           required
           value={password}
           onChange={(e) => onPasswordChange(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-[#0582FF] focus:outline-none focus:ring-1 focus:ring-[#0582FF] dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-100 dark:placeholder-neutral-500"
+          className={inputClasses}
           placeholder="请输入密码"
           disabled={loading}
         />
       </div>
-
-      {/* 错误信息显示区域 */}
-      {error && (
-        <div className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {error}
-        </div>
-      )}
 
       {/* 登录按钮 */}
       <div>
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full justify-center rounded-md border border-transparent bg-[#0582FF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#006ADF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-[#09090b]"
+          className="cursor-pointer flex w-full justify-center items-center h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
         >
           {loading ? (
             <>
               <svg 
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" 
+                className="animate-spin -ml-1 mr-2 h-4 w-4" 
                 xmlns="http://www.w3.org/2000/svg" 
                 fill="none" 
                 viewBox="0 0 24 24"

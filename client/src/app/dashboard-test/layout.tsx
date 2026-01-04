@@ -1,0 +1,83 @@
+/**
+ * Dashboard 布局组件
+ * 为所有子页面提供共享布局和 i18n Provider
+ */
+
+'use client';
+
+import React from 'react';
+import { usePathname } from 'next/navigation';
+import { I18nProvider } from './i18n';
+import { DashboardHeader, Sidebar, MobileNav } from './components/layout';
+import { useScrollHeader } from './hooks';
+import { mockUser } from './data/mock';
+import type { TabType } from './types';
+
+// 路径到 Tab 的映射
+function getTabFromPath(pathname: string): TabType {
+  if (pathname.includes('/security')) return 'security';
+  if (pathname.includes('/sessions')) return 'sessions';
+  if (pathname.includes('/user')) return 'user';
+  if (pathname.includes('/oauth')) return 'oauth';
+  return 'account';
+}
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+function DashboardLayoutInner({ children }: DashboardLayoutProps) {
+  const pathname = usePathname();
+  const currentTab = getTabFromPath(pathname);
+  const { headerHidden, scrollContainerRef } = useScrollHeader();
+
+  // Tab 切换使用路由导航
+  const handleTabChange = (tab: TabType) => {
+    const routes: Record<TabType, string> = {
+      account: '/dashboard-test',
+      security: '/dashboard-test/security',
+      sessions: '/dashboard-test/sessions',
+      user: '/dashboard-test/user',
+      oauth: '/dashboard-test/oauth',
+    };
+    window.location.href = routes[tab];
+  };
+
+  return (
+    <div className="relative flex h-screen w-screen flex-col overflow-x-hidden sm:overflow-hidden">
+      <div className="bg-background fixed inset-0 flex h-[100dvh] flex-col overflow-hidden lg:static lg:inset-auto">
+        {/* 顶部导航 */}
+        <DashboardHeader hidden={headerHidden} />
+
+        {/* 主内容区 */}
+        <div
+          ref={scrollContainerRef as React.RefObject<HTMLDivElement>}
+          className="relative flex grow flex-col items-center overflow-y-auto pt-16 lg:flex-row lg:items-start lg:pt-16"
+        >
+          {/* 侧边栏 */}
+          <Sidebar currentTab={currentTab} onTabChange={handleTabChange} userName={mockUser.name} />
+
+          {/* 主内容 */}
+          <main className="flex w-full grow justify-center lg:pt-12">
+            <div className="w-full max-w-2xl">
+              <div className="h-6 w-full lg:hidden" />
+              <div>{children}</div>
+              <div className="h-6 w-full" />
+            </div>
+          </main>
+        </div>
+
+        {/* 移动端底部导航 */}
+        <MobileNav currentTab={currentTab} onTabChange={handleTabChange} />
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <I18nProvider defaultLanguage="zh">
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </I18nProvider>
+  );
+}

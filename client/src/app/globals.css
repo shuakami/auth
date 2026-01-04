@@ -8,7 +8,17 @@
 @variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @variant dark (&:where(.dark, .dark *));
 
+/* JetBrains Mono 字体 */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('https://gstatic.loli.net/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
 
+/* Inter 字体通过 Google Fonts CDN 加载 */
+/* 
 @font-face {
   font-family: 'Geist Sans';
   src: url('/fonts/Geist[wght].woff2') format('woff2');
@@ -24,6 +34,7 @@
   font-display: swap;
   font-style: normal;
 }
+*/
 
 :root {
   --foreground-rgb: 0, 0, 0;
@@ -42,10 +53,29 @@ html {
   background: rgb(var(--background-start-rgb));
 }
 
+/* 主题切换颜色过渡 */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 禁用某些元素的过渡以避免性能问题 */
+*:where([class*="animate-"]),
+*:where([data-state]),
+img,
+video,
+canvas,
+svg:not(.theme-transition) {
+  transition-property: none;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
-  transition: background-color 0.2s ease-out, color 0.2s ease-out;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
 @layer utilities {
@@ -148,50 +178,93 @@ body {
     --gray-950: #0d0d0d;
     --transition-duration: 0.7s;
     --transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    --background: 0 0% 100%; /* 白色 */
-    --foreground: 0 0% 0%; /* 纯黑色 */
-    --card: 0 0% 100%; /* 白色 */
-    --card-foreground: 0 0% 0%; /* 纯黑色 */
-    --popover: 0 0% 100%; /* 白色 */
-    --popover-foreground: 0 0% 0%; /* 纯黑色 */
-    --primary: 0 0% 0%; /* 纯黑色 */
-    --primary-foreground: 0 0% 100%; /* 白色 */
-    --secondary: 0 0% 95%; /* 浅灰色 */
-    --secondary-foreground: 0 0% 0%; /* 纯黑色 */
-    --muted: 0 0% 95%; /* 浅灰色 */
-    --muted-foreground: 0 0% 45%; /* 深灰色 */
-    --accent: 0 0% 95%; /* 浅灰色 */
-    --accent-foreground: 0 0% 0%; /* 纯黑色 */
-    --destructive: 0 85% 60%; /* 红色 */
-    --destructive-foreground: 0 0% 100%; /* 白色 */
-    --border: 0 0% 90%; /* 浅灰色 */
-    --input: 0 0% 90%; /* 浅灰色 */
-    --ring: 0 0% 70%; /* 中灰色 */
+    
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3%;
+    --bg-inset-hover: 0 0% 91%;
+    --bg-inset: 0 0% 93%;
+    --bg-base: 0 0% 96%;
+    --bg-l1: 0 0% 99%;
+    --bg-l2: 0 0% 100%;
+    --bg-l3: 0 0% 100%;
+    --bg-l4: 0 0% 100%;
+    --bg-overlay-hover: 0 0% 3% / 3%;
+    --surface-l1: 0 0% 99%;
+    
+    /* 中性色系 */
+    --neutral2: 0 0% 3%;
+    --neutral10: 0 1% 11%;
+    --neutral50: 0 0% 47%;
+    --neutral70: 0 1% 67%;
+    --neutral98: 0 4% 98%;
+    
+    /* 文字颜色 */
+    --regular: 0 0% 3%;
+    --subtle: 0 0% 47%;
+    --muted: 0 0% 67%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3%;
+    --primary: 0 0% 3%;
+    --primary-hover: 0 1% 11%;
+    --primary-foreground: 0 4% 98%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 3%;
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 3%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --border-muted: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 70%;
     --radius: 0.5rem;
-    --main-surface-tertiary: rgba(0, 0, 0, 0.05); /* 滚动条颜色 */
+    --main-surface-tertiary: rgba(0, 0, 0, 0.05);
   }
 
   .dark {
-    --background: 0 0% 7%; /* 深黑色 */
-    --foreground: 0 0% 100%; /* 纯白色 */
-    --card: 0 0% 7%; /* 深黑色 */
-    --card-foreground: 0 0% 100%; /* 纯白色 */
-    --popover: 0 0% 7%; /* 深黑色 */
-    --popover-foreground: 0 0% 100%; /* 纯白色 */
-    --primary: 0 0% 100%; /* 纯白色 */
-    --primary-foreground: 0 0% 7%; /* 深黑色 */
-    --secondary: 0 0% 15%; /* 深灰色 */
-    --secondary-foreground: 0 0% 100%; /* 纯白色 */
-    --muted: 0 0% 15%; /* 深灰色 */
-    --muted-foreground: 0 0% 65%; /* 中灰色 */
-    --accent: 0 0% 15%; /* 深灰色 */
-    --accent-foreground: 0 0% 100%; /* 纯白色 */
-    --destructive: 0 70% 35%; /* 深红色 */
-    --destructive-foreground: 0 0% 100%; /* 纯白色 */
-    --border: 0 0% 20%; /* 深灰色 */
-    --input: 0 0% 32%; /* 深灰色 */
-    --ring: 0 0% 80%; /* 浅灰色 */
-    --main-surface-tertiary: rgba(255, 255, 255, 0.2); /* 暗色模式滚动条颜色 */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 100%;
+    --bg-inset-hover: 0 0% 15%;
+    --bg-inset: 0 0% 11%;
+    --bg-base: 0 0% 7%;
+    --bg-l1: 0 0% 11%;
+    --bg-l2: 0 0% 7%;
+    --bg-l3: 0 0% 7%;
+    --bg-l4: 0 0% 7%;
+    --bg-overlay-hover: 0 0% 100% / 3%;
+    --surface-l1: 0 0% 11%;
+    
+    --neutral2: 0 0% 100%;
+    --neutral10: 0 1% 88%;
+    --neutral50: 0 0% 47%;
+    --neutral70: 0 1% 33%;
+    --neutral98: 0 0% 3%;
+    
+    --regular: 0 0% 100%;
+    --subtle: 0 0% 47%;
+    --muted: 0 1% 33%;
+    
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-hover: 0 1% 88%;
+    --primary-foreground: 0 0% 7%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 35%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --border-muted: 0 0% 13%;
+    --input: 0 0% 32%;
+    --ring: 0 0% 80%;
+    --main-surface-tertiary: rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -201,8 +274,97 @@ body {
     @apply border-neutral-200 dark:border-neutral-700;
   }
   body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
+  }
+}
+
+@layer utilities {
+  /* xAI 风格文字颜色 */
+  .text-regular {
+    color: hsl(var(--regular));
+  }
+  .text-subtle {
+    color: hsl(var(--subtle));
+  }
+  .text-muted {
+    color: hsl(var(--muted));
+  }
+  
+  /* xAI 风格背景颜色 */
+  .bg-surface-l1 {
+    background-color: hsl(var(--surface-l1));
+  }
+  
+  .bg-surface-l2 {
+    background-color: hsl(var(--bg-l2));
+  }
+  
+  .bg-overlay-hover {
+    background-color: hsl(var(--bg-overlay-hover));
+  }
+  
+  /* Text colors */
+  .text-muted-foreground {
+    color: hsl(var(--muted));
+  }
+  
+  /* Border colors */
+  .border-muted {
+    border-color: hsl(var(--muted));
+  }
+  
+  /* Hover states */
+  .hover\:bg-overlay-hover:hover {
+    background-color: hsl(var(--bg-overlay-hover));
+  }
+  
+  /* Primary 颜色 - 前景色（亮色模式黑色，暗色模式白色） */
+  .bg-primary {
+    background-color: hsl(var(--foreground));
+  }
+
+  .border-muted {
+    border-color: hsl(var(--border-muted));
+  }
+  
+  .text-primary {
+    color: hsl(var(--foreground));
+  }
+  
+  /* Foreground 和 Background 颜色 */
+  .bg-foreground {
+    background-color: hsl(var(--foreground));
+  }
+  
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+  
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+  
+  .text-background {
+    color: hsl(var(--background));
+  }
+  
+  .border-foreground {
+    border-color: hsl(var(--foreground));
+  }
+  
+  /* 透明度变体 */
+  .text-primary\/75 {
+    color: hsl(var(--foreground) / 0.75);
+  }
+  
+  .text-subtle\/75 {
+    color: hsl(var(--subtle) / 0.75);
+  }
+  
+  .border-primary\/15 {
+    border-color: hsl(var(--foreground) / 0.15);
   }
 }
 
@@ -325,9 +487,309 @@ body {
   animation: slide-right 0.2s ease-out;
 }
 
+/* Dialog animations */
+@keyframes dialog-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-overlay-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-content-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dialog-content-zoom-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-in {
+  animation-duration: 0.2s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+.animate-out {
+  animation-duration: 0.2s;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: dialog-overlay-fade-in;
+}
+
+.fade-out {
+  animation-name: dialog-overlay-fade-out;
+}
+
+.zoom-in-95 {
+  animation-name: dialog-content-zoom-in;
+}
+
+.zoom-out-95 {
+  animation-name: dialog-content-zoom-out;
+}
+
+.duration-200 {
+  animation-duration: 0.2s;
+}
+
+/* Toast animations */
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.slide-in-from-bottom-2 {
+  animation-name: toast-slide-in;
+}
+
+.slide-out-to-bottom-2 {
+  animation-name: toast-slide-out;
+}
+
 /* 自定义覆盖 dark:bg-gray-900 的颜色 */
 .dark .dark\:bg-gray-900 {
   background-color: oklch(0.18 0 0);
+}
+
+/* GitHub Light Theme for highlight.js */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+code.hljs {
+  padding: 3px 5px;
+}
+
+.hljs {
+  color: #24292e;
+  background: #ffffff;
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-meta .hljs-keyword,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-variable.language_ {
+  color: #d73a49;
+}
+
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.class_.inherited__,
+.hljs-title.function_ {
+  color: #6f42c1;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-literal,
+.hljs-meta,
+.hljs-number,
+.hljs-operator,
+.hljs-variable,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: #005cc5;
+}
+
+.hljs-regexp,
+.hljs-string,
+.hljs-meta .hljs-string {
+  color: #032f62;
+}
+
+.hljs-built_in,
+.hljs-symbol {
+  color: #e36209;
+}
+
+.hljs-comment,
+.hljs-code,
+.hljs-formula {
+  color: #6a737d;
+}
+
+.hljs-name,
+.hljs-quote,
+.hljs-selector-tag,
+.hljs-selector-pseudo {
+  color: #22863a;
+}
+
+.hljs-subst {
+  color: #24292e;
+}
+
+.hljs-section {
+  color: #005cc5;
+  font-weight: bold;
+}
+
+.hljs-bullet {
+  color: #735c0f;
+}
+
+.hljs-emphasis {
+  color: #24292e;
+  font-style: italic;
+}
+
+.hljs-strong {
+  color: #24292e;
+  font-weight: bold;
+}
+
+.hljs-addition {
+  color: #22863a;
+  background-color: #f0fff4;
+}
+
+.hljs-deletion {
+  color: #b31d28;
+  background-color: #ffeef0;
+}
+
+/* Dark mode GitHub theme */
+.dark .hljs {
+  color: #c9d1d9;
+  background: transparent;
+}
+
+.dark .hljs-doctag,
+.dark .hljs-keyword,
+.dark .hljs-meta .hljs-keyword,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable,
+.dark .hljs-type,
+.dark .hljs-variable.language_ {
+  color: #ff7b72;
+}
+
+.dark .hljs-title,
+.dark .hljs-title.class_,
+.dark .hljs-title.class_.inherited__,
+.dark .hljs-title.function_ {
+  color: #d2a8ff;
+}
+
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-literal,
+.dark .hljs-meta,
+.dark .hljs-number,
+.dark .hljs-operator,
+.dark .hljs-variable,
+.dark .hljs-selector-attr,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id {
+  color: #79c0ff;
+}
+
+.dark .hljs-regexp,
+.dark .hljs-string,
+.dark .hljs-meta .hljs-string {
+  color: #a5d6ff;
+}
+
+.dark .hljs-built_in,
+.dark .hljs-symbol {
+  color: #ffa657;
+}
+
+.dark .hljs-comment,
+.dark .hljs-code,
+.dark .hljs-formula {
+  color: #8b949e;
+}
+
+.dark .hljs-name,
+.dark .hljs-quote,
+.dark .hljs-selector-tag,
+.dark .hljs-selector-pseudo {
+  color: #7ee787;
+}
+
+.dark .hljs-subst {
+  color: #c9d1d9;
+}
+
+.dark .hljs-section {
+  color: #79c0ff;
+  font-weight: bold;
+}
+
+.dark .hljs-bullet {
+  color: #f2cc60;
+}
+
+.dark .hljs-emphasis {
+  color: #c9d1d9;
+  font-style: italic;
+}
+
+.dark .hljs-strong {
+  color: #c9d1d9;
+  font-weight: bold;
+}
+
+.dark .hljs-addition {
+  color: #aff5b4;
+  background-color: rgba(46, 160, 67, 0.15);
+}
+
+.dark .hljs-deletion {
+  color: #ffdcd7;
+  background-color: rgba(248, 81, 73, 0.15);
 }
 
 

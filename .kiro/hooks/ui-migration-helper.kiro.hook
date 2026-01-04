@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "name": "无损UI迁移助手",
+  "description": "当编辑新UI文件时，自动分析旧dashboard的对应功能，确保API调用、数据获取和功能逻辑完整迁移，同时保持代码解耦和复用性",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "我正在将旧UI迁移到新UI。请帮我开始：\n\n1. **API功能完整性**：对比旧dashboard中对应组件的API调用，确保新UI包含所有必要的：\n   - API endpoints 调用\n   - 数据获取逻辑 (useEffect, fetch, services)\n   - 错误处理和loading状态\n   - 用户交互功能 (CRUD操作)\n\n2. **功能对照检查**：\n   - 必须完整的检查 然后决定怎么迁移是最好的\n\n3. **解耦与复用**：\n   - 确保业务逻辑与UI分离\n   - 复用 client/src/hooks/ 和 client/src/services/ 中的现有代码\n   - 遵循 SOTA 最佳实践\n\n请先分析文件结构，然后给出重构方案，最后自己执行重构，不要不完整。确保重构后的代码具有顶级SOTA水准的可扩展性和可维护性。\n  "
+  },
+  "workspaceFolderName": "auth",
+  "shortName": "ui-migration-helper"
+}

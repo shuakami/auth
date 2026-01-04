@@ -1,17 +1,71 @@
 'use client';
 
-import { useState, type ReactNode, type FormEvent, Suspense } from 'react';
+import { useState, type ReactNode, type FormEvent, Suspense, useEffect } from 'react';
 import { register, resendVerifyEmail } from '@/services/api';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import Image from 'next/image';
 import Footer from '../dashboard/components/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/Toast';
+
+// 高端动画配置
+const premiumEasing = [0.16, 1, 0.3, 1];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.05,
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: premiumEasing,
+    }
+  }
+};
+
+const leftSectionVariants = {
+  hidden: { opacity: 0, x: -30 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.6,
+      ease: premiumEasing,
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    }
+  }
+};
+
+const leftItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: premiumEasing,
+    }
+  }
+};
 
 const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rightContent: ReactNode }) => (
   <div className="flex min-h-screen flex-col bg-white dark:bg-[#09090b]">
-    <main className="flex-grow flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <main className="flex-grow flex items-center justify-center px-4 pt-16 pb-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-6xl mx-auto lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-16 items-center">
         {leftContent}
         {rightContent}
@@ -22,46 +76,69 @@ const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rig
 );
 
 const LeftContent = ({ title, description }: { title: string; description: string }) => (
-  <div className="hidden lg:block text-center lg:text-left lg:pl-8">
-     <Image
+  <motion.div 
+    className="hidden lg:block text-center lg:text-left lg:pl-8"
+    variants={leftSectionVariants}
+    initial="hidden"
+    animate="visible"
+  >
+    <motion.div variants={leftItemVariants}>
+      <Image
         src="/assets/images/logo/logo-text-white.png"
         alt="Logo"
-        width={150}
-        height={40}
+        width={140}
+        height={36}
         className="mx-auto lg:mx-0 mb-6 block dark:hidden"
-     />
-     <Image
+      />
+      <Image
         src="/assets/images/logo/logo-text-black.png"
         alt="Logo"
-        width={150}
-        height={40}
+        width={140}
+        height={36}
         className="mx-auto lg:mx-0 mb-6 hidden dark:block"
-     />
-    <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl">
+      />
+    </motion.div>
+    <motion.h1 
+      className="text-3xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 sm:text-4xl"
+      variants={leftItemVariants}
+    >
       {title}
-    </h1>
-    <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
+    </motion.h1>
+    <motion.p 
+      className="mt-4 text-base text-neutral-500 dark:text-neutral-400"
+      variants={leftItemVariants}
+    >
       {description}
-    </p>
-  </div>
+    </motion.p>
+  </motion.div>
 );
+
+// 统一输入框样式
+const inputClasses = "mt-1.5 block w-full h-10 px-3 rounded-lg border border-neutral-200 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 transition-colors focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:text-neutral-100 dark:placeholder-neutral-500 dark:focus:border-neutral-500";
 
 function RegisterContent() {
   const { initialLoading } = useAuth();
+  const { toast } = useToast();
   
   useAutoRedirectIfAuthenticated();
   
-  // 所有的useState必须在条件返回之前调用，遵循Hooks规则
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resendMsg, setResendMsg] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+
+  // 使用 toast 显示错误
+  useEffect(() => {
+    if (error) {
+      toast(error);
+      setError('');
+    }
+  }, [error, toast]);
   
-  // 如果还在初始加载中，显示加载指示器
   if (initialLoading) {
     return <LoadingIndicator />;
   }
@@ -77,6 +154,7 @@ function RegisterContent() {
       const response = await register(email, password, username);
       setSuccessMessage(response.data.message || '注册成功！请检查您的邮箱以完成验证。');
       setRegisteredEmail(email);
+      toast('注册成功，请查收验证邮件');
       setEmail('');
       setPassword('');
       setUsername('');
@@ -94,23 +172,24 @@ function RegisterContent() {
 
   const handleResend = async () => {
     if (!registeredEmail) {
-      setError('无法获取您注册时使用的邮箱地址，请刷新页面或联系支持。');
+      toast('无法获取邮箱地址');
       return;
     }
-    setResendMsg('发送中...');
-    setError('');
+    setResendLoading(true);
     try {
       await resendVerifyEmail(registeredEmail);
-      setResendMsg('验证邮件已重新发送，请查收。');
+      toast('验证邮件已重新发送');
     } catch (err: unknown) {
-      let errorMessage = '发送失败，请稍后再试或检查邮箱地址是否正确。';
+      let errorMessage = '发送失败，请稍后再试';
        if (typeof err === 'object' && err !== null && 'response' in err) {
         const response = (err as { response?: { data?: { error?: string } } }).response;
         if (response?.data?.error && typeof response.data.error === 'string') {
           errorMessage = response.data.error;
         }
       }
-      setResendMsg(errorMessage);
+      toast(errorMessage);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -123,8 +202,13 @@ function RegisterContent() {
         />
       }
       rightContent={
-        <div className="mt-10 lg:mt-0 w-full max-w-md mx-auto">
-          <div className="text-center lg:hidden mb-8">
+        <motion.div 
+          className="mt-10 lg:mt-0 w-full max-w-md mx-auto"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div className="text-center lg:hidden mb-8" variants={itemVariants}>
             <Image
               src="/assets/images/logo/logo-text-white.png"
               alt="Logo"
@@ -142,46 +226,44 @@ function RegisterContent() {
             <h2 className="mt-6 text-center text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
               {successMessage ? '注册成功' : '创建新账户'}
             </h2>
-          </div>
+          </motion.div>
 
           <div className="space-y-6">
-            <div className="hidden lg:block">
+            <motion.div className="hidden lg:block" variants={itemVariants}>
                 <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
                    {successMessage ? '请检查邮箱' : '填写注册信息'}
                 </h2>
                 {!successMessage && (
-                  <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                  <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
                     已有账户？{' '}
-                    <Link href="/login" className="font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF]">
+                    <Link href="/login" className="text-neutral-900 hover:text-neutral-600 dark:text-neutral-100 dark:hover:text-neutral-300 transition-colors">
                       直接登录
                     </Link>
                   </p>
                 )}
-             </div>
+             </motion.div>
 
             {successMessage ? (
-              <div className="text-center lg:text-left space-y-4">
-                <p className="text-green-600 dark:text-green-400">{successMessage}</p>
+              <motion.div className="text-center lg:text-left space-y-4" variants={itemVariants}>
+                <p className="text-neutral-600 dark:text-neutral-400">{successMessage}</p>
                 <div>
-                  {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
                   <button 
                     type="button" 
                     onClick={handleResend} 
-                    disabled={resendMsg === '发送中...'}
-                    className="text-sm font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-[#09090b] disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={resendLoading}
+                    className="cursor-pointer text-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    未收到验证邮件？重新发送
+                    {resendLoading ? '发送中...' : '未收到验证邮件？重新发送'}
                   </button>
-                  {resendMsg && <p className={`mt-2 text-sm ${resendMsg.includes('失败') || resendMsg.includes('错误') || resendMsg.includes('无法') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{resendMsg}</p>}
                 </div>
                 <p className="pt-2">
-                  <Link href="/login" className="inline-flex justify-center rounded-md border border-transparent bg-[#0582FF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#006ADF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 dark:focus:ring-offset-[#09090b]">
+                  <Link href="/login" className="cursor-pointer inline-flex justify-center items-center h-10 px-4 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all hover:bg-neutral-800 hover:scale-[1.02] active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200">
                     前往登录
                   </Link>
                 </p>
-              </div>
+              </motion.div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <motion.form onSubmit={handleSubmit} className="space-y-5" variants={itemVariants}>
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                     邮箱地址
@@ -194,7 +276,7 @@ function RegisterContent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-[#0582FF] focus:outline-none focus:ring-1 focus:ring-[#0582FF] dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-100 dark:placeholder-neutral-500"
+                    className={inputClasses}
                     placeholder="you@example.com"
                   />
                 </div>
@@ -210,7 +292,7 @@ function RegisterContent() {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                     className="mt-1 block w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-[#0582FF] focus:outline-none focus:ring-1 focus:ring-[#0582FF] dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-100 dark:placeholder-neutral-500"
+                    className={inputClasses}
                     placeholder="设置一个独特的用户名"
                   />
                 </div>
@@ -228,26 +310,22 @@ function RegisterContent() {
                     minLength={10}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                     className="mt-1 block w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 shadow-sm focus:border-[#0582FF] focus:outline-none focus:ring-1 focus:ring-[#0582FF] dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-100 dark:placeholder-neutral-500"
+                    className={inputClasses}
                     placeholder="至少10位，包含字母和数字"
                   />
                   {password && password.length < 10 && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">密码长度至少需要10位</p>
+                    <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">密码长度至少需要10位</p>
                   )}
                 </div>
-
-                {error && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                )}
 
                 <div>
                   <button
                     type="submit"
                     disabled={loading || (password !== '' && password.length < 10)}
-                    className="flex w-full justify-center rounded-md border border-transparent bg-[#0582FF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#006ADF] focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-[#09090b]"
+                    className="cursor-pointer flex w-full justify-center items-center h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all hover:bg-neutral-800 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
                   >
                     {loading ? (
-                       <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                        </svg>
@@ -256,14 +334,14 @@ function RegisterContent() {
                 </div>
                 <p className="text-center text-sm text-neutral-500 dark:text-neutral-400 lg:hidden">
                   已有账户？{' '}
-                  <Link href="/login" className="font-medium text-[#0582FF] hover:text-[#006ADF] dark:text-[#3898FF] dark:hover:text-[#5CAEFF]">
+                  <Link href="/login" className="text-neutral-900 hover:text-neutral-600 dark:text-neutral-100 dark:hover:text-neutral-300 transition-colors">
                     直接登录
                   </Link>
                 </p>
-              </form>
+              </motion.form>
             )}
           </div>
-        </div>
+        </motion.div>
       }
     />
   );

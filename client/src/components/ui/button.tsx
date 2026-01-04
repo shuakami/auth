@@ -1,82 +1,65 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from '@/lib/utils/utils'
+'use client';
 
-const buttonVariants = cva(
-  "inline-flex items-center otline-none justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:bg-gray-150 dark:disabled:bg-gray-800 disabled:text-gray-600 dark:disabled:text-gray-400 disabled:border disabled:border-input",
-  {
-    variants: {
-      variant: {
-        default: 
-          "bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90",
-        secondary:
-          "bg-muted text-muted-foreground hover:bg-muted/80 dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted/80",
-        outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground dark:border-accent dark:hover:bg-accent/20",
-        ghost: 
-          "hover:bg-accent hover:text-accent-foreground",
-        destructive:
-          "bg-[#DC2626] text-white hover:bg-[#DC2626]/90 dark:bg-[#EF4444] dark:hover:bg-[#EF4444]/90",
-        warning:
-          "bg-[#F97316] text-black hover:bg-[#F97316]/90 dark:bg-[#FB923C] dark:hover:bg-[#FB923C]/90",
-        error:
-          "bg-[#DC2626] text-white hover:bg-[#DC2626]/90 dark:bg-[#EF4444] dark:hover:bg-[#EF4444]/90",
-        link:
-          "text-primary underline-offset-4 hover:underline p-0 h-auto",
-      } as const,
-      size: {
-        icon: "h-8 w-8 p-0 rounded-full",
-        sm: "h-[34px] px-4 text-sm",
-        md: "h-10 px-4 text-sm",
-        lg: "h-12 px-5 text-base",
-      },
-      rounded: {
-        default: "rounded-md",
-        full: "rounded-full",
-      }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "md",
-      rounded: "default"
-    },
-  }
-)
+import { ButtonHTMLAttributes, forwardRef } from 'react';
 
-type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  variant?: ButtonVariant
-  asChild?: boolean
-  loading?: boolean
-  leftIcon?: React.ReactNode
-  rightIcon?: React.ReactNode
-  tooltip?: string | React.ReactNode
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, rounded, asChild = false, loading, leftIcon, rightIcon, children, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className = '', variant = 'primary', size = 'md', children, ...props }, ref) => {
+    const baseStyles = 'cursor-pointer inline-flex items-center justify-center font-medium transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
     
-    const button = (
-      <Comp
-        className={cn(buttonVariants({ variant, size, rounded, className }))}
+    const variants = {
+      primary: 'bg-foreground text-background hover:bg-foreground/90 rounded-full',
+      secondary: 'border border-muted bg-transparent text-regular hover:bg-overlay-hover rounded-full',
+      danger: 'text-red-500 hover:bg-red-500/10 rounded-full',
+      ghost: 'text-muted hover:text-primary hover:bg-overlay-hover rounded-lg',
+    };
+
+    const sizes = {
+      sm: 'h-7 px-3 text-xs gap-1.5',
+      md: 'h-9 px-4 text-sm gap-2',
+      lg: 'h-10 px-5 text-sm gap-2',
+    };
+
+    return (
+      <button
         ref={ref}
-        disabled={loading || props.disabled}
+        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
         {...props}
       >
-        {!loading && leftIcon && <span className="mr-3">{leftIcon}</span>}
         {children}
-        {!loading && rightIcon && <span className="ml-3">{rightIcon}</span>}
-      </Comp>
-    )
-
-    return button
+      </button>
+    );
   }
-)
-Button.displayName = "Button"
+);
 
-export { Button, buttonVariants }
+Button.displayName = 'Button';
+
+// Icon button for standalone icon actions
+interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  size?: 'sm' | 'md';
+}
+
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  ({ className = '', size = 'md', children, ...props }, ref) => {
+    const sizes = {
+      sm: 'p-1',
+      md: 'p-2',
+    };
+
+    return (
+      <button
+        ref={ref}
+        className={`cursor-pointer text-muted hover:text-primary transition-colors ${sizes[size]} ${className}`}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+
+IconButton.displayName = 'IconButton';

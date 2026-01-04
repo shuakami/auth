@@ -10,7 +10,7 @@ import useWebAuthn from '@/hooks/useWebAuthn';
 const GithubIcon = memo(function GithubIcon() {
   return (
     <svg 
-      className="mr-2 h-5 w-5" 
+      className="h-5 w-5" 
       fill="currentColor" 
       viewBox="0 0 24 24"
       aria-hidden="true"
@@ -27,8 +27,7 @@ const GoogleIcon = memo(function GoogleIcon() {
       viewBox="0 0 24 24" 
       width="20" 
       xmlns="http://www.w3.org/2000/svg" 
-      style={{flex: '0 0 auto', lineHeight: 1}} 
-      className="mr-2 h-5 w-5"
+      className="h-5 w-5"
       aria-hidden="true"
     >
       <title>Google</title>
@@ -41,7 +40,7 @@ const GoogleIcon = memo(function GoogleIcon() {
 });
 
 const BiometricIcon = memo(function BiometricIcon() {
-  return <Fingerprint className="mr-2 h-5 w-5" aria-hidden="true" />;
+  return <Fingerprint className="h-5 w-5" aria-hidden="true" />;
 });
 
 interface AlternativeLoginButtonsProps {
@@ -70,8 +69,8 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
 
   const [localBiometricError, setLocalBiometricError] = useState<string | null>(null);
 
-  // 统一的按钮样式
-  const buttonBaseClasses = "inline-flex w-full items-center justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-[#0582FF] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-600 dark:bg-[#171717] dark:text-neutral-300 dark:hover:bg-[#262626] dark:focus:ring-offset-[#09090b]";
+  // 统一的按钮样式 - 更简洁优雅
+  const buttonBaseClasses = "cursor-pointer inline-flex w-full items-center justify-center gap-2 h-10 rounded-lg border border-neutral-200 bg-transparent text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800";
 
   const handleBiometricLogin = useCallback(async () => {
     if (!biometricCanUse) return;
@@ -94,12 +93,12 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
   return (
     <>
       {/* 分隔线 */}
-      <div className="relative pt-1">
+      <div className="relative py-4">
         <div className="absolute inset-0 flex items-center" aria-hidden="true">
-          <div className="w-full border-t border-neutral-300 dark:border-neutral-600" />
+          <div className="w-full border-t border-neutral-200 dark:border-neutral-700" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-white px-2 text-sm text-neutral-500 dark:bg-[#09090b] dark:text-neutral-400">
+          <span className="bg-white px-3 text-sm text-neutral-400 dark:bg-[#09090b] dark:text-neutral-500">
             或使用
           </span>
         </div>
@@ -143,7 +142,7 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
           >
             {isAuthenticating ? (
               <svg 
-                className="animate-spin h-5 w-5" 
+                className="animate-spin h-4 w-4" 
                 xmlns="http://www.w3.org/2000/svg" 
                 fill="none" 
                 viewBox="0 0 24 24"
@@ -168,7 +167,7 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
             ) : (
               <BiometricIcon />
             )}
-            <span className="ml-2">
+            <span>
               {isAuthenticating 
                 ? '验证中' 
                 : currentBiometricError 
@@ -180,12 +179,6 @@ const AlternativeLoginButtons = memo(function AlternativeLoginButtons({
         )}
       </div>
 
-      {/* 错误信息 - 只在有生物验证错误时显示 */}
-      {biometricCanUse && currentBiometricError && (
-        <p className="text-xs text-center text-red-600 dark:text-red-400 -mt-2">
-          {currentBiometricError}
-        </p>
-      )}
     </>
   );
 });

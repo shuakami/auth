@@ -59,6 +59,11 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // 登录相关的 401 错误不应该触发 token 刷新，直接返回错误
+    if (originalRequest.url === '/login' || originalRequest.url === '/2fa/verify') {
+      return Promise.reject(error);
+    }
+
     if (originalRequest.url === '/refresh') {
       console.error('[API Interceptor] Refresh token本身已失效, 无法刷新。');
       tokenManager.stopAutoRefresh();
