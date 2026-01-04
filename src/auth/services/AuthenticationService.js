@@ -313,7 +313,8 @@ export class AuthenticationService {
       // 1) 生成并设置 token cookies（含 access 与 refresh）
       const tokenInfo = await this.tokenService.generateAndSetTokens(user, req, res);
 
-      // 2) 安排后台任务（不保活容器、不阻塞响应）
+      // 2) 在响应前同步执行关键任务（GeoIP 查询和登录历史记录）
+      //    Vercel serverless 会在响应后终止函数，所以必须在响应前完成
       const ua = deviceInfo || (req && req.headers ? req.headers['user-agent'] : '');
       const safeReq = {
         headers: { 'user-agent': ua },
@@ -321,13 +322,17 @@ export class AuthenticationService {
         body: (req && req.body) ? req.body : {}
       };
 
-      scheduleBackground(async () => {
+      // 同步执行登录后任务（不使用 scheduleBackground）
+      try {
         await this.postLoginTasks.executePostLoginTasks({
           req: safeReq,
           user,
           loginType
         });
-      });
+      } catch (taskError) {
+        // 任务失败不应阻止登录成功
+        console.error('[AuthenticationService] 登录后任务执行失败:', taskError);
+      }
 
       // 3) 解析 access token 的过期时间（避免重复验签）
       const expDecoded = tokenInfo && tokenInfo.accessToken ? decodeJwtExp(tokenInfo.accessToken) : null;
