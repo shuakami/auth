@@ -79,13 +79,14 @@ export function useWebAuthn() {
 
   // 注册生物验证
   const registerBiometric = useCallback(async (credentialName?: string) => {
-    // 在函数内部进行检查，避免依赖频繁变化的state
-    setState(prev => {
-      if (!prev.canUse || !user) {
-        throw new Error('生物验证不可用或用户未登录');
-      }
-      return { ...prev, isRegistering: true, error: null };
-    });
+    // 先检查状态，不在 setState 回调里 throw
+    if (!state.canUse || !user) {
+      const error = new Error('生物验证不可用或用户未登录');
+      setState(prev => ({ ...prev, error: error.message }));
+      throw error;
+    }
+    
+    setState(prev => ({ ...prev, isRegistering: true, error: null }));
 
     try {
       // 获取注册选项
@@ -107,7 +108,7 @@ export function useWebAuthn() {
       }));
       throw error;
     }
-  }, [fetchUserSupport]);
+  }, [state.canUse, user, fetchUserSupport]);
 
   // 生物验证登录
   const authenticateWithBiometric = useCallback(async (userId?: string) => {

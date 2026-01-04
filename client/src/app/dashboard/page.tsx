@@ -129,13 +129,9 @@ export default function AccountPage() {
 
   // 处理 OAuth 连接
   const handleConnectMethod = useCallback((method: SignInMethodType) => {
-    if (method === 'Google') {
-      bindGoogle();
-    } else {
-      setSelectedMethod(method);
-      setShowConnectMethodDialog(true);
-    }
-  }, [bindGoogle]);
+    setSelectedMethod(method);
+    setShowConnectMethodDialog(true);
+  }, []);
 
   // 未登录时不渲染
   if (!user) return null;
@@ -219,9 +215,12 @@ export default function AccountPage() {
         method={selectedMethod}
         onClose={() => setShowConnectMethodDialog(false)}
         onConfirm={() => {
-          const method = selectedMethod;
           setShowConnectMethodDialog(false);
-          toast(interpolate(t.toast.connected, { method: method || '' }));
+          if (selectedMethod === 'Google') {
+            bindGoogle();
+          } else if (selectedMethod === 'Apple') {
+            toast('Apple 登录暂不支持');
+          }
         }}
       />
     </>

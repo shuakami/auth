@@ -158,19 +158,17 @@ export default function MfaAppPage() {
           // 第二步：扫描 QR 码并验证
           <form onSubmit={handleVerifySubmit} className="max-w-md mx-auto">
             <div className="flex flex-col items-center mb-10">
-              <div className="p-6 bg-background rounded-2xl border border-muted mb-4">
-                {setup2FAData?.qr ? (
-                  <Image
-                    src={setup2FAData.qr}
-                    alt="QR Code"
-                    width={192}
-                    height={192}
-                    className="rounded-lg"
-                  />
-                ) : (
-                  <div className="w-48 h-48 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg" />
-                )}
-              </div>
+              {setup2FAData?.qr ? (
+                <Image
+                  src={setup2FAData.qr}
+                  alt="QR Code"
+                  width={192}
+                  height={192}
+                  className="rounded-lg mb-4"
+                />
+              ) : (
+                <div className="w-48 h-48 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg mb-4" />
+              )}
               <div className="text-center space-y-2">
                 <p className="text-sm font-medium text-regular">{t.security.scanQrCode}</p>
                 <p className="text-xs text-muted max-w-xs">{t.security.qrCodeHint}</p>
