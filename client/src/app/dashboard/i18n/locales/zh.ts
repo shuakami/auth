@@ -597,6 +597,27 @@ export type Locale = {
     addBiometric: string;
     setupBiometric: string;
     biometricDesc: string;
+    // 管理界面
+    authenticatorAppEnabled: string;
+    authenticatorAppEnabledDesc: string;
+    status: string;
+    enabled: string;
+    remainingBackupCodes: string;
+    codesUnit: string;
+    disableAuthenticator: string;
+    disableAuthenticatorDesc: string;
+    totpCodePlaceholder: string;
+    backupCodePlaceholder: string;
+    useBackupCode: string;
+    useTotpCode: string;
+    confirmDisable: string;
+    authenticatorDisabled: string;
+    disableFailed: string;
+    verifyPassword: string;
+    verifyPasswordDesc: string;
+    passwordVerifyFailed: string;
+    codeVerifyFailed: string;
+    manualEntryHint: string;
     deviceName: string;
     deviceNamePlaceholder: string;
     deviceNameHint: string;
