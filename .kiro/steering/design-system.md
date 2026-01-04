@@ -307,5 +307,5 @@ Use `ChevronRight` icon for buttons that navigate to sub-pages or multi-step flo
 - Select component: `client/src/components/ui/Select.tsx`
 - Toast component: `client/src/components/ui/Toast.tsx`
 - Tooltip component: `client/src/components/ui/Tooltip.tsx`
-- Dashboard page: `client/src/app/dashboard-test/page.tsx`
-- Session map: `client/src/app/dashboard-test/SessionMap.tsx`
+- Dashboard page: `client/src/app/dashboard/page.tsx`
+- Session map: `client/src/app/dashboard/SessionMap.tsx`

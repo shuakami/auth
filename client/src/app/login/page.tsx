@@ -10,7 +10,7 @@ import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticat
 import LoginForm from '@/components/Auth/LoginForm';
 import AlternativeLoginButtons from '@/components/Auth/AlternativeLoginButtons';
 import TwoFactorModal from '@/components/Auth/TwoFactorModal';
-import Footer from '../dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 import { AUTH_CONSTANTS } from '@/constants/auth';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useAuth } from '@/context/AuthContext';

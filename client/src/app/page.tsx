@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link';
 import Image from 'next/image';
-import Footer from './dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';

@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import Footer from '@/app/dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 
 // 复用 AuthLayout 组件
 const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rightContent: ReactNode }) => (

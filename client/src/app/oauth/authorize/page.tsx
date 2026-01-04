@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import Image from 'next/image';
-import Footer from '@/app/dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 
 // 用户信息类型
 interface User {

@@ -431,7 +431,8 @@ export async function init() {
             totp_enabled BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin'))
+            role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'super_admin')),
+            locale TEXT DEFAULT 'zh' CHECK (locale IN ('zh', 'en'))
           );
         `,
       },
@@ -632,6 +633,29 @@ export async function init() {
       const stepDuration = Date.now() - stepStartTime;
       dbLog('info', `Step completed: ${step.name}`, { duration: `${stepDuration}ms` });
     }
+
+    // 迁移：为现有 users 表添加 locale 字段（如果不存在）
+    dbLog('info', 'Running migration: add locale column to users table');
+    await withRetry(async () => {
+      const client = await getPool().connect();
+      try {
+        await client.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'users' AND column_name = 'locale'
+            ) THEN
+              ALTER TABLE users ADD COLUMN locale TEXT DEFAULT 'zh' CHECK (locale IN ('zh', 'en'));
+            END IF;
+          END $$;
+        `);
+        return true;
+      } finally {
+        client.release();
+      }
+    }, 3, 1000);
+    dbLog('info', 'Migration completed: locale column');
 
     // 初始化超级管理员
     dbLog('info', 'Initializing super admin');

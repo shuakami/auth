@@ -16,6 +16,7 @@ interface User {
   google_id: string | null;
   password_hash: string | null;
   has_password: boolean;
+  locale: 'zh' | 'en';
 }
 
 // 定义 AuthContext 的类型

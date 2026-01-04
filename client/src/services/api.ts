@@ -226,6 +226,10 @@ export const updateEmail = async (data: { newEmail: string; password: string }) 
   return apiClient.patch('/me/email', data);
 };
 
+export const updateLocale = async (locale: string) => {
+  return apiClient.patch('/me/locale', { locale });
+};
+
 
 export const getSessions = async () => {
   return apiClient.get('/session/list');

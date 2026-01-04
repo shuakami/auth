@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import Footer from '@/app/dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 
 // 高端动画配置
 const premiumEasing = [0.16, 1, 0.3, 1];

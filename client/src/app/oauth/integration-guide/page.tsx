@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { CodeBlock } from '@/components/ui/CodeBlock';
+import { I18nProvider, useI18n, type Language } from '@/app/dashboard/i18n/context';
 
 // Section component
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -16,15 +17,18 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 // Parameter table component
-function ParamTable({ params }: { params: { name: string; type: string; desc: string; required?: boolean }[] }) {
+function ParamTable({ params, t }: { 
+  params: { name: string; type: string; descKey: string; required?: boolean }[];
+  t: ReturnType<typeof useI18n>['t'];
+}) {
   return (
     <div className="my-4 rounded-xl border border-muted overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-surface-l1">
-            <th className="px-4 py-3 text-left font-medium text-regular">Parameter</th>
-            <th className="px-4 py-3 text-left font-medium text-regular">Type</th>
-            <th className="px-4 py-3 text-left font-medium text-regular">Description</th>
+            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.parameter}</th>
+            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.type}</th>
+            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.description}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-muted">
@@ -35,7 +39,9 @@ function ParamTable({ params }: { params: { name: string; type: string; desc: st
                 {p.required && <span className="ml-2 text-xs text-red-500">*</span>}
               </td>
               <td className="px-4 py-3 text-muted">{p.type}</td>
-              <td className="px-4 py-3 text-muted">{p.desc}</td>
+              <td className="px-4 py-3 text-muted">
+                {(t.integrationGuide.params as Record<string, string>)[p.descKey] || p.descKey}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -44,17 +50,18 @@ function ParamTable({ params }: { params: { name: string; type: string; desc: st
   );
 }
 
-const sections = [
-  { id: 'quick-start', title: 'Quick Start' },
-  { id: 'architecture', title: 'Architecture' },
-  { id: 'oidc-discovery', title: 'OIDC Discovery' },
-  { id: 'pkce-flow', title: 'PKCE Flow' },
-  { id: 'api-endpoints', title: 'API Endpoints' },
-  { id: 'tokens', title: 'Token Details' },
-];
-
-export default function OAuthIntegrationGuide() {
+function IntegrationGuideContent() {
+  const { t } = useI18n();
   const [activeId, setActiveId] = useState('quick-start');
+
+  const sections = [
+    { id: 'quick-start', title: t.integrationGuide.sections.quickStart },
+    { id: 'architecture', title: t.integrationGuide.sections.architecture },
+    { id: 'oidc-discovery', title: t.integrationGuide.sections.oidcDiscovery },
+    { id: 'pkce-flow', title: t.integrationGuide.sections.pkceFlow },
+    { id: 'api-endpoints', title: t.integrationGuide.sections.apiEndpoints },
+    { id: 'tokens', title: t.integrationGuide.sections.tokens },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -72,7 +79,7 @@ export default function OAuthIntegrationGuide() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [sections]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,11 +88,11 @@ export default function OAuthIntegrationGuide() {
         <aside className="hidden lg:block w-56 flex-shrink-0">
           <div className="sticky top-0 py-10 pl-8 pr-4 h-screen">
             <Link 
-              href="/dashboard-test"
+              href="/dashboard"
               className="inline-flex items-center gap-1 text-sm text-muted hover:text-primary transition-colors"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Back</span>
+              <span>{t.integrationGuide.back}</span>
             </Link>
 
             <nav className="mt-10">
@@ -113,35 +120,44 @@ export default function OAuthIntegrationGuide() {
           <div className="max-w-3xl mx-auto">
             {/* Header */}
             <div className="mb-12">
-              <h1 className="text-3xl font-medium text-primary mb-3">OAuth 2.0 Integration Guide</h1>
-              <p className="text-muted text-lg">A comprehensive guide to integrating with our OAuth 2.0 and OpenID Connect authentication service.</p>
+              <h1 className="text-3xl font-medium text-primary mb-3">{t.integrationGuide.pageTitle}</h1>
+              <p className="text-muted text-lg">{t.integrationGuide.pageSubtitle}</p>
             </div>
 
             <div className="space-y-16">
               {/* Quick Start */}
-              <Section id="quick-start" title="Quick Start">
-                <p className="text-muted mb-6">Get your first Access Token in under 30 minutes.</p>
+              <Section id="quick-start" title={t.integrationGuide.quickStart.title}>
+                <p className="text-muted mb-6">{t.integrationGuide.quickStart.subtitle}</p>
                 
                 <div className="space-y-8">
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">1. Register Your Application</h3>
+                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step1Title}</h3>
                     <p className="text-muted mb-4">
-                      Register your application in the <Link href="/dashboard-test" className="text-primary hover:underline">OAuth Applications</Link> dashboard to get started.
+                      {t.integrationGuide.quickStart.step1Desc.replace(
+                        '{link}',
+                        ''
+                      )}
+                      <Link href="/dashboard" className="text-primary hover:underline">
+                        {t.integrationGuide.quickStart.step1Link}
+                      </Link>
                     </p>
                     <ul className="space-y-2 text-muted">
-                      <li className="flex gap-2"><span className="text-primary">•</span>Application Name - The name users will see during authorization</li>
-                      <li className="flex gap-2"><span className="text-primary">•</span>Redirect URI - Where users are redirected after authorization (HTTPS required)</li>
+                      {t.integrationGuide.quickStart.step1Items.map((item, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="text-primary">•</span>{item}
+                        </li>
+                      ))}
                     </ul>
                     <div className="mt-4 p-4 rounded-xl border border-muted bg-surface-l1">
                       <p className="text-sm text-muted">
-                        <span className="font-medium text-primary">Security:</span> Never expose Client Secret in frontend code. For SPAs and mobile apps, use PKCE flow.
+                        <span className="font-medium text-primary">{t.integrationGuide.quickStart.securityTip}</span> {t.integrationGuide.quickStart.securityTipContent}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">2. Initiate Authorization</h3>
-                    <p className="text-muted mb-4">Redirect users to our authorization endpoint:</p>
+                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step2Title}</h3>
+                    <p className="text-muted mb-4">{t.integrationGuide.quickStart.step2Desc}</p>
                     <CodeBlock 
                       language="http"
                       code={`GET /api/oauth/authorize?
@@ -156,8 +172,8 @@ export default function OAuthIntegrationGuide() {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">3. Exchange Code for Token</h3>
-                    <p className="text-muted mb-4">After user authorization, exchange the code for tokens:</p>
+                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step3Title}</h3>
+                    <p className="text-muted mb-4">{t.integrationGuide.quickStart.step3Desc}</p>
                     <CodeBlock 
                       language="bash"
                       code={`curl -X POST 'https://auth.sdjz.wiki/api/oauth/token' \\
@@ -174,15 +190,10 @@ export default function OAuthIntegrationGuide() {
               </Section>
 
               {/* Architecture */}
-              <Section id="architecture" title="Architecture">
-                <p className="text-muted mb-6">Our authentication system is built on a modular, layered architecture.</p>
+              <Section id="architecture" title={t.integrationGuide.architecture.title}>
+                <p className="text-muted mb-6">{t.integrationGuide.architecture.subtitle}</p>
                 <div className="grid gap-4">
-                  {[
-                    { title: 'Authorization Server', desc: 'Handles user authentication, authorization requests, and token issuance' },
-                    { title: 'Token Service', desc: 'Manages Access Token and Refresh Token lifecycle' },
-                    { title: 'User Service', desc: 'Manages user identities and third-party account bindings' },
-                    { title: 'Security Service', desc: 'Provides 2FA, device fingerprinting, and session monitoring' },
-                  ].map((item) => (
+                  {t.integrationGuide.architecture.components.map((item) => (
                     <div key={item.title} className="p-4 rounded-xl border border-muted hover:bg-overlay-hover transition-colors">
                       <h4 className="font-medium text-primary mb-1">{item.title}</h4>
                       <p className="text-sm text-muted">{item.desc}</p>
@@ -192,58 +203,41 @@ export default function OAuthIntegrationGuide() {
               </Section>
 
               {/* OIDC Discovery */}
-              <Section id="oidc-discovery" title="OIDC Discovery">
-                <p className="text-muted mb-4">We support the OIDC Discovery specification for simplified client configuration.</p>
+              <Section id="oidc-discovery" title={t.integrationGuide.oidcDiscovery.title}>
+                <p className="text-muted mb-4">{t.integrationGuide.oidcDiscovery.subtitle}</p>
                 <CodeBlock 
                   language="http"
                   code="GET /.well-known/openid-configuration"
                 />
-                <p className="text-muted mt-4">Returns configuration including:</p>
+                <p className="text-muted mt-4">{t.integrationGuide.oidcDiscovery.returns}</p>
                 <ul className="mt-2 space-y-1 text-muted text-sm">
-                  <li><code className="font-mono text-primary">issuer</code> - Issuer URL</li>
-                  <li><code className="font-mono text-primary">authorization_endpoint</code> - Authorization endpoint</li>
-                  <li><code className="font-mono text-primary">token_endpoint</code> - Token endpoint</li>
-                  <li><code className="font-mono text-primary">userinfo_endpoint</code> - User info endpoint</li>
-                  <li><code className="font-mono text-primary">jwks_uri</code> - JSON Web Key Set URL</li>
+                  <li><code className="font-mono text-primary">issuer</code> - {t.integrationGuide.oidcDiscovery.fields.issuer}</li>
+                  <li><code className="font-mono text-primary">authorization_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.authorization_endpoint}</li>
+                  <li><code className="font-mono text-primary">token_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.token_endpoint}</li>
+                  <li><code className="font-mono text-primary">userinfo_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.userinfo_endpoint}</li>
+                  <li><code className="font-mono text-primary">jwks_uri</code> - {t.integrationGuide.oidcDiscovery.fields.jwks_uri}</li>
                 </ul>
               </Section>
 
               {/* PKCE Flow */}
-              <Section id="pkce-flow" title="PKCE Flow">
-                <p className="text-muted mb-6">For maximum security, we recommend using PKCE for all application types.</p>
+              <Section id="pkce-flow" title={t.integrationGuide.pkceFlow.title}>
+                <p className="text-muted mb-6">{t.integrationGuide.pkceFlow.subtitle}</p>
                 
                 <div className="space-y-4 mb-8">
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">1</div>
-                    <div>
-                      <p className="text-primary text-sm">Generate code_verifier</p>
-                      <p className="text-xs text-muted">High-entropy random string</p>
+                  {t.integrationGuide.pkceFlow.steps.map((step, index) => (
+                    <div key={index} className="flex gap-4">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="text-primary text-sm">{step.title}</p>
+                        <p className="text-xs text-muted">{step.desc}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">2</div>
-                    <div>
-                      <p className="text-primary text-sm">Create code_challenge</p>
-                      <p className="text-xs text-muted">SHA-256 hash, then Base64Url encode</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">3</div>
-                    <div>
-                      <p className="text-primary text-sm">Include in authorization request</p>
-                      <p className="text-xs text-muted">Send code_challenge with method S256</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">4</div>
-                    <div>
-                      <p className="text-primary text-sm">Exchange with code_verifier</p>
-                      <p className="text-xs text-muted">Server verifies by hashing and comparing</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                <h3 className="text-sm font-medium text-primary mb-3">JavaScript Implementation</h3>
+                <h3 className="text-sm font-medium text-primary mb-3">{t.integrationGuide.pkceFlow.jsImplementation}</h3>
                 <CodeBlock 
                   language="javascript"
                   code={`async function generatePkce() {
@@ -268,35 +262,41 @@ export default function OAuthIntegrationGuide() {
               </Section>
 
               {/* API Endpoints */}
-              <Section id="api-endpoints" title="API Endpoints">
+              <Section id="api-endpoints" title={t.integrationGuide.apiEndpoints.title}>
                 <div className="space-y-8">
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">Authorization Endpoint</h3>
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.authEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">GET /api/oauth/authorize</code>
-                    <ParamTable params={[
-                      { name: 'response_type', type: 'string', desc: 'Must be "code"', required: true },
-                      { name: 'client_id', type: 'string', desc: 'Your application Client ID', required: true },
-                      { name: 'redirect_uri', type: 'string', desc: 'Callback URL after authorization', required: true },
-                      { name: 'scope', type: 'string', desc: 'Space-separated scopes (e.g., openid profile email)', required: true },
-                      { name: 'state', type: 'string', desc: 'Random string for CSRF protection' },
-                      { name: 'code_challenge', type: 'string', desc: 'PKCE challenge code' },
-                      { name: 'code_challenge_method', type: 'string', desc: 'Must be "S256"' },
-                    ]} />
+                    <ParamTable 
+                      t={t}
+                      params={[
+                        { name: 'response_type', type: 'string', descKey: 'response_type', required: true },
+                        { name: 'client_id', type: 'string', descKey: 'client_id', required: true },
+                        { name: 'redirect_uri', type: 'string', descKey: 'redirect_uri', required: true },
+                        { name: 'scope', type: 'string', descKey: 'scope', required: true },
+                        { name: 'state', type: 'string', descKey: 'state' },
+                        { name: 'code_challenge', type: 'string', descKey: 'code_challenge' },
+                        { name: 'code_challenge_method', type: 'string', descKey: 'code_challenge_method' },
+                      ]} 
+                    />
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">Token Endpoint</h3>
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.tokenEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">POST /api/oauth/token</code>
-                    <ParamTable params={[
-                      { name: 'grant_type', type: 'string', desc: '"authorization_code" or "refresh_token"', required: true },
-                      { name: 'code', type: 'string', desc: 'Authorization code from callback', required: true },
-                      { name: 'redirect_uri', type: 'string', desc: 'Must match authorization request', required: true },
-                      { name: 'client_id', type: 'string', desc: 'Your Client ID', required: true },
-                      { name: 'client_secret', type: 'string', desc: 'Your Client Secret' },
-                      { name: 'code_verifier', type: 'string', desc: 'Original PKCE verifier' },
-                    ]} />
+                    <ParamTable 
+                      t={t}
+                      params={[
+                        { name: 'grant_type', type: 'string', descKey: 'grant_type', required: true },
+                        { name: 'code', type: 'string', descKey: 'code', required: true },
+                        { name: 'redirect_uri', type: 'string', descKey: 'redirect_uri_token', required: true },
+                        { name: 'client_id', type: 'string', descKey: 'client_id_token', required: true },
+                        { name: 'client_secret', type: 'string', descKey: 'client_secret' },
+                        { name: 'code_verifier', type: 'string', descKey: 'code_verifier' },
+                      ]} 
+                    />
                     
-                    <h4 className="text-sm text-muted mt-6 mb-3">Success Response</h4>
+                    <h4 className="text-sm text-muted mt-6 mb-3">{t.integrationGuide.apiEndpoints.successResponse}</h4>
                     <CodeBlock 
                       language="json"
                       code={`{
@@ -311,9 +311,9 @@ export default function OAuthIntegrationGuide() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">User Info Endpoint</h3>
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.userInfoEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">GET /api/oauth/userinfo</code>
-                    <p className="text-muted text-sm mt-2 mb-4">Requires Bearer token in Authorization header.</p>
+                    <p className="text-muted text-sm mt-2 mb-4">{t.integrationGuide.apiEndpoints.requiresBearer}</p>
                     <CodeBlock 
                       language="json"
                       code={`{
@@ -328,48 +328,30 @@ export default function OAuthIntegrationGuide() {
               </Section>
 
               {/* Token Details */}
-              <Section id="tokens" title="Token Details">
+              <Section id="tokens" title={t.integrationGuide.tokens.title}>
                 <div className="space-y-4">
                   {[
-                    { 
-                      title: 'Access Token', 
-                      format: 'JWT (RS256)',
-                      purpose: 'Credential for accessing protected resources',
-                      lifecycle: 'Short-lived (1 hour recommended)',
-                      storage: 'Client memory, avoid Local Storage'
-                    },
-                    { 
-                      title: 'Refresh Token', 
-                      format: 'Opaque encrypted string',
-                      purpose: 'Obtain new Access Token without re-authentication',
-                      lifecycle: 'Long-lived (15 days), rotated on each use',
-                      storage: 'Server-side httpOnly, secure, sameSite=strict Cookie'
-                    },
-                    { 
-                      title: 'ID Token', 
-                      format: 'JWT (OIDC specification)',
-                      purpose: 'Verify user identity on client side',
-                      lifecycle: 'Same as Access Token',
-                      storage: 'Client memory'
-                    },
+                    t.integrationGuide.tokens.accessToken,
+                    t.integrationGuide.tokens.refreshToken,
+                    t.integrationGuide.tokens.idToken,
                   ].map((token) => (
                     <div key={token.title} className="p-4 rounded-xl border border-muted">
                       <h4 className="text-sm font-medium text-primary mb-3">{token.title}</h4>
                       <div className="grid gap-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-muted">Format</span>
+                          <span className="text-muted">{t.integrationGuide.tokens.format}</span>
                           <span className="text-regular">{token.format}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted">Purpose</span>
+                          <span className="text-muted">{t.integrationGuide.tokens.purpose}</span>
                           <span className="text-regular text-right max-w-[60%]">{token.purpose}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted">Lifecycle</span>
+                          <span className="text-muted">{t.integrationGuide.tokens.lifecycle}</span>
                           <span className="text-regular text-right max-w-[60%]">{token.lifecycle}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted">Storage</span>
+                          <span className="text-muted">{t.integrationGuide.tokens.storage}</span>
                           <span className="text-regular text-right max-w-[60%]">{token.storage}</span>
                         </div>
                       </div>
@@ -382,12 +364,20 @@ export default function OAuthIntegrationGuide() {
             {/* Footer */}
             <div className="mt-16 pt-8 border-t border-muted">
               <p className="text-sm text-muted">
-                Need help? Contact us at <a href="mailto:shuakami@sdjz.wiki" className="text-primary hover:underline">shuakami@sdjz.wiki</a>
+                {t.integrationGuide.footer.needHelp} <a href="mailto:shuakami@sdjz.wiki" className="text-primary hover:underline">shuakami@sdjz.wiki</a>
               </p>
             </div>
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+export default function OAuthIntegrationGuide() {
+  return (
+    <I18nProvider>
+      <IntegrationGuideContent />
+    </I18nProvider>
   );
 }

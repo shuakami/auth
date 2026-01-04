@@ -5,7 +5,7 @@ import { forgotPassword } from '@/services/api';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import Footer from '../../dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useToast } from '@/components/ui/Toast';
 

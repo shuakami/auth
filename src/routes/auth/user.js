@@ -28,7 +28,7 @@ router.get('/me', ensureAuth, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(401).json({ error: '未授权' });
   const { password_hash, ...rest } = user;
-  res.json({ user: { ...rest, has_password: !!password_hash } });
+  res.json({ user: { ...rest, has_password: !!password_hash, locale: user.locale || 'zh' } });
 });
 
 /**
@@ -185,6 +185,34 @@ router.patch('/me/email', ensureAuth, async (req, res) => {
   const link = `${process.env.PUBLIC_BASE_URL || 'http://localhost:3000'}/verify?token=${token}`;
   await sendVerifyEmail(newEmail, link);
   res.json({ ok: true, message: '邮箱已更新，请查收新邮箱完成验证' });
+});
+
+/**
+ * PATCH /me/locale
+ * @tags 用户
+ * @summary 更新用户语言偏好
+ * @security bearerAuth
+ * @param {object} request.body.required - { locale: string }
+ * @return {object} 200 - 修改成功
+ * @return {ErrorResponse} 400 - 参数错误
+ * @return {ErrorResponse} 401 - 未授权
+ */
+router.patch('/me/locale', ensureAuth, async (req, res) => {
+  const { locale } = req.body || {};
+  if (!locale) return res.status(400).json({ error: '缺少语言参数' });
+  
+  // 验证语言值
+  const validLocales = ['zh', 'en'];
+  if (!validLocales.includes(locale)) {
+    return res.status(400).json({ error: '不支持的语言' });
+  }
+  
+  try {
+    await User.updateLocale(req.user.id, locale);
+    res.json({ ok: true, locale });
+  } catch (err) {
+    res.status(500).json({ error: '更新语言失败', detail: err?.message });
+  }
 });
 
 export default router;

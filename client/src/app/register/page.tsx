@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import useAutoRedirectIfAuthenticated from '@/hooks/useAutoRedirectIfAuthenticated';
 import Image from 'next/image';
-import Footer from '../dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/Toast';

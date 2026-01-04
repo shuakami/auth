@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { resetPassword } from '@/services/api';
 import Link from 'next/link';
 import Image from 'next/image';
-import Footer from '../../dashboard/components/Footer';
+import Footer from '@/components/shared/Footer';
 
 // Reusable Layout Components
 const AuthLayout = ({ leftContent, rightContent }: { leftContent: ReactNode; rightContent: ReactNode }) => (

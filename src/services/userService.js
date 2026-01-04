@@ -47,6 +47,10 @@ export async function updateUsername(userId, username) {
   return userService.updateUsername(userId, username);
 }
 
+export async function updateLocale(userId, locale) {
+  return userService.updateLocale(userId, locale);
+}
+
 export async function deleteUser(userId) {
   return userService.deleteUser(userId);
 }

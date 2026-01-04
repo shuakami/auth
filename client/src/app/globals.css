@@ -234,18 +234,18 @@ body {
     --bg-l2: 0 0% 7%;
     --bg-l3: 0 0% 7%;
     --bg-l4: 0 0% 7%;
-    --bg-overlay-hover: 0 0% 100% / 3%;
+    --bg-overlay-hover: 0 0% 100% / 5%;
     --surface-l1: 0 0% 11%;
     
     --neutral2: 0 0% 100%;
     --neutral10: 0 1% 88%;
-    --neutral50: 0 0% 47%;
-    --neutral70: 0 1% 33%;
+    --neutral50: 0 0% 55%;
+    --neutral70: 0 1% 45%;
     --neutral98: 0 0% 3%;
     
     --regular: 0 0% 100%;
-    --subtle: 0 0% 47%;
-    --muted: 0 1% 33%;
+    --subtle: 0 0% 60%;
+    --muted: 0 0% 50%;
     
     --card: 0 0% 7%;
     --card-foreground: 0 0% 100%;
@@ -261,7 +261,7 @@ body {
     --destructive: 0 70% 35%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 20%;
-    --border-muted: 0 0% 13%;
+    --border-muted: 0 0% 20%;
     --input: 0 0% 32%;
     --ring: 0 0% 80%;
     --main-surface-tertiary: rgba(255, 255, 255, 0.2);

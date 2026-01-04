@@ -337,6 +337,39 @@ export class UserService {
   }
 
   /**
+   * 更新用户语言偏好
+   * @param {string} userId 用户ID
+   * @param {string} locale 语言代码 (zh, en)
+   * @returns {Promise<boolean>}
+   */
+  async updateLocale(userId, locale) {
+    try {
+      if (!userId || !locale) {
+        throw new Error('用户ID和语言是必填字段');
+      }
+
+      const result = await smartQuery(
+        'UPDATE users SET locale = $1, updated_at = NOW() WHERE id = $2',
+        [locale, userId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error('更新失败，用户不存在');
+      }
+
+      // 清除缓存
+      this._invalidateUserCache(null, userId);
+
+      console.log(`[UserService] 用户 ${userId} 语言更新为: ${locale}`);
+      return true;
+
+    } catch (error) {
+      console.error('[UserService] 更新语言失败:', error);
+      throw new Error(error.message || '更新语言失败');
+    }
+  }
+
+  /**
    * 删除用户
    * @param {string} userId 用户ID
    * @returns {Promise<boolean>}
