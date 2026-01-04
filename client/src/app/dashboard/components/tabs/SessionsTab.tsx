@@ -325,7 +325,7 @@ export function SessionsTab({
             <button
               onClick={handleRevokeAllOther}
               disabled={isRevoking}
-              className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+              className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
             >
               {isRevoking ? t.common.processing : t.modals.signOutAll}
             </button>
