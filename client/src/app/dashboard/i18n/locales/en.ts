@@ -32,6 +32,7 @@ export const en: Locale = {
     set: 'Set',
     change: 'Change',
     linked: 'Linked',
+    done: 'Done',
   },
 
   // Navigation
@@ -202,8 +203,12 @@ export const en: Locale = {
     redirectUris: 'Redirect URIs',
     redirectUrisPlaceholder: 'https://example.com/callback',
     redirectUrisHint: 'One URI per line. Users will be redirected here after authorization.',
+    redirectUri: 'Callback URL',
+    redirectUriHint: 'One URI per line. Users will be redirected here after authorization.',
 
     // Permissions
+    selectScopes: 'Select Permissions',
+    selectScopesDesc: 'Choose what user information your application needs to access.',
     permissions: 'Permissions',
     permissionsDesc: 'Choose what information your application can access',
     requiredScope: 'Required',
@@ -223,7 +228,9 @@ export const en: Locale = {
     },
 
     // Create success
-    appCreated: 'Application created',
+    appCreated: 'Application Created',
+    appCreatedDesc: 'Save your credentials securely. The client secret won\'t be shown again.',
+    secretWarning: 'Copy and save the client secret now. You won\'t be able to see it again after closing this page.',
     saveCredentials: 'Save your credentials securely. The client secret won\'t be shown again.',
     documentation: 'Documentation',
     integrationGuide: 'Integration guide',

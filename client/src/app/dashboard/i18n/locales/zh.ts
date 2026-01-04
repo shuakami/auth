@@ -30,6 +30,7 @@ export const zh = {
     set: '设置',
     change: '修改',
     linked: '已绑定',
+    done: '完成',
   },
 
   // 导航
@@ -200,8 +201,12 @@ export const zh = {
     redirectUris: '重定向 URI',
     redirectUrisPlaceholder: 'https://example.com/callback',
     redirectUrisHint: '每行一个 URI。用户授权后将被重定向到这里。',
+    redirectUri: '回调链接',
+    redirectUriHint: '每行一个 URI。用户授权后将被重定向到这里。',
 
     // 权限
+    selectScopes: '选择权限',
+    selectScopesDesc: '选择您的应用需要访问的用户信息范围。',
     permissions: '权限',
     permissionsDesc: '选择您的应用可以访问的信息',
     requiredScope: '必需',
@@ -222,6 +227,8 @@ export const zh = {
 
     // 创建成功
     appCreated: '应用已创建',
+    appCreatedDesc: '请安全保存您的凭证，客户端密钥不会再次显示。',
+    secretWarning: '请立即复制并安全保存客户端密钥。关闭此页面后将无法再次查看。',
     saveCredentials: '请安全保存您的凭证。客户端密钥不会再次显示。',
     documentation: '文档',
     integrationGuide: '集成指南',
