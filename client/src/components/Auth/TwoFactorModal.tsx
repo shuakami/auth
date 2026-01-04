@@ -11,28 +11,17 @@ import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { type TwoFAMode, type MessageType } from '@/constants/auth';
 
-// Loading Spinner 组件 - Vercel 风格
+// Loading Spinner 组件 - Vercel 风格扇形
 function LoadingSpinner({ className = '' }: { className?: string }) {
   return (
     <svg
       className={`animate-spin-fast ${className}`}
       viewBox="0 0 16 16"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
     >
-      <circle
-        cx="8"
-        cy="8"
-        r="6.5"
-        stroke="currentColor"
-        strokeOpacity="0.25"
-        strokeWidth="2.5"
-      />
       <path
-        d="M8 1.5C11.59 1.5 14.5 4.41 14.5 8"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
+        d="M8 0a8 8 0 0 1 8 8h-2a6 6 0 0 0-6-6V0z"
+        fill="currentColor"
       />
     </svg>
   );
