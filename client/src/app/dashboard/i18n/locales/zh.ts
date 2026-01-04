@@ -313,6 +313,10 @@ export const zh = {
     signOutAllDesc: '这将使您从所有设备登出（当前设备除外）。您需要在这些设备上重新登录。',
     signOutAll: '全部登出',
 
+    // 登出
+    logoutTitle: '退出登录？',
+    logoutDesc: '您确定要退出当前账户吗？',
+
     // 禁用登录方式
     disableMethodTitle: '禁用 {method}？',
     disableMethodDesc: '在您重新启用之前，将无法使用此方式登录。',
@@ -746,6 +750,8 @@ export type Locale = {
     signOutAllTitle: string;
     signOutAllDesc: string;
     signOutAll: string;
+    logoutTitle: string;
+    logoutDesc: string;
     disableMethodTitle: string;
     disableMethodDesc: string;
     connectMethodTitle: string;

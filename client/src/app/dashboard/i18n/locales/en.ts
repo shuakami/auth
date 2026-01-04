@@ -315,6 +315,10 @@ export const en: Locale = {
     signOutAllDesc: 'This will sign you out of all devices except this one. You\'ll need to sign in again on those devices.',
     signOutAll: 'Sign out all',
 
+    // Logout
+    logoutTitle: 'Log out?',
+    logoutDesc: 'Are you sure you want to log out of your account?',
+
     // Disable method
     disableMethodTitle: 'Disable {method}?',
     disableMethodDesc: 'You won\'t be able to sign in using this method until you enable it again.',
