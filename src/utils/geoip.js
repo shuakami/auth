@@ -26,7 +26,8 @@ export async function getGeoInfo(ip) {
       }
     });
     
-    if (res.data && res.data.code === 200) {
+    // API 直接返回数据对象，检查是否有 region 字段
+    if (res.data && res.data.region) {
       // 解析完整的地理位置字符串，格式：国家 省份/州 城市
       const regionParts = res.data.region?.split(' ') || [];
       const geo = {
@@ -35,7 +36,9 @@ export async function getGeoInfo(ip) {
         city: regionParts[2] || regionParts[1] || '', // 如果没有第3部分，使用第2部分
         lat: res.data.latitude,
         lon: res.data.longitude,
-        isp: res.data.isp || res.data.llc
+        isp: res.data.isp || res.data.llc,
+        timeZone: res.data.time_zone || null,
+        district: res.data.district || null
       };
       cache.set(ip, { data: geo, expires: now + CACHE_TTL });
       return geo;
@@ -50,7 +53,8 @@ export async function getGeoInfo(ip) {
         }
       });
       
-      if (res.data && res.data.code === 200) {
+      // API 直接返回数据对象，检查是否有 region 字段
+      if (res.data && res.data.region) {
         // 解析完整的地理位置字符串，格式：国家 省份/州 城市
         const regionParts = res.data.region?.split(' ') || [];
         const geo = {
