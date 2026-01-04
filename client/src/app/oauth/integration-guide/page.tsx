@@ -4,19 +4,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { CodeBlock } from '@/components/ui/CodeBlock';
-import { I18nProvider, useI18n, type Language } from '@/app/dashboard/i18n/context';
+import { I18nProvider, useI18n } from '@/app/dashboard/i18n/context';
 
-// Section component
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-8">
-      <h2 className="text-lg font-medium text-primary mb-6">{title}</h2>
+      <h2 className="text-base font-medium text-primary mb-4">{title}</h2>
       {children}
     </section>
   );
 }
 
-// Parameter table component
 function ParamTable({ params, t }: { 
   params: { name: string; type: string; descKey: string; required?: boolean }[];
   t: ReturnType<typeof useI18n>['t'];
@@ -26,20 +24,20 @@ function ParamTable({ params, t }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-surface-l1">
-            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.parameter}</th>
-            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.type}</th>
-            <th className="px-4 py-3 text-left font-medium text-regular">{t.integrationGuide.params.description}</th>
+            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted uppercase tracking-wide">{t.integrationGuide.params.parameter}</th>
+            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted uppercase tracking-wide">{t.integrationGuide.params.type}</th>
+            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted uppercase tracking-wide">{t.integrationGuide.params.description}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-muted">
           {params.map((p) => (
             <tr key={p.name} className="hover:bg-overlay-hover transition-colors">
-              <td className="px-4 py-3">
+              <td className="px-4 py-2.5">
                 <code className="text-sm font-mono text-primary">{p.name}</code>
-                {p.required && <span className="ml-2 text-xs text-red-500">*</span>}
+                {p.required && <span className="ml-1.5 text-xs text-red-500">*</span>}
               </td>
-              <td className="px-4 py-3 text-muted">{p.type}</td>
-              <td className="px-4 py-3 text-muted">
+              <td className="px-4 py-2.5 text-sm text-muted">{p.type}</td>
+              <td className="px-4 py-2.5 text-sm text-muted">
                 {(t.integrationGuide.params as Record<string, string>)[p.descKey] || p.descKey}
               </td>
             </tr>
@@ -89,7 +87,7 @@ function IntegrationGuideContent() {
           <div className="sticky top-0 py-10 pl-8 pr-4 h-screen">
             <Link 
               href="/dashboard"
-              className="inline-flex items-center gap-1 text-sm text-muted hover:text-primary transition-colors"
+              className="inline-flex items-center gap-1 text-sm text-muted hover:text-primary transition-colors cursor-pointer"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>{t.integrationGuide.back}</span>
@@ -101,10 +99,8 @@ function IntegrationGuideContent() {
                   <a
                     key={id}
                     href={`#${id}`}
-                    className={`block py-1.5 text-sm transition-colors ${
-                      activeId === id
-                        ? 'text-primary'
-                        : 'text-muted hover:text-primary'
+                    className={`block py-1.5 text-sm transition-colors cursor-pointer ${
+                      activeId === id ? 'text-primary' : 'text-muted hover:text-primary'
                     }`}
                   >
                     {title}
@@ -119,36 +115,33 @@ function IntegrationGuideContent() {
         <main className="flex-1 min-w-0 px-6 py-8 lg:px-12 lg:py-12">
           <div className="max-w-3xl mx-auto">
             {/* Header */}
-            <div className="mb-12">
-              <h1 className="text-3xl font-medium text-primary mb-3">{t.integrationGuide.pageTitle}</h1>
-              <p className="text-muted text-lg">{t.integrationGuide.pageSubtitle}</p>
+            <div className="mb-10">
+              <h1 className="text-2xl font-medium text-primary mb-2">{t.integrationGuide.pageTitle}</h1>
+              <p className="text-muted">{t.integrationGuide.pageSubtitle}</p>
             </div>
 
-            <div className="space-y-16">
+            <div className="space-y-12">
               {/* Quick Start */}
               <Section id="quick-start" title={t.integrationGuide.quickStart.title}>
-                <p className="text-muted mb-6">{t.integrationGuide.quickStart.subtitle}</p>
+                <p className="text-sm text-muted mb-6">{t.integrationGuide.quickStart.subtitle}</p>
                 
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step1Title}</h3>
-                    <p className="text-muted mb-4">
-                      {t.integrationGuide.quickStart.step1Desc.replace(
-                        '{link}',
-                        ''
-                      )}
-                      <Link href="/dashboard" className="text-primary hover:underline">
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.quickStart.step1Title}</h3>
+                    <p className="text-sm text-muted mb-3">
+                      {t.integrationGuide.quickStart.step1Desc.replace('{link}', '')}
+                      <Link href="/dashboard" className="text-primary hover:underline cursor-pointer">
                         {t.integrationGuide.quickStart.step1Link}
                       </Link>
                     </p>
-                    <ul className="space-y-2 text-muted">
+                    <ul className="space-y-1.5 text-sm text-muted">
                       {t.integrationGuide.quickStart.step1Items.map((item, index) => (
                         <li key={index} className="flex gap-2">
-                          <span className="text-primary">•</span>{item}
+                          <span className="text-muted">•</span>{item}
                         </li>
                       ))}
                     </ul>
-                    <div className="mt-4 p-4 rounded-xl border border-muted bg-surface-l1">
+                    <div className="mt-4 p-3 rounded-xl border border-muted bg-surface-l1">
                       <p className="text-sm text-muted">
                         <span className="font-medium text-primary">{t.integrationGuide.quickStart.securityTip}</span> {t.integrationGuide.quickStart.securityTipContent}
                       </p>
@@ -156,8 +149,8 @@ function IntegrationGuideContent() {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step2Title}</h3>
-                    <p className="text-muted mb-4">{t.integrationGuide.quickStart.step2Desc}</p>
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.quickStart.step2Title}</h3>
+                    <p className="text-sm text-muted mb-3">{t.integrationGuide.quickStart.step2Desc}</p>
                     <CodeBlock 
                       language="http"
                       code={`GET /api/oauth/authorize?
@@ -172,8 +165,8 @@ function IntegrationGuideContent() {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-medium text-primary mb-3">{t.integrationGuide.quickStart.step3Title}</h3>
-                    <p className="text-muted mb-4">{t.integrationGuide.quickStart.step3Desc}</p>
+                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.quickStart.step3Title}</h3>
+                    <p className="text-sm text-muted mb-3">{t.integrationGuide.quickStart.step3Desc}</p>
                     <CodeBlock 
                       language="bash"
                       code={`curl -X POST 'https://auth.sdjz.wiki/api/oauth/token' \\
@@ -191,11 +184,11 @@ function IntegrationGuideContent() {
 
               {/* Architecture */}
               <Section id="architecture" title={t.integrationGuide.architecture.title}>
-                <p className="text-muted mb-6">{t.integrationGuide.architecture.subtitle}</p>
-                <div className="grid gap-4">
+                <p className="text-sm text-muted mb-4">{t.integrationGuide.architecture.subtitle}</p>
+                <div className="grid gap-3">
                   {t.integrationGuide.architecture.components.map((item) => (
-                    <div key={item.title} className="p-4 rounded-xl border border-muted hover:bg-overlay-hover transition-colors">
-                      <h4 className="font-medium text-primary mb-1">{item.title}</h4>
+                    <div key={item.title} className="p-3 rounded-xl border border-muted hover:bg-overlay-hover transition-colors">
+                      <h4 className="text-sm font-medium text-primary mb-0.5">{item.title}</h4>
                       <p className="text-sm text-muted">{item.desc}</p>
                     </div>
                   ))}
@@ -204,40 +197,37 @@ function IntegrationGuideContent() {
 
               {/* OIDC Discovery */}
               <Section id="oidc-discovery" title={t.integrationGuide.oidcDiscovery.title}>
-                <p className="text-muted mb-4">{t.integrationGuide.oidcDiscovery.subtitle}</p>
-                <CodeBlock 
-                  language="http"
-                  code="GET /.well-known/openid-configuration"
-                />
-                <p className="text-muted mt-4">{t.integrationGuide.oidcDiscovery.returns}</p>
-                <ul className="mt-2 space-y-1 text-muted text-sm">
-                  <li><code className="font-mono text-primary">issuer</code> - {t.integrationGuide.oidcDiscovery.fields.issuer}</li>
-                  <li><code className="font-mono text-primary">authorization_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.authorization_endpoint}</li>
-                  <li><code className="font-mono text-primary">token_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.token_endpoint}</li>
-                  <li><code className="font-mono text-primary">userinfo_endpoint</code> - {t.integrationGuide.oidcDiscovery.fields.userinfo_endpoint}</li>
-                  <li><code className="font-mono text-primary">jwks_uri</code> - {t.integrationGuide.oidcDiscovery.fields.jwks_uri}</li>
+                <p className="text-sm text-muted mb-3">{t.integrationGuide.oidcDiscovery.subtitle}</p>
+                <CodeBlock language="http" code="GET /.well-known/openid-configuration" />
+                <p className="text-sm text-muted mt-4 mb-2">{t.integrationGuide.oidcDiscovery.returns}</p>
+                <ul className="space-y-1 text-sm text-muted">
+                  <li><code className="font-mono text-primary">issuer</code> — {t.integrationGuide.oidcDiscovery.fields.issuer}</li>
+                  <li><code className="font-mono text-primary">authorization_endpoint</code> — {t.integrationGuide.oidcDiscovery.fields.authorization_endpoint}</li>
+                  <li><code className="font-mono text-primary">token_endpoint</code> — {t.integrationGuide.oidcDiscovery.fields.token_endpoint}</li>
+                  <li><code className="font-mono text-primary">userinfo_endpoint</code> — {t.integrationGuide.oidcDiscovery.fields.userinfo_endpoint}</li>
+                  <li><code className="font-mono text-primary">jwks_uri</code> — {t.integrationGuide.oidcDiscovery.fields.jwks_uri}</li>
                 </ul>
               </Section>
 
               {/* PKCE Flow */}
               <Section id="pkce-flow" title={t.integrationGuide.pkceFlow.title}>
-                <p className="text-muted mb-6">{t.integrationGuide.pkceFlow.subtitle}</p>
+                <p className="text-sm text-muted mb-4">{t.integrationGuide.pkceFlow.subtitle}</p>
                 
-                <div className="space-y-4 mb-8">
+                <div className="space-y-3 mb-6">
                   {t.integrationGuide.pkceFlow.steps.map((step, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-surface-l1 flex items-center justify-center text-xs text-muted">
+                    <div key={index} className="flex gap-3">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-surface-l1 border border-muted flex items-center justify-center text-xs text-muted">
                         {index + 1}
                       </div>
                       <div>
-                        <p className="text-primary text-sm">{step.title}</p>
+                        <p className="text-sm text-primary">{step.title}</p>
                         <p className="text-xs text-muted">{step.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <h3 className="text-sm font-medium text-primary mb-3">{t.integrationGuide.pkceFlow.jsImplementation}</h3>
+                <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.pkceFlow.jsImplementation}</h3>
                 <CodeBlock 
                   language="javascript"
                   code={`async function generatePkce() {
@@ -263,9 +253,9 @@ function IntegrationGuideContent() {
 
               {/* API Endpoints */}
               <Section id="api-endpoints" title={t.integrationGuide.apiEndpoints.title}>
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.authEndpoint}</h3>
+                    <h3 className="text-sm font-medium text-primary mb-1">{t.integrationGuide.apiEndpoints.authEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">GET /api/oauth/authorize</code>
                     <ParamTable 
                       t={t}
@@ -282,7 +272,7 @@ function IntegrationGuideContent() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.tokenEndpoint}</h3>
+                    <h3 className="text-sm font-medium text-primary mb-1">{t.integrationGuide.apiEndpoints.tokenEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">POST /api/oauth/token</code>
                     <ParamTable 
                       t={t}
@@ -296,7 +286,7 @@ function IntegrationGuideContent() {
                       ]} 
                     />
                     
-                    <h4 className="text-sm text-muted mt-6 mb-3">{t.integrationGuide.apiEndpoints.successResponse}</h4>
+                    <h4 className="text-sm text-muted mt-4 mb-2">{t.integrationGuide.apiEndpoints.successResponse}</h4>
                     <CodeBlock 
                       language="json"
                       code={`{
@@ -311,9 +301,9 @@ function IntegrationGuideContent() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-2">{t.integrationGuide.apiEndpoints.userInfoEndpoint}</h3>
+                    <h3 className="text-sm font-medium text-primary mb-1">{t.integrationGuide.apiEndpoints.userInfoEndpoint}</h3>
                     <code className="text-sm font-mono text-muted">GET /api/oauth/userinfo</code>
-                    <p className="text-muted text-sm mt-2 mb-4">{t.integrationGuide.apiEndpoints.requiresBearer}</p>
+                    <p className="text-sm text-muted mt-2 mb-3">{t.integrationGuide.apiEndpoints.requiresBearer}</p>
                     <CodeBlock 
                       language="json"
                       code={`{
@@ -329,7 +319,7 @@ function IntegrationGuideContent() {
 
               {/* Token Details */}
               <Section id="tokens" title={t.integrationGuide.tokens.title}>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[
                     t.integrationGuide.tokens.accessToken,
                     t.integrationGuide.tokens.refreshToken,
@@ -340,19 +330,19 @@ function IntegrationGuideContent() {
                       <div className="grid gap-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted">{t.integrationGuide.tokens.format}</span>
-                          <span className="text-regular">{token.format}</span>
+                          <span className="text-primary">{token.format}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted">{t.integrationGuide.tokens.purpose}</span>
-                          <span className="text-regular text-right max-w-[60%]">{token.purpose}</span>
+                          <span className="text-primary text-right max-w-[60%]">{token.purpose}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted">{t.integrationGuide.tokens.lifecycle}</span>
-                          <span className="text-regular text-right max-w-[60%]">{token.lifecycle}</span>
+                          <span className="text-primary text-right max-w-[60%]">{token.lifecycle}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted">{t.integrationGuide.tokens.storage}</span>
-                          <span className="text-regular text-right max-w-[60%]">{token.storage}</span>
+                          <span className="text-primary text-right max-w-[60%]">{token.storage}</span>
                         </div>
                       </div>
                     </div>
@@ -362,9 +352,12 @@ function IntegrationGuideContent() {
             </div>
 
             {/* Footer */}
-            <div className="mt-16 pt-8 border-t border-muted">
+            <div className="mt-12 pt-6 border-t border-muted">
               <p className="text-sm text-muted">
-                {t.integrationGuide.footer.needHelp} <a href="mailto:shuakami@sdjz.wiki" className="text-primary hover:underline">shuakami@sdjz.wiki</a>
+                {t.integrationGuide.footer.needHelp}{' '}
+                <a href="mailto:shuakami@sdjz.wiki" className="text-primary hover:underline cursor-pointer">
+                  shuakami@sdjz.wiki
+                </a>
               </p>
             </div>
           </div>
