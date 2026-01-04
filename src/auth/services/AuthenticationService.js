@@ -10,6 +10,20 @@ import { decrypt } from '../cryptoUtils.js';
 import { PostLoginTasksService } from './PostLoginTasksService.js';
 import { TokenService } from './TokenService.js';
 
+// Vercel waitUntil - 允许在响应返回后继续执行后台任务
+let waitUntilFn = null;
+async function getWaitUntil() {
+  if (waitUntilFn === null) {
+    try {
+      const mod = await import('@vercel/functions');
+      waitUntilFn = mod.waitUntil || false;
+    } catch {
+      waitUntilFn = false;
+    }
+  }
+  return waitUntilFn;
+}
+
 // ----------------------- 内部小工具（惰性加载与轻量方法） -----------------------
 
 /** 惰性加载 bcrypt：优先原生 bcrypt，失败时回退到 bcryptjs。 */
@@ -101,6 +115,21 @@ function scheduleBackground(task) {
       .catch(err => console.error('[AuthenticationService] 后台任务执行失败:', err));
   });
   if (typeof im.unref === 'function') im.unref();
+}
+
+/**
+ * 使用 Vercel waitUntil 执行后台任务（响应返回后继续执行）
+ * 如果 waitUntil 不可用，则使用 scheduleBackground 降级
+ */
+async function runBackgroundTask(taskPromise) {
+  const waitUntil = await getWaitUntil();
+  if (waitUntil) {
+    console.log('[AuthenticationService] 使用 Vercel waitUntil 执行后台任务');
+    waitUntil(taskPromise);
+  } else {
+    console.log('[AuthenticationService] waitUntil 不可用，使用 scheduleBackground');
+    scheduleBackground(() => taskPromise);
+  }
 }
 
 // ------------------------------ 主服务类 --------------------------------------
@@ -321,18 +350,19 @@ export class AuthenticationService {
         body: (req && req.body) ? req.body : {}
       };
 
-      // 3) 同步执行后台任务（Vercel serverless 会在响应后终止）
-      // 为了保证登录历史记录正确，必须在响应前完成
-      // GeoIP 查询已设置 5 秒超时，不会过度延迟
-      try {
-        await this.postLoginTasks.executePostLoginTasks({
-          req: safeReq,
-          user,
-          loginType
-        });
-      } catch (taskError) {
-        console.error('[AuthenticationService] 登录后任务执行失败:', taskError);
-      }
+      // 3) 使用 Vercel waitUntil 在响应返回后执行后台任务
+      // 这样不会阻塞登录响应，GeoIP 查询可以在后台完成
+      const postLoginTasksService = this.postLoginTasks;
+      const taskPromise = postLoginTasksService.executePostLoginTasks({
+        req: safeReq,
+        user,
+        loginType
+      }).catch(err => {
+        console.error('[AuthenticationService] 登录后任务执行失败:', err);
+      });
+
+      // 使用 waitUntil 让任务在响应后继续执行
+      await runBackgroundTask(taskPromise);
 
       // 4) 解析 access token 的过期时间（避免重复验签）
       const expDecoded = tokenInfo && tokenInfo.accessToken ? decodeJwtExp(tokenInfo.accessToken) : null;
