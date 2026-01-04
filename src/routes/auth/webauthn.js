@@ -180,12 +180,9 @@ router.post('/webauthn/authentication/finish', authLimiter, async (req, res) => 
     // 记录登录日志
     const { recordLoginLog } = await import('../../auth/recordLoginLog.js');
     await recordLoginLog({
-      userId: user.id,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      req,
+      user,
       success: true,
-      loginMethod: 'webauthn',
-      deviceType: 'biometric',
     });
 
     const { password_hash, ...userWithoutPassword } = user;
