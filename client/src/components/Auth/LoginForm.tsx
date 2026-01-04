@@ -81,16 +81,10 @@ const LoginForm = memo(function LoginForm({
         <button
           type="submit"
           disabled={loading}
-          className="cursor-pointer flex w-full justify-center items-center h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="cursor-pointer flex w-full justify-center items-center gap-2 h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all duration-200 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
         >
-          {loading ? (
-            <>
-              <Loader size={16} className="-ml-1 mr-2" />
-              登录中...
-            </>
-          ) : (
-            '登录'
-          )}
+          {loading && <Loader size={16} />}
+          <span>{loading ? '登录中...' : '登录'}</span>
         </button>
       </div>
     </form>

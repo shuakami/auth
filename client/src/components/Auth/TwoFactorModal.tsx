@@ -131,7 +131,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
                   onPaste={handlePaste}
                   disabled={loading}
                   autoFocus={i === 0}
-                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
+                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               ))}
             </div>
@@ -149,7 +149,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
                   onKeyDown={(e) => handleKeyDown(i, e)}
                   onPaste={handlePaste}
                   disabled={loading}
-                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
+                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               ))}
             </div>
@@ -164,7 +164,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
               disabled={loading}
               autoFocus
               placeholder="输入备份码"
-              className="w-full h-10 px-3 text-sm font-mono rounded-lg border border-muted bg-transparent text-regular placeholder:text-muted focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
+              className="w-full h-10 px-3 text-sm font-mono rounded-lg border border-muted bg-transparent text-regular placeholder:text-muted focus:outline-none focus:border-foreground/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         )}
@@ -175,7 +175,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
             type="button"
             onClick={onModeToggle}
             disabled={loading}
-            className="cursor-pointer text-sm text-muted hover:text-regular transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer text-sm text-muted hover:text-regular transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {mode === 'totp' ? '使用备份码' : '使用验证器'}
           </button>
@@ -187,7 +187,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
             type="button"
             onClick={handleClose}
             disabled={loading}
-            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             取消
           </button>

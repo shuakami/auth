@@ -83,7 +83,7 @@ const BiometricButton = memo(function BiometricButton({
 
   const baseClasses = cn(
     // 基础样式
-    'inline-flex w-full items-center justify-center rounded-md border px-4 py-2 text-sm font-medium shadow-sm',
+    'cursor-pointer inline-flex w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium shadow-sm',
     // Focus 状态
     'focus:outline-none focus:ring-2 focus:ring-offset-2',
     // Disabled 状态
@@ -91,7 +91,7 @@ const BiometricButton = memo(function BiometricButton({
     // 深色模式适配
     'dark:focus:ring-offset-[#09090b]',
     // 过渡动画
-    'transition-colors duration-200',
+    'transition-all duration-200',
     // 具体变体样式
     config.className,
     className
@@ -107,13 +107,13 @@ const BiometricButton = memo(function BiometricButton({
     >
       {loading ? (
         <>
-          <Loader size={20} className="-ml-1 mr-3" />
-          验证中...
+          <Loader size={20} />
+          <span>验证中...</span>
         </>
       ) : (
         <>
-          <span className="mr-2">{config.icon}</span>
-          {config.text}
+          {config.icon}
+          <span>{config.text}</span>
         </>
       )}
     </button>

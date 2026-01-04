@@ -242,11 +242,10 @@ function ForgotPasswordContent() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="cursor-pointer flex w-full justify-center items-center h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all hover:bg-neutral-800 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+                      className="cursor-pointer flex w-full justify-center items-center gap-2 h-10 rounded-lg bg-neutral-900 text-sm font-medium text-white transition-all duration-200 hover:bg-neutral-800 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
                     >
-                      {loading ? (
-                        <Loader size={16} />
-                      ) : '发送重置链接'}
+                      {loading && <Loader size={16} />}
+                      <span>{loading ? '发送中...' : '发送重置链接'}</span>
                     </button>
                   </div>
 

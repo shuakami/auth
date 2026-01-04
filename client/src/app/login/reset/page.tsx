@@ -207,21 +207,29 @@ function ResetPasswordForm() {
   );
 }
 
+// Page Loading Spinner Component
+const PageLoadingSpinner = () => (
+  <Loader size={32} className="text-[#0582FF]" />
+);
+
 // 原始页面组件现在只负责布局和渲染 Suspense
 export default function ResetPasswordPage() {
   return (
-    <AuthLayout
-      leftContent={
-        <LeftContent
-          title="重置您的密码"
-          description="安全地更新您的账户密码。"
-        />
-      }
-      rightContent={
-        <Suspense fallback={<div className="text-center p-10">加载中...</div>}>
-          <ResetPasswordForm />
-        </Suspense>
-      }
-    />
+    <Suspense fallback={
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-white dark:bg-[#09090b]">
+        <PageLoadingSpinner />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">加载中...</p>
+      </div>
+    }>
+      <AuthLayout
+        leftContent={
+          <LeftContent
+            title="重置您的密码"
+            description="安全地更新您的账户密码。"
+          />
+        }
+        rightContent={<ResetPasswordForm />}
+      />
+    </Suspense>
   );
 } 

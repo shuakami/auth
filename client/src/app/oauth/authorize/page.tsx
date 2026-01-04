@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
+import { Loader } from '@/components/ui/Loader';
 import Image from 'next/image';
 import Footer from '@/components/shared/Footer';
 
@@ -327,14 +328,21 @@ function AuthorizePageContent() {
               <button
                 onClick={() => handleConsent('allow')}
                 disabled={loading}
-                className="w-full h-10 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full h-10 rounded-full bg-foreground text-background text-sm font-medium hover:opacity-90 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {loading ? <LoadingIndicator /> : '授权并继续'}
+                {loading ? (
+                  <>
+                    <Loader size={16} />
+                    <span>授权中</span>
+                  </>
+                ) : (
+                  '授权并继续'
+                )}
               </button>
               <button
                 onClick={() => handleConsent('deny')}
                 disabled={loading}
-                className="w-full h-10 rounded-full border border-muted bg-transparent text-sm text-muted hover:text-primary hover:bg-overlay-hover transition-colors cursor-pointer disabled:opacity-50"
+                className="w-full h-10 rounded-full border border-muted bg-transparent text-sm text-muted hover:text-primary hover:bg-overlay-hover transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 拒绝
               </button>

@@ -173,9 +173,19 @@ function TwoFARequiredContent() {
   );
 }
 
+// Page Loading Spinner Component
+const PageLoadingSpinner = () => (
+  <Loader size={32} className="text-[#0582FF]" />
+);
+
 export default function Page() {
   return (
-    <Suspense>
+    <Suspense fallback={
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-white dark:bg-[#09090b]">
+        <PageLoadingSpinner />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">加载中...</p>
+      </div>
+    }>
       <TwoFARequiredContent />
     </Suspense>
   );
