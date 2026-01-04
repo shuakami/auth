@@ -401,7 +401,7 @@ body {
 }
 
 .animate-spin-fast {
-  animation: spin-fast 0.7s linear infinite;
+  animation: spin-fast 0.5s linear infinite;
 }
 
 /* Dropdown menu animations */
