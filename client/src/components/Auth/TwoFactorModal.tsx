@@ -1,14 +1,41 @@
 /**
  * 两步验证模态框
  * 使用统一的 Modal 组件和设计系统
+ * 支持 Vercel 风格的 loading 动画
  */
 
 'use client';
 
-import { memo, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
+import { memo, useRef, useEffect, useState, KeyboardEvent, ClipboardEvent } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
-import { AUTH_CONSTANTS, type TwoFAMode, type MessageType } from '@/constants/auth';
+import { type TwoFAMode, type MessageType } from '@/constants/auth';
+
+// Loading Spinner 组件
+function LoadingSpinner({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin ${className}`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
 
 interface TwoFactorModalProps {
   isOpen: boolean;
@@ -37,6 +64,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
 }: TwoFactorModalProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { toast } = useToast();
+  const [isClosing, setIsClosing] = useState(false);
 
   // 错误消息用 toast 显示
   useEffect(() => {
@@ -64,7 +92,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
     if (e.key === 'Backspace' && !codeArray[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
-    if (e.key === 'Enter' && code.length === 6) {
+    if (e.key === 'Enter' && code.length === 6 && !loading) {
       onConfirm();
     }
   };
@@ -81,13 +109,26 @@ const TwoFactorModal = memo(function TwoFactorModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (mode === 'totp' && code.length !== 6) return;
     if (mode === 'backup' && !code.trim()) return;
     onConfirm();
   };
 
+  // 关闭时的处理（带动画）
+  const handleClose = () => {
+    if (loading) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 150);
+  };
+
+  const isDisabled = loading || (mode === 'totp' ? code.length !== 6 : !code.trim());
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <Modal isOpen={isOpen && !isClosing} onClose={handleClose} size="sm">
       <form onSubmit={handleSubmit}>
         <div className="text-center mb-6">
           <h2 className="text-lg font-medium text-regular">两步验证</h2>
@@ -115,7 +156,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
                   onPaste={handlePaste}
                   disabled={loading}
                   autoFocus={i === 0}
-                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-colors disabled:opacity-50"
+                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
                 />
               ))}
             </div>
@@ -133,7 +174,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
                   onKeyDown={(e) => handleKeyDown(i, e)}
                   onPaste={handlePaste}
                   disabled={loading}
-                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-colors disabled:opacity-50"
+                  className="w-11 h-12 text-center text-lg font-medium border border-muted bg-transparent rounded-lg focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
                 />
               ))}
             </div>
@@ -148,7 +189,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
               disabled={loading}
               autoFocus
               placeholder="输入备份码"
-              className="w-full h-10 px-3 text-sm font-mono rounded-lg border border-muted bg-transparent text-regular placeholder:text-muted focus:outline-none focus:border-foreground/50 transition-colors disabled:opacity-50"
+              className="w-full h-10 px-3 text-sm font-mono rounded-lg border border-muted bg-transparent text-regular placeholder:text-muted focus:outline-none focus:border-foreground/50 transition-all duration-150 disabled:opacity-50"
             />
           </div>
         )}
@@ -159,7 +200,7 @@ const TwoFactorModal = memo(function TwoFactorModal({
             type="button"
             onClick={onModeToggle}
             disabled={loading}
-            className="cursor-pointer text-sm text-muted hover:text-regular transition-colors disabled:opacity-50"
+            className="cursor-pointer text-sm text-muted hover:text-regular transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {mode === 'totp' ? '使用备份码' : '使用验证器'}
           </button>
@@ -169,18 +210,31 @@ const TwoFactorModal = memo(function TwoFactorModal({
         <div className="flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={loading}
-            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors disabled:opacity-50"
+            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             取消
           </button>
           <button
             type="submit"
-            disabled={loading || (mode === 'totp' ? code.length !== 6 : !code.trim())}
-            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isDisabled}
+            className={`cursor-pointer flex-1 h-9 font-medium text-sm rounded-full transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              loading
+                ? 'bg-foreground text-background'
+                : isDisabled
+                ? 'bg-foreground/50 text-background/70'
+                : 'bg-foreground text-background hover:bg-foreground/90'
+            }`}
           >
-            {loading ? '验证中...' : '验证'}
+            {loading ? (
+              <>
+                <LoadingSpinner className="h-4 w-4" />
+                <span>验证中</span>
+              </>
+            ) : (
+              '验证'
+            )}
           </button>
         </div>
       </form>

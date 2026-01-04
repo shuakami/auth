@@ -144,22 +144,22 @@ export const useLogin = () => {
 
     try {
       const resp = await apiVerify2FA({
-        email: loginState.email, // 注意：这里用email作为临时凭证
+        email: loginState.email,
         totp: twoFAState.mode === 'totp' ? twoFAState.code : undefined,
         backupCode: twoFAState.mode === 'backup' ? twoFAState.code : undefined,
       });
 
       if (resp.status === 200 && resp.data.user) {
+        // 验证成功：先关闭模态框，再跳转（同时进行，体验更流畅）
+        setLoginState(prev => ({ ...prev, show2fa: false }));
         await handleLoginSuccess(resp.data.user);
       } else {
         const errorMessage = resp.data?.error || ERROR_MESSAGES.TWO_FA_ERROR;
-        setTwoFAState(prev => ({ ...prev, message: errorMessage }));
+        setTwoFAState(prev => ({ ...prev, message: errorMessage, loading: false }));
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || ERROR_MESSAGES.TWO_FA_ERROR;
-      setTwoFAState(prev => ({ ...prev, message: errorMessage }));
-    } finally {
-      setTwoFAState(prev => ({ ...prev, loading: false }));
+      setTwoFAState(prev => ({ ...prev, message: errorMessage, loading: false }));
     }
   }, [loginState.email, twoFAState.mode, twoFAState.code, handleLoginSuccess]);
 
