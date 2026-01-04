@@ -313,8 +313,7 @@ export class AuthenticationService {
       // 1) 生成并设置 token cookies（含 access 与 refresh）
       const tokenInfo = await this.tokenService.generateAndSetTokens(user, req, res);
 
-      // 2) 在响应前同步执行关键任务（GeoIP 查询和登录历史记录）
-      //    Vercel serverless 会在响应后终止函数，所以必须在响应前完成
+      // 2) 准备后台任务参数
       const ua = deviceInfo || (req && req.headers ? req.headers['user-agent'] : '');
       const safeReq = {
         headers: { 'user-agent': ua },
@@ -322,7 +321,9 @@ export class AuthenticationService {
         body: (req && req.body) ? req.body : {}
       };
 
-      // 同步执行登录后任务（不使用 scheduleBackground）
+      // 3) 同步执行后台任务（Vercel serverless 会在响应后终止）
+      // 为了保证登录历史记录正确，必须在响应前完成
+      // GeoIP 查询已设置 5 秒超时，不会过度延迟
       try {
         await this.postLoginTasks.executePostLoginTasks({
           req: safeReq,
@@ -330,11 +331,10 @@ export class AuthenticationService {
           loginType
         });
       } catch (taskError) {
-        // 任务失败不应阻止登录成功
         console.error('[AuthenticationService] 登录后任务执行失败:', taskError);
       }
 
-      // 3) 解析 access token 的过期时间（避免重复验签）
+      // 4) 解析 access token 的过期时间（避免重复验签）
       const expDecoded = tokenInfo && tokenInfo.accessToken ? decodeJwtExp(tokenInfo.accessToken) : null;
       const exp = expDecoded ?? (Math.floor(Date.now() / 1000) + 1800); // 默认30分钟
 
