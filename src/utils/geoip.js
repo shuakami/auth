@@ -24,9 +24,30 @@ export async function getGeoInfo(ip) {
 
   console.log('[GeoIP] 查询IP:', ip);
 
-  // 定义多个备选API
+  // 定义多个备选API，uapis.cn 优先
   const apis = [
-    // 1. ip-api.com - 免费，国内外都精准，每分钟45次限制
+    // 1. uapis.cn 商业API - 国内精准，优先级最高
+    async () => {
+      const res = await axios.get(`https://uapis.cn/api/v1/network/ipinfo`, {
+        params: { ip, source: 'commercial' },
+        timeout: 3000
+      });
+      if (res.data?.region) {
+        const regionParts = res.data.region?.split(' ') || [];
+        return {
+          country: regionParts[0] || '',
+          region: regionParts[1] || '',
+          city: regionParts[2] || regionParts[1] || '',
+          lat: res.data.latitude,
+          lon: res.data.longitude,
+          isp: res.data.isp || res.data.llc || '',
+          timeZone: res.data.time_zone || null
+        };
+      }
+      return null;
+    },
+
+    // 2. ip-api.com - 免费，国内外都精准，每分钟45次限制
     async () => {
       const res = await axios.get(`http://ip-api.com/json/${ip}`, {
         params: { fields: 'status,country,regionName,city,lat,lon,isp,timezone' },
@@ -46,7 +67,7 @@ export async function getGeoInfo(ip) {
       return null;
     },
 
-    // 2. ipapi.co - 免费，每天1000次
+    // 3. ipapi.co - 免费，每天1000次
     async () => {
       const res = await axios.get(`https://ipapi.co/${ip}/json/`, { timeout: 3000 });
       if (res.data && !res.data.error) {
@@ -63,7 +84,7 @@ export async function getGeoInfo(ip) {
       return null;
     },
 
-    // 3. ipwho.is - 免费，无限制
+    // 4. ipwho.is - 免费，无限制
     async () => {
       const res = await axios.get(`https://ipwho.is/${ip}`, { timeout: 3000 });
       if (res.data?.success) {
@@ -75,27 +96,6 @@ export async function getGeoInfo(ip) {
           lon: res.data.longitude,
           isp: res.data.connection?.isp || '',
           timeZone: res.data.timezone?.id || null
-        };
-      }
-      return null;
-    },
-
-    // 4. uapis.cn 商业API - 国内精准
-    async () => {
-      const res = await axios.get(`https://uapis.cn/api/v1/network/ipinfo`, {
-        params: { ip, source: 'commercial' },
-        timeout: 3000
-      });
-      if (res.data?.region) {
-        const regionParts = res.data.region?.split(' ') || [];
-        return {
-          country: regionParts[0] || '',
-          region: regionParts[1] || '',
-          city: regionParts[2] || regionParts[1] || '',
-          lat: res.data.latitude,
-          lon: res.data.longitude,
-          isp: res.data.isp || res.data.llc || '',
-          timeZone: res.data.time_zone || null
         };
       }
       return null;
