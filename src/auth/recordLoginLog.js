@@ -11,7 +11,7 @@ async function queryIpLocation(ip) {
   }
   
   try {
-    const response = await fetch(`https://uapis.cn/api/v1/network/ipinfo?ip=${encodeURIComponent(ip)}`);
+    const response = await fetch(`https://uapis.cn/api/v1/network/ipinfo?ip=${encodeURIComponent(ip)}&source=commercial`);
     if (!response.ok) return null;
     
     const data = await response.json();
@@ -20,6 +20,8 @@ async function queryIpLocation(ip) {
       isp: data.isp || null,
       latitude: data.latitude || null,
       longitude: data.longitude || null,
+      district: data.district || null,
+      timeZone: data.time_zone || null,
     };
   } catch (error) {
     console.warn('[recordLoginLog] IP 地理位置查询失败:', error.message);
