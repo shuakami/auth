@@ -44,7 +44,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-x-hidden sm:overflow-hidden">
+    <div className="relative flex h-screen w-screen flex-col overflow-x-hidden bg-background sm:overflow-hidden">
       <div className="bg-background fixed inset-0 flex h-[100dvh] flex-col overflow-hidden lg:static lg:inset-auto">
         {/* 顶部导航 */}
         <DashboardHeader hidden={headerHidden} />
