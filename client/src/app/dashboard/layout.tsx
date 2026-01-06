@@ -44,21 +44,21 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-x-hidden bg-background sm:overflow-hidden">
-      <div className="bg-background fixed inset-0 flex h-[100dvh] flex-col overflow-hidden lg:static lg:inset-auto">
+    <div className="relative flex h-screen w-screen flex-col overflow-x-hidden bg-white dark:bg-[#09090b] sm:overflow-hidden">
+      <div className="bg-white dark:bg-[#09090b] fixed inset-0 flex h-[100dvh] flex-col overflow-hidden lg:static lg:inset-auto">
         {/* 顶部导航 */}
         <DashboardHeader hidden={headerHidden} />
 
         {/* 主内容区 */}
         <div
           ref={scrollContainerRef as React.RefObject<HTMLDivElement>}
-          className="relative flex grow flex-col items-center overflow-y-auto pt-16 lg:flex-row lg:items-start lg:pt-16"
+          className="relative flex grow flex-col items-center overflow-y-auto pt-16 lg:flex-row lg:items-start lg:pt-16 bg-white dark:bg-[#09090b]"
         >
           {/* 侧边栏 */}
           <Sidebar currentTab={currentTab} onTabChange={handleTabChange} userName={mockUser.name} />
 
           {/* 主内容 */}
-          <main className="flex w-full grow justify-center lg:pt-12 bg-background min-h-[50vh]">
+          <main className="flex w-full grow justify-center lg:pt-12 bg-white dark:bg-[#09090b] min-h-[50vh]">
             <div className="w-full max-w-2xl">
               <div className="h-6 w-full lg:hidden" />
               <div className="min-h-[200px]">{children}</div>
