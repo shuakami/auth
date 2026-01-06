@@ -63,10 +63,18 @@ html.dark {
   color-scheme: dark;
 }
 
-/* 主题切换颜色过渡 */
+/* 主题切换颜色过渡 - 仅用于主题切换，不影响页面导航 */
 *,
 *::before,
 *::after {
+  transition-property: none;
+}
+
+/* 只在特定元素上启用颜色过渡 */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);

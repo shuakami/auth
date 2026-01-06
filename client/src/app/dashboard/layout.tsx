@@ -58,10 +58,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           <Sidebar currentTab={currentTab} onTabChange={handleTabChange} userName={mockUser.name} />
 
           {/* 主内容 */}
-          <main className="flex w-full grow justify-center lg:pt-12">
+          <main className="flex w-full grow justify-center lg:pt-12 bg-background min-h-[50vh]">
             <div className="w-full max-w-2xl">
               <div className="h-6 w-full lg:hidden" />
-              <div>{children}</div>
+              <div className="min-h-[200px]">{children}</div>
               <div className="h-6 w-full" />
             </div>
           </main>
