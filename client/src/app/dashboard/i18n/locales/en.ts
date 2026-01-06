@@ -336,6 +336,14 @@ export const en: Locale = {
     // OAuth settings
     editApplication: 'Edit application',
     optionalDescription: 'Optional description',
+
+    // Avatar
+    avatarTitle: 'Change avatar',
+    avatarDescription: 'Your avatar is provided by Gravatar, automatically generated based on your email address.',
+    avatarHowTo: 'To change your avatar, you can:',
+    avatarOption1: 'Change your email address to get a different default avatar',
+    avatarOption2: 'Upload a custom avatar on Gravatar.com',
+    avatarGravatarHint: 'Visit gravatar.com to register with your email and upload an avatar. Changes will sync automatically.',
   },
 
   // Integration Guide

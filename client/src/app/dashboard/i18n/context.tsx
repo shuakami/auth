@@ -45,27 +45,40 @@ export function I18nProvider({ children, defaultLanguage = 'zh' }: I18nProviderP
   const [language, setLanguageState] = useState<Language>(defaultLanguage);
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated } = useAuth();
-  const initializedFromUser = useRef(false);
+  const lastUserId = useRef<string | null>(null);
 
   // 初始化时从用户账户或 localStorage 读取语言设置
   useEffect(() => {
-    // 优先使用用户账户的语言设置
-    if (isAuthenticated && user?.locale && !initializedFromUser.current) {
+    // 检测用户变化（登录、登出、切换账户）
+    const currentUserId = user?.id ?? null;
+    const userChanged = currentUserId !== lastUserId.current;
+    
+    if (userChanged) {
+      lastUserId.current = currentUserId;
+    }
+
+    // 用户已登录且有语言设置时，同步服务器的语言
+    if (isAuthenticated && user?.locale && userChanged) {
       const userLocale = user.locale as Language;
       if (userLocale === 'zh' || userLocale === 'en') {
         setLanguageState(userLocale);
         localStorage.setItem(STORAGE_KEY, userLocale);
-        initializedFromUser.current = true;
       }
-    } else if (!initializedFromUser.current) {
-      // 未登录或用户无语言设置时，从 localStorage 读取
+    } else if (!isAuthenticated && userChanged) {
+      // 用户登出时，从 localStorage 读取
+      const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
+      if (stored && (stored === 'zh' || stored === 'en')) {
+        setLanguageState(stored);
+      }
+    } else if (!mounted) {
+      // 首次挂载且未登录时，从 localStorage 读取
       const stored = localStorage.getItem(STORAGE_KEY) as Language | null;
       if (stored && (stored === 'zh' || stored === 'en')) {
         setLanguageState(stored);
       }
     }
     setMounted(true);
-  }, [isAuthenticated, user?.locale]);
+  }, [isAuthenticated, user?.id, user?.locale, mounted]);
 
   // 切换语言（同时保存到本地和服务器）
   const setLanguage = useCallback(async (lang: Language) => {

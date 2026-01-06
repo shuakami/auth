@@ -14,6 +14,7 @@ import {
   DisableMethodModal,
   ConnectMethodModal,
   ChangePasswordModal,
+  AvatarModal,
 } from './components/modals';
 import { useAccount, useOAuthConnect } from './hooks';
 import { useToast } from '@/components/ui/Toast';
@@ -50,6 +51,7 @@ export default function AccountPage() {
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [showDisableMethodDialog, setShowDisableMethodDialog] = useState(false);
   const [showConnectMethodDialog, setShowConnectMethodDialog] = useState(false);
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
 
   // 表单值
   const [editNameValue, setEditNameValue] = useState('');
@@ -154,6 +156,7 @@ export default function AccountPage() {
         }}
         onConnectMethod={handleConnectMethod}
         onBindGithub={bindGithub}
+        onEditAvatar={() => setShowAvatarDialog(true)}
       />
 
       {/* 编辑用户名 */}
@@ -222,6 +225,13 @@ export default function AccountPage() {
             toast('Apple 登录暂不支持');
           }
         }}
+      />
+
+      {/* 头像说明 */}
+      <AvatarModal
+        isOpen={showAvatarDialog}
+        onClose={() => setShowAvatarDialog(false)}
+        onUpdateEmail={() => setShowUpdateEmailDialog(true)}
       />
     </>
   );

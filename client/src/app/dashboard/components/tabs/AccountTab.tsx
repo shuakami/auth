@@ -31,6 +31,7 @@ interface AccountTabProps {
   onDisableMethod: (method: SignInMethodType) => void;
   onConnectMethod: (method: SignInMethodType) => void;
   onBindGithub?: () => void;
+  onEditAvatar?: () => void;
 }
 
 export function AccountTab({
@@ -46,6 +47,7 @@ export function AccountTab({
   onDisableMethod,
   onConnectMethod,
   onBindGithub,
+  onEditAvatar,
 }: AccountTabProps) {
   const { t, language, setLanguage } = useI18n();
 
@@ -58,7 +60,7 @@ export function AccountTab({
       <PageHeader title={t.account.title} description={t.account.description}>
         <div className="px-4 lg:px-0">
           <div className="flex flex-col items-center justify-between gap-3">
-            <div className="group relative flex size-16 cursor-pointer items-center justify-center rounded-full">
+            <div className="group relative flex size-16 cursor-pointer items-center justify-center rounded-full" onClick={onEditAvatar}>
               <span className="relative flex shrink-0 overflow-hidden rounded-full bg-background h-full w-full">
                 <img className="aspect-square h-full w-full" alt={displayName} src={user.avatar} />
               </span>

@@ -16,6 +16,63 @@ import type { SystemUser, OAuthApp, SignInMethodType } from '../../types';
 
 // ==================== 账户相关弹窗 ====================
 
+// 头像说明弹窗
+interface AvatarModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdateEmail: () => void;
+}
+
+export function AvatarModal({ isOpen, onClose, onUpdateEmail }: AvatarModalProps) {
+  const { t } = useI18n();
+  
+  const handleUpdateEmail = () => {
+    onClose();
+    onUpdateEmail();
+  };
+
+  const handleOpenGravatar = () => {
+    window.open('https://gravatar.com', '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={t.modals.avatarTitle} size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-muted">
+          {t.modals.avatarDescription}
+        </p>
+        
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t.modals.avatarHowTo}</p>
+          <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
+            <li>{t.modals.avatarOption1}</li>
+            <li>{t.modals.avatarOption2}</li>
+          </ul>
+        </div>
+
+        <p className="text-xs text-muted">
+          {t.modals.avatarGravatarHint}
+        </p>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleUpdateEmail}
+            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full border border-muted bg-transparent text-regular hover:bg-overlay-hover transition-colors"
+          >
+            {t.account.updateEmail}
+          </button>
+          <button
+            onClick={handleOpenGravatar}
+            className="cursor-pointer flex-1 h-9 font-medium text-sm rounded-full bg-foreground text-background hover:bg-foreground/90 transition-colors"
+          >
+            Gravatar
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 interface EditNameModalProps {
   isOpen: boolean;
   value: string;

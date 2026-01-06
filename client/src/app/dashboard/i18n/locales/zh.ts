@@ -334,6 +334,14 @@ export const zh = {
     // OAuth 设置
     editApplication: '编辑应用',
     optionalDescription: '可选描述',
+
+    // 头像
+    avatarTitle: '更改头像',
+    avatarDescription: '您的头像由 Gravatar 提供，基于您的邮箱地址自动生成。',
+    avatarHowTo: '如需更换头像，您可以：',
+    avatarOption1: '更改邮箱地址以获取不同的默认头像',
+    avatarOption2: '在 Gravatar.com 上传自定义头像',
+    avatarGravatarHint: '访问 gravatar.com 使用您的邮箱注册并上传头像，更改将自动同步。',
   },
 
   // 集成指南
@@ -762,6 +770,12 @@ export type Locale = {
     passwordPlaceholder: string;
     editApplication: string;
     optionalDescription: string;
+    avatarTitle: string;
+    avatarDescription: string;
+    avatarHowTo: string;
+    avatarOption1: string;
+    avatarOption2: string;
+    avatarGravatarHint: string;
   };
   toast: {
     disabled: string;
