@@ -28,7 +28,7 @@ function SwitchAccountContent() {
   }, [router, redirectUrl]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-[#09090b]">
       <LoadingIndicator />
       <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
         正在为您切换账号...
@@ -40,7 +40,7 @@ function SwitchAccountContent() {
 export default function SwitchAccountPage() {
   return (
     <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-[#09090b]">
         <LoadingIndicator />
         <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
           正在准备切换账号...

@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning className="bg-white dark:bg-black">
+    <html lang="zh-CN" suppressHydrationWarning className="bg-white dark:bg-[#09090b]">
       <head>
         <link
           rel="stylesheet"
@@ -31,15 +31,16 @@ export default function RootLayout({
                   var theme = localStorage.getItem('theme');
                   var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var isDark = theme === 'dark' || (!theme && systemDark);
-                  document.documentElement.style.backgroundColor = isDark ? '#000' : '#fff';
+                  document.documentElement.style.backgroundColor = isDark ? '#09090b' : '#fff';
                   document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+                  if (isDark) document.documentElement.classList.add('dark');
                 } catch (e) {}
               })();
             `,
           }}
         />
       </head>
-      <body className="bg-white dark:bg-black">
+      <body className="bg-white dark:bg-[#09090b]">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

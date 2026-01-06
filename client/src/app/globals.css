@@ -42,11 +42,11 @@
   --background-end-rgb: 255, 255, 255;
 }
 
-/* 暗黑模式下的变量 */
+/* 暗黑模式下的变量 - 使用 #09090b 保持一致 */
 .dark {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 0, 0, 0;
-  --background-end-rgb: 0, 0, 0;
+  --background-start-rgb: 9, 9, 11;
+  --background-end-rgb: 9, 9, 11;
 }
 
 html,
@@ -238,15 +238,15 @@ body {
   }
 
   .dark {
-    --background: 0 0% 7%;
+    --background: 0 0% 4%;
     --foreground: 0 0% 100%;
     --bg-inset-hover: 0 0% 15%;
     --bg-inset: 0 0% 11%;
-    --bg-base: 0 0% 7%;
+    --bg-base: 0 0% 4%;
     --bg-l1: 0 0% 11%;
-    --bg-l2: 0 0% 7%;
-    --bg-l3: 0 0% 7%;
-    --bg-l4: 0 0% 7%;
+    --bg-l2: 0 0% 4%;
+    --bg-l3: 0 0% 4%;
+    --bg-l4: 0 0% 4%;
     --bg-overlay-hover: 0 0% 100% / 5%;
     --surface-l1: 0 0% 11%;
     
