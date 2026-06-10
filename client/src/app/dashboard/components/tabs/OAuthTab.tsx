@@ -36,6 +36,18 @@ const TYPE_LABELS: Record<string, string> = {
   server: '服务端应用',
 };
 
+const AVAILABLE_SCOPES = [
+  { id: 'openid', name: 'OpenID Connect', description: '基础身份验证', required: true },
+  { id: 'profile', name: '基本资料', description: '用户名、头像等' },
+  { id: 'email', name: '邮箱地址', description: '用户邮箱' },
+  { id: 'phone', name: '手机号码', description: '用户手机号' },
+  { id: 'address', name: '地址信息', description: '用户地址信息' },
+  { id: 'groups', name: '权限组', description: '用户角色和权限组' },
+  { id: 'security.read', name: '安全信息读取', description: '读取 2FA 与通行密钥状态' },
+  { id: 'security.write', name: '安全设置管理', description: '管理 2FA、备份码和通行密钥' },
+  { id: 'offline_access', name: '离线访问', description: '发放 Refresh Token' },
+];
+
 export function OAuthTab() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -75,6 +87,7 @@ export function OAuthTab() {
     description: '',
     isActive: true,
     redirectUris: '',
+    scopes: new Set<string>(['openid']),
   });
 
   // 打开应用详情
@@ -85,8 +98,23 @@ export function OAuthTab() {
       description: app.description || '',
       isActive: app.isActive,
       redirectUris: app.redirectUris.join('\n'),
+      scopes: new Set(app.scopes.includes('openid') ? app.scopes : ['openid', ...app.scopes]),
     });
     setIsEditing(false);
+  };
+
+  const toggleEditScope = (scope: string) => {
+    if (scope === 'openid') return;
+    setEditForm(prev => {
+      const nextScopes = new Set(prev.scopes);
+      if (nextScopes.has(scope)) {
+        nextScopes.delete(scope);
+      } else {
+        nextScopes.add(scope);
+      }
+      nextScopes.add('openid');
+      return { ...prev, scopes: nextScopes };
+    });
   };
 
   // 保存应用
@@ -101,6 +129,11 @@ export function OAuthTab() {
       const newUris = editForm.redirectUris.split('\n').map(u => u.trim()).filter(Boolean);
       if (JSON.stringify(newUris) !== JSON.stringify(selectedApp.redirectUris)) {
         updates.redirectUris = newUris;
+      }
+
+      const nextScopes = Array.from(editForm.scopes);
+      if (JSON.stringify([...nextScopes].sort()) !== JSON.stringify([...selectedApp.scopes].sort())) {
+        updates.scopes = nextScopes;
       }
 
       await updateApp(selectedApp.id, updates);
@@ -297,6 +330,32 @@ export function OAuthTab() {
                       { value: 'disabled', label: t.common.disable },
                     ]}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">权限范围</label>
+                  <div className="grid gap-2">
+                    {AVAILABLE_SCOPES.map((scope) => (
+                      <button
+                        key={scope.id}
+                        type="button"
+                        onClick={() => toggleEditScope(scope.id)}
+                        disabled={scope.required}
+                        className={`cursor-pointer w-full rounded-lg border p-3 text-left transition-colors ${
+                          editForm.scopes.has(scope.id)
+                            ? 'border-foreground bg-foreground/5'
+                            : 'border-muted hover:bg-overlay-hover'
+                        } ${scope.required ? 'cursor-not-allowed opacity-75' : ''}`}
+                      >
+                        <span className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium">{scope.name}</span>
+                            <span className="mt-0.5 block text-xs text-muted">{scope.description}</span>
+                          </span>
+                          {editForm.scopes.has(scope.id) && <span className="text-sm">✓</span>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
