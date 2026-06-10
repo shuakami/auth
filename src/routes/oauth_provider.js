@@ -35,6 +35,8 @@ discoveryRouter.get('/.well-known/openid-configuration', (req, res) => {
       'profile',
       'email',
       'groups',
+      'security.read',
+      'security.write',
       'offline_access'
     ],
     response_types_supported: [

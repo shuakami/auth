@@ -22,5 +22,7 @@ export const oauthScopes = [
   { id: 'phone', label: '手机号码', description: '用户的手机号码', required: false },
   { id: 'address', label: '地址信息', description: '用户的地址信息', required: false },
   { id: 'groups', label: '权限组', description: '用户的权限组和角色', required: false },
+  { id: 'security.read', label: '安全信息读取', description: '读取 2FA 与通行密钥状态', required: false },
+  { id: 'security.write', label: '安全设置管理', description: '管理 2FA、备份码和通行密钥', required: false },
   { id: 'offline_access', label: '离线访问', description: '发放Refresh Token', required: false },
 ] as const;

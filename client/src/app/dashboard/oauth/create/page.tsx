@@ -28,6 +28,8 @@ const AVAILABLE_SCOPES = [
   { id: 'email', name: '邮箱地址', description: '用户邮箱' },
   { id: 'phone', name: '手机号码', description: '用户手机号' },
   { id: 'groups', name: '权限组', description: '用户角色和权限组' },
+  { id: 'security.read', name: '安全信息读取', description: '读取 2FA 与通行密钥状态' },
+  { id: 'security.write', name: '安全设置管理', description: '管理 2FA、备份码和通行密钥' },
   { id: 'offline_access', name: '离线访问', description: '发放 Refresh Token' },
 ];
 

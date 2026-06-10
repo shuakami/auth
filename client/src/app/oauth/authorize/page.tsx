@@ -129,6 +129,9 @@ const ScopeIcon = memo(function ScopeIcon({ scope }: { scope: string }) {
     case 'email': return <Mail className={iconClass} />;
     case 'phone': return <Phone className={iconClass} />;
     case 'groups': return <Users className={iconClass} />;
+    case 'security.read':
+    case 'security.write':
+      return <Shield className={iconClass} />;
     case 'offline_access': return <RefreshCw className={iconClass} />;
     default: return <Check className={iconClass} />;
   }
@@ -266,6 +269,8 @@ function AuthorizePageContent() {
     email: { title: '访问电子邮件', description: '获取您账户绑定的主要邮箱地址' },
     phone: { title: '访问电话号码', description: '获取您账户绑定的主要电话号码' },
     groups: { title: '访问权限组', description: '读取您的角色和权限组信息' },
+    'security.read': { title: '读取安全状态', description: '查看您的 2FA、备份码数量和通行密钥列表' },
+    'security.write': { title: '管理安全设置', description: '设置或关闭 2FA、重置备份码、管理通行密钥' },
     offline_access: { title: '保持登录状态', description: '应用会一直保持您的登录状态' },
   };
 

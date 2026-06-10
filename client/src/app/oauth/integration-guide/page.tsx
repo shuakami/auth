@@ -157,7 +157,7 @@ function IntegrationGuideContent() {
   response_type=code&
   client_id=YOUR_CLIENT_ID&
   redirect_uri=YOUR_REDIRECT_URI&
-  scope=openid profile email groups&
+  scope=openid profile email groups security.read security.write&
   state=RANDOM_STRING&
   code_challenge=PKCE_CODE_CHALLENGE&
   code_challenge_method=S256`}
@@ -295,7 +295,7 @@ function IntegrationGuideContent() {
   "id_token": "eyJ0eXAiOiJKV1Qi...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "openid profile email groups",
+  "scope": "openid profile email groups security.read security.write",
   "roles": ["user"],
   "groups": ["user"]
 }`}
@@ -317,6 +317,24 @@ function IntegrationGuideContent() {
   "groups": ["user"]
 }`}
                     />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-1">安全管理端点</h3>
+                    <code className="text-sm font-mono text-muted">GET /api/oidc/me/security</code>
+                    <p className="text-sm text-muted mt-2 mb-3">需要 OAuth Bearer access token。读取接口需要 <code className="font-mono text-primary">security.read</code> 或 <code className="font-mono text-primary">security.write</code>，变更接口需要 <code className="font-mono text-primary">security.write</code>。</p>
+                    <CodeBlock
+                      language="http"
+                      code={`GET /api/oidc/me/security
+Authorization: Bearer ACCESS_TOKEN`}
+                    />
+                    <div className="mt-3 grid gap-2 text-sm text-muted">
+                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/totp/setup</code> - password 确认后生成 TOTP secret、二维码和备份码。</p>
+                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/totp/verify</code> - 使用 6 位验证码启用 TOTP。</p>
+                      <p><code className="font-mono text-primary">DELETE /api/oidc/me/security/totp</code> - 使用 TOTP 或备份码关闭 TOTP。</p>
+                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/backup-codes</code> - password 确认后重新生成备份码。</p>
+                      <p><code className="font-mono text-primary">GET /api/oidc/me/security/webauthn/credentials</code> - 读取通行密钥列表。</p>
+                    </div>
                   </div>
                 </div>
               </Section>

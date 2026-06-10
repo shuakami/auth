@@ -181,7 +181,17 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
     }
 
     // 验证权限范围
-    const validScopes = ['openid', 'profile', 'email', 'phone', 'address', 'groups', 'offline_access'];
+    const validScopes = [
+      'openid',
+      'profile',
+      'email',
+      'phone',
+      'address',
+      'groups',
+      'security.read',
+      'security.write',
+      'offline_access'
+    ];
     const scopeArray = Array.isArray(scopes) ? scopes : [];
     for (const scope of scopeArray) {
       if (!validScopes.includes(scope)) {
@@ -326,7 +336,17 @@ router.put('/:id', requireRole(ROLES.ADMIN), async (req, res) => {
 
     if (scopes !== undefined) {
       // 验证权限范围
-      const validScopes = ['openid', 'profile', 'email', 'phone', 'address', 'groups', 'offline_access'];
+      const validScopes = [
+        'openid',
+        'profile',
+        'email',
+        'phone',
+        'address',
+        'groups',
+        'security.read',
+        'security.write',
+        'offline_access'
+      ];
       const scopeArray = Array.isArray(scopes) ? scopes : [];
       
       for (const scope of scopeArray) {

@@ -245,6 +245,10 @@ export const zh = {
       addressDesc: '用户的地址信息',
       groups: '权限组',
       groupsDesc: '用户的角色和权限组',
+      security_read: '安全信息读取',
+      security_readDesc: '读取 2FA 与通行密钥状态',
+      security_write: '安全设置管理',
+      security_writeDesc: '管理 2FA、备份码和通行密钥',
       offline_access: '离线访问',
       offline_accessDesc: '发放 Refresh Token',
     },
@@ -440,7 +444,7 @@ export const zh = {
       response_type: '必须为 "code"',
       client_id: '您的应用 Client ID',
       redirect_uri: '授权后的回调 URL',
-      scope: '空格分隔的权限范围（如 openid profile email groups）',
+      scope: '空格分隔的权限范围（如 openid profile email groups security.read）',
       state: '用于 CSRF 防护的随机字符串',
       code_challenge: 'PKCE 挑战码',
       code_challenge_method: '必须为 "S256"',
@@ -710,6 +714,10 @@ export type Locale = {
       addressDesc: string;
       groups: string;
       groupsDesc: string;
+      security_read: string;
+      security_readDesc: string;
+      security_write: string;
+      security_writeDesc: string;
       offline_access: string;
       offline_accessDesc: string;
     };
