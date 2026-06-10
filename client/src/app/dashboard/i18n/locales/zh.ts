@@ -243,6 +243,8 @@ export const zh = {
       phoneDesc: '用户的手机号码',
       address: '地址信息',
       addressDesc: '用户的地址信息',
+      groups: '权限组',
+      groupsDesc: '用户的角色和权限组',
       offline_access: '离线访问',
       offline_accessDesc: '发放 Refresh Token',
     },
@@ -438,7 +440,7 @@ export const zh = {
       response_type: '必须为 "code"',
       client_id: '您的应用 Client ID',
       redirect_uri: '授权后的回调 URL',
-      scope: '空格分隔的权限范围（如 openid profile email）',
+      scope: '空格分隔的权限范围（如 openid profile email groups）',
       state: '用于 CSRF 防护的随机字符串',
       code_challenge: 'PKCE 挑战码',
       code_challenge_method: '必须为 "S256"',
@@ -706,6 +708,8 @@ export type Locale = {
       phoneDesc: string;
       address: string;
       addressDesc: string;
+      groups: string;
+      groupsDesc: string;
       offline_access: string;
       offline_accessDesc: string;
     };

@@ -9,7 +9,8 @@ import {
   Mail,
   Phone,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import LoadingIndicator from '@/components/ui/LoadingIndicator';
 import { Loader } from '@/components/ui/Loader';
@@ -127,6 +128,7 @@ const ScopeIcon = memo(function ScopeIcon({ scope }: { scope: string }) {
     case 'profile': return <Shield className={iconClass} />;
     case 'email': return <Mail className={iconClass} />;
     case 'phone': return <Phone className={iconClass} />;
+    case 'groups': return <Users className={iconClass} />;
     case 'offline_access': return <RefreshCw className={iconClass} />;
     default: return <Check className={iconClass} />;
   }
@@ -263,6 +265,7 @@ function AuthorizePageContent() {
     profile: { title: '访问基本资料', description: '读取您的昵称、头像等公开信息' },
     email: { title: '访问电子邮件', description: '获取您账户绑定的主要邮箱地址' },
     phone: { title: '访问电话号码', description: '获取您账户绑定的主要电话号码' },
+    groups: { title: '访问权限组', description: '读取您的角色和权限组信息' },
     offline_access: { title: '保持登录状态', description: '应用会一直保持您的登录状态' },
   };
 

@@ -157,7 +157,7 @@ function IntegrationGuideContent() {
   response_type=code&
   client_id=YOUR_CLIENT_ID&
   redirect_uri=YOUR_REDIRECT_URI&
-  scope=openid profile email&
+  scope=openid profile email groups&
   state=RANDOM_STRING&
   code_challenge=PKCE_CODE_CHALLENGE&
   code_challenge_method=S256`}
@@ -295,7 +295,9 @@ function IntegrationGuideContent() {
   "id_token": "eyJ0eXAiOiJKV1Qi...",
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "openid profile email"
+  "scope": "openid profile email groups",
+  "roles": ["user"],
+  "groups": ["user"]
 }`}
                     />
                   </div>
@@ -310,7 +312,9 @@ function IntegrationGuideContent() {
   "sub": "user_unique_identifier",
   "username": "johndoe",
   "email": "john@example.com",
-  "email_verified": true
+  "email_verified": true,
+  "roles": ["user"],
+  "groups": ["user"]
 }`}
                     />
                   </div>

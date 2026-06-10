@@ -15,6 +15,21 @@ import { TokenServiceController } from '../../../services/token/TokenServiceCont
 
 const AUTHORIZATION_CODE_LIFETIME = 600; // 10 minutes in seconds
 
+function getUserPermissionGroups(user) {
+  return user?.role ? [user.role] : [];
+}
+
+function buildOidcUserClaims(user) {
+  const groups = getUserPermissionGroups(user);
+
+  return {
+    email: user.email,
+    username: user.username,
+    roles: groups,
+    groups
+  };
+}
+
 export class AuthorizationServerService {
 
   /**
@@ -178,15 +193,13 @@ export class AuthorizationServerService {
       );
       
       const user = userRows[0];
-      const userRoles = user.role ? [user.role] : []; // 用户角色作为数组（当前只有一个角色）
+      const userClaims = buildOidcUserClaims(user);
 
       const idTokenPayload = {
         iss: 'https://auth.sdjz.wiki',
         sub: user.id,
         aud: clientId,
-        email: user.email,
-        username: user.username,
-        roles: userRoles, // 添加角色
+        ...userClaims,
         iat: Math.floor(Date.now() / 1000)
         // exp 将由 signIdToken 通过 expiresIn 参数设置
       };
@@ -212,7 +225,8 @@ export class AuthorizationServerService {
         token_type: 'Bearer',
         expires_in: 3600,
         scope: authCode.scopes,
-        roles: userRoles
+        roles: userClaims.roles,
+        groups: userClaims.groups
       };
       
     } catch (error) {
@@ -267,7 +281,7 @@ export class AuthorizationServerService {
       throw new Error('invalid_grant: 用户不存在');
     }
     const user = userRows[0];
-    const userRoles = user.role ? [user.role] : []; // 用户角色作为数组（当前只有一个角色）
+    const userClaims = buildOidcUserClaims(user);
     const scopes = payload.scope;
 
     const newAccessToken = signAccessToken({
@@ -281,9 +295,7 @@ export class AuthorizationServerService {
       iss: 'https://auth.sdjz.wiki',
       sub: user.id,
       aud: clientId,
-      email: user.email,
-      username: user.username,
-      roles: userRoles,
+      ...userClaims,
       iat: Math.floor(Date.now() / 1000)
     }, '1h');
     
@@ -294,7 +306,8 @@ export class AuthorizationServerService {
       token_type: 'Bearer',
       expires_in: 3600,
       scope: scopes,
-      roles: userRoles
+      roles: userClaims.roles,
+      groups: userClaims.groups
     };
   }
 
@@ -313,7 +326,7 @@ export class AuthorizationServerService {
       }
       
       const { rows } = await pool.query(
-        'SELECT id, email, username FROM users WHERE id = $1',
+        'SELECT id, email, username, role FROM users WHERE id = $1',
         [payload.uid]
       );
       
@@ -322,10 +335,10 @@ export class AuthorizationServerService {
       }
       
       const user = rows[0];
+      const userClaims = buildOidcUserClaims(user);
       return {
         sub: user.id,
-        email: user.email,
-        username: user.username,
+        ...userClaims,
         email_verified: true // 假设所有email都已验证
       };
       

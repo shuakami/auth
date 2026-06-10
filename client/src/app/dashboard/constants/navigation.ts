@@ -21,5 +21,6 @@ export const oauthScopes = [
   { id: 'email', label: '邮箱地址', description: '用户的邮箱地址', required: false },
   { id: 'phone', label: '手机号码', description: '用户的手机号码', required: false },
   { id: 'address', label: '地址信息', description: '用户的地址信息', required: false },
+  { id: 'groups', label: '权限组', description: '用户的权限组和角色', required: false },
   { id: 'offline_access', label: '离线访问', description: '发放Refresh Token', required: false },
 ] as const;

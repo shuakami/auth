@@ -27,6 +27,7 @@ const AVAILABLE_SCOPES = [
   { id: 'profile', name: '基本资料', description: '用户名、头像等' },
   { id: 'email', name: '邮箱地址', description: '用户邮箱' },
   { id: 'phone', name: '手机号码', description: '用户手机号' },
+  { id: 'groups', name: '权限组', description: '用户角色和权限组' },
   { id: 'offline_access', name: '离线访问', description: '发放 Refresh Token' },
 ];
 
