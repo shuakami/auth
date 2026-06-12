@@ -97,7 +97,7 @@ export function Modal({
         onClick={handleBackdropClick}
       >
         <div
-          className={`relative bg-background rounded-2xl w-full ${sizeClasses[size]} shadow-2xl`}
+          className={`relative flex max-h-[calc(100vh-2rem)] w-full ${sizeClasses[size]} flex-col overflow-hidden rounded-2xl bg-background shadow-2xl`}
           style={{
             opacity: isAnimating ? 1 : 0,
             transform: isAnimating ? 'scale(1)' : 'scale(0.96)',
@@ -107,7 +107,7 @@ export function Modal({
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-start justify-between p-6 pb-0">
+            <div className="flex flex-shrink-0 items-start justify-between p-6 pb-0">
               <div className="flex-1 pr-4">
                 {title && (
                   <h2 className="text-lg font-medium text-regular">{title}</h2>
@@ -128,7 +128,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="p-6">
+          <div className="min-h-0 overflow-y-auto p-6">
             {children}
           </div>
         </div>
