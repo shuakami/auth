@@ -58,6 +58,7 @@ function IntegrationGuideContent() {
     { id: 'oidc-discovery', title: t.integrationGuide.sections.oidcDiscovery },
     { id: 'pkce-flow', title: t.integrationGuide.sections.pkceFlow },
     { id: 'api-endpoints', title: t.integrationGuide.sections.apiEndpoints },
+    { id: 'security-management', title: '安全管理 API' },
     { id: 'tokens', title: t.integrationGuide.sections.tokens },
   ];
 
@@ -319,22 +320,226 @@ function IntegrationGuideContent() {
                     />
                   </div>
 
+                </div>
+              </Section>
+
+              <Section id="security-management" title="安全管理 API">
+                <p className="text-sm text-muted mb-4">
+                  第三方前端可以使用这些接口自建账户安全 UI。所有接口只接受 OAuth Bearer access token，不读取浏览器 Cookie。
+                </p>
+
+                <div className="space-y-8">
                   <div>
-                    <h3 className="text-sm font-medium text-primary mb-1">安全管理端点</h3>
-                    <code className="text-sm font-mono text-muted">GET /api/oidc/me/security</code>
-                    <p className="text-sm text-muted mt-2 mb-3">需要 OAuth Bearer access token。读取接口需要 <code className="font-mono text-primary">security.read</code> 或 <code className="font-mono text-primary">security.write</code>，变更接口需要 <code className="font-mono text-primary">security.write</code>。</p>
+                    <h3 className="text-sm font-medium text-primary mb-2">Base URL 与 Scope</h3>
+                    <CodeBlock
+                      language="text"
+                      code={`Base URL: https://auth.sdjz.wiki/api/oidc
+
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json
+
+Required scopes:
+- security.read  读取安全状态
+- security.write 管理 2FA、备份码和通行密钥；也允许读取`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">读取安全状态</h3>
                     <CodeBlock
                       language="http"
-                      code={`GET /api/oidc/me/security
+                      code={`GET /me/security
 Authorization: Bearer ACCESS_TOKEN`}
                     />
-                    <div className="mt-3 grid gap-2 text-sm text-muted">
-                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/totp/setup</code> - password 确认后生成 TOTP secret、二维码和备份码。</p>
-                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/totp/verify</code> - 使用 6 位验证码启用 TOTP。</p>
-                      <p><code className="font-mono text-primary">DELETE /api/oidc/me/security/totp</code> - 使用 TOTP 或备份码关闭 TOTP。</p>
-                      <p><code className="font-mono text-primary">POST /api/oidc/me/security/backup-codes</code> - password 确认后重新生成备份码。</p>
-                      <p><code className="font-mono text-primary">GET /api/oidc/me/security/webauthn/credentials</code> - 读取通行密钥列表。</p>
-                    </div>
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "ok": true,
+  "data": {
+    "user": {
+      "sub": "user_id",
+      "email": "user@example.com",
+      "username": "username"
+    },
+    "totp": {
+      "enabled": true,
+      "configured": true
+    },
+    "backupCodes": {
+      "remaining": 8
+    },
+    "webauthn": {
+      "enabled": true,
+      "count": 1,
+      "credentials": [
+        {
+          "id": "credential_db_uuid",
+          "credentialId": "webauthn_credential_id",
+          "name": "MacBook Pro",
+          "deviceType": "platform",
+          "backedUp": true,
+          "transports": ["internal"],
+          "createdAt": "2026-06-10T10:00:00.000Z",
+          "lastUsedAt": "2026-06-10T10:00:00.000Z"
+        }
+      ]
+    }
+  }
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">初始化 TOTP</h3>
+                    <CodeBlock
+                      language="http"
+                      code={`POST /me/security/totp/setup
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "password": "用户当前密码"
+}`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "ok": true,
+  "data": {
+    "qr": "data:image/png;base64,...",
+    "secret": "BASE32SECRET",
+    "otpauthUrl": "otpauth://totp/...",
+    "backupCodes": ["xxxx-xxxx"]
+  }
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">启用 TOTP</h3>
+                    <CodeBlock
+                      language="http"
+                      code={`POST /me/security/totp/verify
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "token": "123456"
+}`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "ok": true,
+  "data": {
+    "enabled": true
+  }
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">关闭 TOTP</h3>
+                    <CodeBlock
+                      language="http"
+                      code={`DELETE /me/security/totp
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "token": "123456"
+}`}
+                    />
+                    <p className="text-sm text-muted my-3">也可以使用备份码关闭：</p>
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "backupCode": "xxxx-xxxx"
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">重新生成备份码</h3>
+                    <CodeBlock
+                      language="http"
+                      code={`POST /me/security/backup-codes
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "password": "用户当前密码"
+}`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "ok": true,
+  "data": {
+    "codes": ["xxxx-xxxx"]
+  }
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">管理通行密钥</h3>
+                    <CodeBlock
+                      language="http"
+                      code={`GET /me/security/webauthn/credentials
+PUT /me/security/webauthn/credentials/:credentialId/name
+DELETE /me/security/webauthn/credentials/:credentialId`}
+                    />
+                    <p className="text-sm text-muted mt-3">
+                      这里的 <code className="font-mono text-primary">:credentialId</code> 使用列表返回里的 <code className="font-mono text-primary">id</code> 字段，也就是数据库 UUID，不是 WebAuthn 原始 credentialId。
+                    </p>
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "name": "新的设备名"
+}`}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-primary mb-2">错误响应</h3>
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "error": "invalid_token",
+  "error_description": "Missing Bearer access token"
+}`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "error": "insufficient_scope",
+  "required_scopes": ["security.write"],
+  "granted_scopes": ["security.read"]
+}`}
+                    />
+                    <CodeBlock
+                      language="json"
+                      code={`{
+  "error": "invalid_password",
+  "error_description": "Password confirmation failed"
+}`}
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-muted bg-surface-l1">
+                    <h3 className="text-sm font-medium text-primary mb-2">WebAuthn 注册说明</h3>
+                    <p className="text-sm text-muted">
+                      当前 WebAuthn RP ID 和 Origin 固定为 auth.sdjz.wiki。第三方页面不能直接完成通行密钥注册；可以读取、重命名、删除已注册凭据。需要新增通行密钥时，应引导用户回到 auth.sdjz.wiki 的安全设置页面。
+                    </p>
                   </div>
                 </div>
               </Section>
