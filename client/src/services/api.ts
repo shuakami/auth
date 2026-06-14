@@ -42,12 +42,27 @@ const PUBLIC_AUTH_ENDPOINTS = [
   '/verify',
 ];
 
+const PUBLIC_AUTH_PATH_PREFIXES = [
+  '/login',
+  '/register',
+  '/verify',
+  '/oauth/',
+];
+
 const shouldSkipTokenRefresh = (url?: string) => {
   if (!url) {
     return false;
   }
 
   return PUBLIC_AUTH_ENDPOINTS.some(endpoint => url === endpoint || url.startsWith(`${endpoint}?`));
+};
+
+const shouldSkipSessionRedirect = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return PUBLIC_AUTH_PATH_PREFIXES.some(prefix => window.location.pathname.startsWith(prefix));
 };
 
 const processQueue = (error: Error | null) => {
@@ -78,7 +93,7 @@ apiClient.interceptors.response.use(
     }
 
     // 公开认证接口的 401 错误不代表当前会话过期，直接返回给页面处理。
-    if (shouldSkipTokenRefresh(originalRequest.url)) {
+    if (shouldSkipTokenRefresh(originalRequest.url) || shouldSkipSessionRedirect()) {
       return Promise.reject(error);
     }
 
