@@ -32,6 +32,24 @@ interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value?: any) => void; reject: (reason?: any) => void; }> = [];
 
+const PUBLIC_AUTH_ENDPOINTS = [
+  '/login',
+  '/register',
+  '/2fa/verify',
+  '/forgot-password',
+  '/reset-password',
+  '/resend-verify',
+  '/verify',
+];
+
+const shouldSkipTokenRefresh = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+
+  return PUBLIC_AUTH_ENDPOINTS.some(endpoint => url === endpoint || url.startsWith(`${endpoint}?`));
+};
+
 const processQueue = (error: Error | null) => {
   failedQueue.forEach(prom => {
     if (error) {
@@ -59,8 +77,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 登录相关的 401 错误不应该触发 token 刷新，直接返回错误
-    if (originalRequest.url === '/login' || originalRequest.url === '/2fa/verify') {
+    // 公开认证接口的 401 错误不代表当前会话过期，直接返回给页面处理。
+    if (shouldSkipTokenRefresh(originalRequest.url)) {
       return Promise.reject(error);
     }
 
