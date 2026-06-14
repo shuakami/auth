@@ -160,22 +160,12 @@ router.post('/webauthn/authentication/finish', authLimiter, async (req, res) => 
       return res.status(404).json({ error: '用户不存在' });
     }
 
-    // 生成访问令牌（这里需要引入现有的登录成功处理逻辑）
-    const { signAccessToken } = await import('../../auth/jwt.js');
-    const accessToken = signAccessToken({ id: user.id, email: user.email });
-
-    // 创建刷新令牌
-    const { createRefreshToken } = await import('../../services/refreshTokenService.js');
-    const deviceInfo = req.headers['user-agent'] || 'WebAuthn Device';
-    const refreshToken = await createRefreshToken(user.id, deviceInfo);
-
-    // 设置刷新令牌 Cookie
-    res.cookie('refreshToken', refreshToken.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30天
-    });
+    // 通过统一的 TokenService 签发会话，使 Passkey 无密码登录与密码/2FA 登录建立
+    // 等价的会话：accessToken 载荷使用 uid、同时写入 accessToken 与 refreshToken Cookie，
+    // 并采用与跨站 OAuth 一致的 Cookie 属性（path '/'、生产环境 SameSite=None）。
+    const { TokenService } = await import('../../auth/services/TokenService.js');
+    const tokenService = new TokenService();
+    const tokenInfo = await tokenService.generateAndSetTokens(user, req, res);
 
     // 记录登录日志
     const { recordLoginLog } = await import('../../auth/recordLoginLog.js');
@@ -191,7 +181,7 @@ router.post('/webauthn/authentication/finish', authLimiter, async (req, res) => 
       ok: true,
       message: '生物验证登录成功',
       user: { ...userWithoutPassword, has_password: !!password_hash },
-      accessToken,
+      accessToken: tokenInfo.accessToken,
       credential: {
         id: result.credentialId,
         name: result.credential.name,
