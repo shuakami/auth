@@ -256,33 +256,37 @@ export class AuthorizationServerService {
 
     // 2. 验证刷新令牌
     const { valid, dbToken, payload, reason } = await validateRefreshToken(refreshTokenString);
-    if (!valid) {
-      // 安全起见，如果检测到重放攻击，则吊销整个令牌家族
-      if (reason === 'Token has been used' && dbToken?.parent_id) {
-        await detectTokenReuse(dbToken.parent_id);
-      }
+
+    // 已被吊销的令牌可能是同一刷新令牌的并发/重试请求。交由轮换逻辑在宽限窗口内
+    // 幂等地返回替代令牌；只有真正无效（不存在/已过期/签名错误）才直接拒绝。
+    if (!valid && !(dbToken && dbToken.revoked)) {
       throw new Error(`invalid_grant: ${reason || '刷新令牌无效'}`);
     }
 
     // 检查刷新令牌是否属于该客户端
-    if (dbToken.client_id !== clientId) {
+    if (dbToken && dbToken.client_id && dbToken.client_id !== clientId) {
       throw new Error('invalid_grant: 刷新令牌不属于此客户端');
     }
-    
-    // 3. 轮换刷新令牌
+
+    // 3. 轮换刷新令牌。rotateRefreshToken 对并发/重试具备幂等性：宽限窗口内返回
+    //    已生成的替代令牌，窗口外的过期重放则会吊销整个令牌家族并抛错。
     const { token: newRefreshToken } = await rotateRefreshToken(refreshTokenString, 'OAuth Client Rotated');
 
     // 4. 生成新的访问令牌和ID令牌
+    const userId = payload?.uid || dbToken?.user_id;
+    if (!userId) {
+      throw new Error('invalid_grant: 刷新令牌无效');
+    }
     const { rows: userRows } = await pool.query(
       'SELECT id, email, username, role FROM users WHERE id = $1',
-      [payload.uid]
+      [userId]
     );
     if (userRows.length === 0) {
       throw new Error('invalid_grant: 用户不存在');
     }
     const user = userRows[0];
     const userClaims = buildOidcUserClaims(user);
-    const scopes = payload.scope;
+    const scopes = payload?.scope;
 
     const newAccessToken = signAccessToken({
       uid: user.id,
