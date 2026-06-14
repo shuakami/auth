@@ -30,6 +30,11 @@ const PSN = {
 // 统一时间获取
 const nowTs = () => Date.now();
 
+// 轮换宽限窗口：刚轮换过的 Refresh Token 在该窗口内被并发/重试请求再次提交时，
+// 返回已生成的替代 Token（幂等），而不是判定为重放并强制下线。
+// 参考 OAuth 2.0 Security BCP，对刷新令牌轮换的并发场景给予短暂容错。
+const ROTATION_GRACE_MS = 60 * 1000;
+
 export class RefreshTokenService {
   constructor() {
     this.MAX_LIFETIME = 90 * 24 * 60 * 60 * 1000; // 90天 (ms)
@@ -121,7 +126,21 @@ export class RefreshTokenService {
   async rotateToken(oldToken, deviceInfo) {
     const validation = await this.validateToken(oldToken);
     if (!validation.valid) {
-      throw new Error(`Token轮换失败: ${validation.reason}`);
+      // 令牌已被吊销：这通常是同一刷新令牌的并发/重试轮换。在宽限窗口内返回
+      // 已生成的替代令牌（幂等），窗口外则视为重放并吊销整个家族。
+      if (validation.dbToken && validation.dbToken.revoked) {
+        const replacement = await this._findFreshReplacement(validation.dbToken.id);
+        if (replacement) {
+          return replacement;
+        }
+        log(
+          'warn',
+          `[RefreshToken] 检测到已吊销Token在宽限期外被重放，吊销家族: ${validation.dbToken.id}`
+        );
+        await this.revokeAllUserTokens(validation.dbToken.user_id);
+        throw new Error('invalid_grant: 检测到Refresh Token重放，请重新登录');
+      }
+      throw new Error(`invalid_grant: ${validation.reason || '刷新令牌无效'}`);
     }
 
     const client = await smartConnect();
@@ -135,12 +154,24 @@ export class RefreshTokenService {
         this.DEFAULT_EXPIRES_IN
       );
 
-      // 1) 吊销旧Token（若已吊销则不影响幂等性）
-      await client.query({
+      // 1) 吊销旧Token。条件更新会持有行锁，并发的另一个轮换在本事务提交后
+      //    重新评估 WHERE 时将匹配到 0 行，从而避免为同一父令牌写入多个子令牌。
+      const revokeResult = await client.query({
         name: PSN.ROTATE_REVOKE_OLD,
         text: 'UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND revoked = FALSE',
         values: [validation.dbToken.id],
       });
+
+      // 未吊销任何行 => 另一个并发请求已经轮换过该令牌。回滚并返回它生成的替代令牌，
+      // 保证并发刷新得到一致且有效的结果，而不是各自写入孤儿令牌。
+      if (revokeResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        const replacement = await this._findFreshReplacement(validation.dbToken.id);
+        if (replacement) {
+          return replacement;
+        }
+        throw new Error('invalid_grant: Token已吊销');
+      }
 
       // 2) 写入新Token
       await client.query({
@@ -176,9 +207,80 @@ export class RefreshTokenService {
         expiresAt: tokenData.expiresAt,
       };
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // 事务可能已结束，忽略回滚错误
+      }
+      // 保留安全决策类错误（如重放/已吊销），以便上层映射为 invalid_grant。
+      if (error instanceof Error && error.message.startsWith('invalid_grant:')) {
+        throw error;
+      }
       log('error', '[RefreshToken] Token轮换失败 (事务回滚):', error);
       throw new Error('Token轮换失败');
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 查找某个父令牌在宽限窗口内、未吊销且未过期的替代子令牌，并解密返回。
+   * 用于刷新令牌轮换的并发/重试幂等处理。
+   * @param {string} parentId 已被轮换（吊销）的父令牌ID
+   * @param {number} graceMs 宽限窗口（毫秒）
+   * @returns {Promise<{token: string, id: string, expiresAt: Date|string}|null>}
+   * @private
+   */
+  async _findFreshReplacement(parentId, graceMs = ROTATION_GRACE_MS) {
+    const client = await smartConnect();
+    try {
+      const { rows } = await client.query({
+        text: `
+          SELECT id, token, expires_at, created_at
+          FROM refresh_tokens
+          WHERE parent_id = $1 AND revoked = FALSE
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        values: [parentId],
+      });
+
+      const child = rows[0];
+      if (!child) {
+        return null;
+      }
+
+      const createdMs =
+        child.created_at instanceof Date
+          ? child.created_at.getTime()
+          : new Date(child.created_at).getTime();
+      if (!Number.isFinite(createdMs) || nowTs() - createdMs > graceMs) {
+        return null;
+      }
+
+      const expMs =
+        child.expires_at instanceof Date
+          ? child.expires_at.getTime()
+          : new Date(child.expires_at).getTime();
+      if (!Number.isFinite(expMs) || expMs <= nowTs()) {
+        return null;
+      }
+
+      let token;
+      try {
+        token = decrypt(child.token);
+      } catch (error) {
+        log('error', '[RefreshToken] 替代Token解密失败:', error);
+        return null;
+      }
+      if (!token) {
+        return null;
+      }
+
+      return { token, id: child.id, expiresAt: child.expires_at };
+    } catch (error) {
+      log('error', '[RefreshToken] 查找替代Token失败:', error);
+      return null;
     } finally {
       client.release();
     }
