@@ -66,30 +66,32 @@ export class TokenServiceController {
     // 等待两项检测都到达已决状态（不抛出）
     await Promise.allSettled([anomalyPromise, reusePromise]);
 
-    // 维持原行为：若检测到异常活动且建议吊销，则优先吊销并报错
-    try {
-      if (anomalyReport && anomalyReport.anomaliesDetected) {
-        log(
-          'warn',
-          `[TokenController] 用户${userId}检测到异常活动:`,
-          anomalyReport.anomalies
-        );
+    // 异常活动检测仅作监控信号：它统计「同一 device_info 在 24h 内的活跃 Token 数 /
+    // 短时间内创建数」，但合法场景（同一浏览器反复登录、在 Passkey 与 Google+TOTP
+    // 之间切换、多标签页并发刷新、测试期多次登录）会把同一 UA 的多次签发误判为
+    // 高危并触发 REVOKE_ALL_USER_TOKENS，导致刚通过强鉴权的用户被连带吊销全部会话
+    // （表现为「登录后立刻被退登 / Passkey 和 TOTP 互相冲突」）。
+    //
+    // 因此这里只记录、不再据此吊销任何会话，也不阻断本次合法登录的令牌签发。真正的
+    // 刷新令牌重放/盗用防护由轮换链负责：rotateToken 的条件更新会对家族重放吊销整族，
+    // /refresh 也会对同一 parentId 下的多活跃子令牌判定盗用。这些才是基于「令牌被重复
+    // 使用」的强信号，而非「同设备登录次数」这种会误伤的量级启发式。
+    if (anomalyReport && anomalyReport.anomaliesDetected) {
+      log(
+        'warn',
+        `[TokenController] 用户${userId}检测到异常活动（仅监控，不吊销会话）:`,
+        anomalyReport.anomalies
+      );
+    }
 
-        if (anomalyReport.recommendation === 'REVOKE_ALL_USER_TOKENS') {
-          await this.tokenService.revokeAllUserTokens(userId);
-          throw new Error('检测到安全风险，已吊销所有Token，请重新登录');
-        }
-      }
-
-      // 之后再看是否存在 Token 重用攻击
-      if (parentId && reuseReport && reuseReport.reused) {
-        log('error', `[TokenController] 检测到Token重用攻击:`, reuseReport);
-        await this.tokenService.revokeAllUserTokens(userId);
-        throw new Error('检测到Token重用攻击，已吊销所有Token');
-      }
-    } catch (error) {
-      // 任何上述分支抛错均按原逻辑直接中断创建
-      throw error;
+    // 创建期的重用检测同样不再连坐吊销全部会话：parentId 在轮换链外通常为空，
+    // 真正的重放由 rotateToken / detectTokenReuse 在轮换与刷新时处理。
+    if (parentId && reuseReport && reuseReport.reused) {
+      log(
+        'warn',
+        `[TokenController] 创建期检测到同一父令牌存在多个活跃子令牌（仅监控）:`,
+        reuseReport
+      );
     }
 
     // 3. 创建新Token（逻辑保持不变）

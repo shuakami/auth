@@ -65,34 +65,48 @@ router.post('/refresh', async (req, res) => {
   try {
     // 校验旧Token
     const { valid, dbToken, payload, reason } = await RefreshTokenService.validateRefreshToken(refreshToken);
-    if (!valid) {
-      // 针对不同reason返回不同错误码
+
+    // 已吊销的令牌通常是同一刷新令牌的并发/重试轮换（多标签页、静默刷新）：旧令牌
+    // 刚被另一个请求轮换掉。此时不立即退登，交给 rotateRefreshToken 在宽限窗口内幂等
+    // 返回已生成的替代令牌。只有真正终态失效（不存在/超龄/解密失败/格式错误）才清除
+    // Cookie 并要求重新登录。此前的实现会在这里直接 401 退登，是 Cookie 会话（含 Passkey
+    // 登录）「续期老是被退登」的根因——与 OAuth /token 路径不一致地缺少宽限处理。
+    if (!valid && !(dbToken && dbToken.revoked)) {
+      res.clearCookie('accessToken', { path: '/' });
+      res.clearCookie('refreshToken', { path: '/' });
       if (reason === 'Token超出最大生存期') {
-        res.clearCookie('accessToken', { path: '/' });
-        res.clearCookie('refreshToken', { path: '/' });
         return res.status(403).json({ error: 'Refresh Token超出最大生存期，请重新登录', code: 'refresh_token_expired' });
       }
-      if (reason === 'Token已吊销' || reason === 'Token不存在' || reason === 'Token已过期' || reason === 'Token解密失败' || reason === 'Token不匹配') {
-        res.clearCookie('accessToken', { path: '/' });
-        res.clearCookie('refreshToken', { path: '/' });
+      if (reason === 'Token不存在' || reason === 'Token已过期' || reason === 'Token解密失败' || reason === 'Token不匹配' || reason === '无效的Token格式') {
         return res.status(401).json({ error: '无效或已失效的Refresh Token', code: 'refresh_token_invalid' });
       }
       return res.status(400).json({ error: reason || '无效的Refresh Token' });
     }
-    // 检测Token被盗用（同一parentId下有多个有效Token）
-    if (dbToken.parent_id) {
-      const reused = await RefreshTokenService.detectTokenReuse(dbToken.parent_id);
-      if (reused) {
-        // 盗用，吊销所有相关Token并强制下线
-        await RefreshTokenService.revokeAllRefreshTokensForUser(dbToken.user_id);
-        res.clearCookie('accessToken', { path: '/' });
-        res.clearCookie('refreshToken', { path: '/' });
+
+    // 轮换刷新令牌。rotateRefreshToken 对并发/重试具备幂等性：宽限窗口内返回已生成的
+    // 替代令牌；只有窗口外的过期重放才会吊销整个令牌家族并抛出 invalid_grant——那才是
+    // 真正的重放/盗用信号，此时才强制下线。把重放检测统一交给轮换链处理，避免之前基于
+    // 「同一 parentId 下多活跃子令牌」的提前判定在并发刷新下误伤。
+    let newRefreshToken;
+    try {
+      ({ token: newRefreshToken } = await RefreshTokenService.rotateRefreshToken(refreshToken, deviceInfo));
+    } catch (rotateErr) {
+      const msg = rotateErr?.message || '';
+      res.clearCookie('accessToken', { path: '/' });
+      res.clearCookie('refreshToken', { path: '/' });
+      if (msg.includes('重放') || msg.includes('盗用')) {
         return res.status(403).json({ error: '检测到Refresh Token被盗用，已强制下线，请重新登录', code: 'refresh_token_compromised' });
       }
+      return res.status(401).json({ error: '无效或已失效的Refresh Token', code: 'refresh_token_invalid' });
     }
-    // 正常轮换
-    const { token: newRefreshToken } = await RefreshTokenService.rotateRefreshToken(refreshToken, deviceInfo);
-    const accessToken = signAccessToken({ uid: dbToken.user_id });
+
+    const userId = dbToken?.user_id || payload?.uid;
+    if (!userId) {
+      res.clearCookie('accessToken', { path: '/' });
+      res.clearCookie('refreshToken', { path: '/' });
+      return res.status(401).json({ error: '无效或已失效的Refresh Token', code: 'refresh_token_invalid' });
+    }
+    const accessToken = signAccessToken({ uid: userId });
     
     // 验证生成的token有效性
     if (!newRefreshToken || typeof newRefreshToken !== 'string' || newRefreshToken === 'undefined') {
