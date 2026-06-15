@@ -113,6 +113,32 @@ export async function findByIds(userIds) {
   return userService.findByIds(userIds);
 }
 
+// ================== 用户对外序列化 ==================
+
+/**
+ * 把数据库 user 行转换成可安全下发给客户端的对象。
+ *
+ * 绝不能把敏感字段返回到浏览器/网络层：
+ *  - password_hash：密码哈希；
+ *  - totp_secret：TOTP 密钥（即使加密存储，也绝不应离开服务端）。
+ *
+ * 同时附带派生的 has_password 布尔，供前端判断是否已设置密码（前端只需要布尔，
+ * 不需要也不应拿到哈希本身）。
+ *
+ * @param {Object|null|undefined} user 数据库用户行
+ * @param {Object} [extra] 需要额外合并进结果的字段（例如 locale 兜底）
+ * @returns {Object|null}
+ */
+export function toPublicUser(user, extra = {}) {
+  if (!user) return null;
+  const { password_hash, totp_secret, ...safe } = user;
+  return {
+    ...safe,
+    has_password: !!password_hash,
+    ...extra,
+  };
+}
+
 // ================== 导出服务实例 ==================
 
 export { userService, userOAuthService, userTotpService };

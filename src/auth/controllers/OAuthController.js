@@ -177,15 +177,23 @@ export class OAuthController {
       const tokenInfo = await this.oauth2FAService.tokenService.generateAndSetTokens(user, req, res);
       
       console.log(`[OAuth] 临时token交换成功，用户 ${user.id} 已登录`);
-      
-      const { password_hash, ...rest } = user;
-      
+
+      // 解析新签发 access token 的 exp 并回传，使 Google/GitHub 直登（无 2FA）也能与
+      // 密码/2FA/Passkey 登录一致地立即启动前端静默续期。
+      const decodedAccess = tokenInfo && tokenInfo.accessToken
+        ? await import('jsonwebtoken').then((m) => m.decode(tokenInfo.accessToken))
+        : null;
+      const exp = decodedAccess && decodedAccess.exp
+        ? decodedAccess.exp
+        : Math.floor(Date.now() / 1000) + 1800;
+
       res.json({
         ok: true,
         tokenType: tokenInfo.tokenType,
         expiresIn: tokenInfo.expiresIn,
+        exp,
         returnUrl: payload.returnUrl || null,
-        user: { ...rest, has_password: !!password_hash },
+        user: User.toPublicUser(user),
       });
 
     } catch (error) {

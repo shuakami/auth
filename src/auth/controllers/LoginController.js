@@ -33,12 +33,11 @@ export class LoginController {
           const status = is2faVerification ? 404 : 401;
           return res.status(status).json({ error: 'User not found' });
         }
-        const { password_hash, ...rest } = user;
         return res.status(200).json({ 
           ok: true, 
           message: '登录成功', 
           exp: result.exp,
-          user: { ...rest, has_password: !!password_hash } 
+          user: User.toPublicUser(user) 
         });
       } else if (result.status === '2fa_required') {
         return res.status(401).json({ error: 'TOTP_REQUIRED' });
