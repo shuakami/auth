@@ -293,14 +293,22 @@ export class EnhancedTokenManager {
 
   /**
    * 重新启动自动刷新（用于重新登录时）
+   *
+   * 注意：这里不能调用 stopAutoRefresh()，因为它会清空 accessTokenExp。登录响应
+   * （密码 / 2FA / Passkey）会先经由拦截器把最新 exp 写入管理器，紧接着 AuthContext.login()
+   * 才调用本方法；若此处清空 exp，主动续期会因为 checkAndRefreshToken() 的 `!accessTokenExp`
+   * 提前返回而永远不触发，表现为「登录后 token 不再自动续期」。因此只重建定时器、保留 exp。
    */
   public restartAutoRefresh() {
-    // 先停止现有的定时器
-    this.stopAutoRefresh();
-    
-    // 重新启动定时器
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    this.isRefreshing = false;
+
+    // 重新启动定时器（保留已知的 accessTokenExp）
     this.startPeriodicRefresh();
-    
+
     console.log('[EnhancedTokenManager] 自动刷新已重新启动');
   }
 
