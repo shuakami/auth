@@ -176,10 +176,19 @@ router.post('/webauthn/authentication/finish', authLimiter, async (req, res) => 
     });
 
     const { password_hash, ...userWithoutPassword } = user;
-    
+
+    // 解析新签发 access token 的 exp 并回传，使 Passkey 登录与密码/2FA 登录一致地立即
+    // 启动前端静默续期（EnhancedTokenManager 依赖响应体中的 exp）。缺失 exp 会导致 Passkey
+    // 会话永远不主动续期，只能等到 401 才被动刷新，表现为「Passkey 登录后不自动续期」。
+    const decodedAccess = await import('jsonwebtoken').then((m) => m.decode(tokenInfo.accessToken));
+    const exp = decodedAccess && decodedAccess.exp
+      ? decodedAccess.exp
+      : Math.floor(Date.now() / 1000) + 1800;
+
     res.json({
       ok: true,
       message: '生物验证登录成功',
+      exp,
       user: { ...userWithoutPassword, has_password: !!password_hash },
       accessToken: tokenInfo.accessToken,
       credential: {

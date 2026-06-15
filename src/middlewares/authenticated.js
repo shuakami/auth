@@ -21,8 +21,9 @@ export function ensureAuth(req, res, next) {
   if (!payload || !payload.uid) {
     return res.status(401).json({ error: '无效或过期的Access Token' });
   }
-  // 挂载用户信息到req.user
-  req.user = { id: payload.uid };
+  // 挂载用户信息到req.user。携带 access token 的 exp，便于 /me 等受保护接口把过期时间
+  // 回传前端，让静默续期（EnhancedTokenManager）对任意登录方式都能正常启动。
+  req.user = { id: payload.uid, exp: payload.exp };
 
   // 异步更新 last_used_at
   const refreshToken = req.cookies.refreshToken;

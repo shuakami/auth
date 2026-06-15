@@ -28,7 +28,12 @@ router.get('/me', ensureAuth, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(401).json({ error: '未授权' });
   const { password_hash, ...rest } = user;
-  res.json({ user: { ...rest, has_password: !!password_hash, locale: user.locale || 'zh' } });
+  // 回传当前 access token 的 exp，使前端在「跳转后/刷新页面」等仅凭 Cookie 恢复会话的
+  // 场景下也能拿到过期时间并启动静默续期，而不必等到首个 401 才被动刷新。
+  res.json({
+    user: { ...rest, has_password: !!password_hash, locale: user.locale || 'zh' },
+    exp: req.user.exp,
+  });
 });
 
 /**
