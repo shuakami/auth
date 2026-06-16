@@ -515,6 +515,7 @@ export async function init() {
             device_info TEXT,
             client_id VARCHAR(255) REFERENCES oauth_applications(client_id) ON DELETE SET NULL,
             parent_id UUID,
+            family_id UUID,
             revoked BOOLEAN DEFAULT FALSE,
             expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -523,6 +524,7 @@ export async function init() {
           );
           CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_user_id" ON refresh_tokens (user_id);
           CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_token" ON refresh_tokens (token);
+          CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_family_id" ON refresh_tokens (family_id);
         `,
       },
       {
@@ -656,6 +658,66 @@ export async function init() {
       }
     }, 3, 1000);
     dbLog('info', 'Migration completed: locale column');
+
+    // 迁移：为 refresh_tokens 增加 family_id 并回填现有令牌家族
+    // family_id 标记同一条轮换链（lineage）的根令牌 id；重放检测据此只吊销受影响的
+    // 单条家族，而不再按 user_id 连坐吊销该用户的全部会话。
+    dbLog('info', 'Running migration: add family_id column to refresh_tokens table');
+    await withRetry(async () => {
+      const client = await getPool().connect();
+      try {
+        await client.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'refresh_tokens' AND column_name = 'family_id'
+            ) THEN
+              ALTER TABLE refresh_tokens ADD COLUMN family_id UUID;
+            END IF;
+          END $$;
+        `);
+
+        // 1) 根令牌（无父令牌）的 family_id 即自身 id
+        await client.query(`
+          UPDATE refresh_tokens
+          SET family_id = id
+          WHERE parent_id IS NULL AND family_id IS NULL
+        `);
+
+        // 2) 沿 parent_id 链向下回填后代令牌的 family_id（取所在链的根）
+        await client.query(`
+          WITH RECURSIVE chain AS (
+            SELECT id, id AS root
+            FROM refresh_tokens
+            WHERE parent_id IS NULL
+            UNION ALL
+            SELECT t.id, c.root
+            FROM refresh_tokens t
+            JOIN chain c ON t.parent_id = c.id
+          )
+          UPDATE refresh_tokens rt
+          SET family_id = chain.root
+          FROM chain
+          WHERE rt.id = chain.id AND rt.family_id IS NULL
+        `);
+
+        // 3) 兜底：父令牌已不存在的孤儿令牌，自成一族
+        await client.query(`
+          UPDATE refresh_tokens
+          SET family_id = id
+          WHERE family_id IS NULL
+        `);
+
+        await client.query(
+          `CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_family_id" ON refresh_tokens (family_id)`
+        );
+        return true;
+      } finally {
+        client.release();
+      }
+    }, 3, 1000);
+    dbLog('info', 'Migration completed: family_id column');
 
     // 初始化超级管理员
     dbLog('info', 'Initializing super admin');
