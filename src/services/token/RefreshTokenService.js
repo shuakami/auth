@@ -23,7 +23,6 @@ const PSN = {
   SELECT_TOKEN_BY_ID: 'rt_select_token_by_id_v1',
   REVOKE_BY_ID: 'rt_revoke_by_id_v1',
   REVOKE_BY_USER: 'rt_revoke_by_user_v1',
-  REVOKE_BY_FAMILY: 'rt_revoke_by_family_v1',
   ROTATE_REVOKE_OLD: 'rt_rotate_revoke_old_v1',
   ROTATE_INSERT_NEW: 'rt_rotate_insert_new_v1',
 };
@@ -134,15 +133,11 @@ export class RefreshTokenService {
         if (replacement) {
           return replacement;
         }
-        // 真正的重放：只吊销受影响的这一条令牌家族（lineage），而不是该用户的全部会话。
-        // 按 user_id 连坐吊销会让任何一次良性的「轮换响应丢失后用旧令牌重试」拖垮用户在
-        // 所有客户端/设备上的会话（参见 OAuth 2.0 Security BCP：刷新令牌重用应吊销令牌家族）。
-        const familyId = validation.dbToken.family_id || validation.dbToken.id;
         log(
           'warn',
-          `[RefreshToken] 检测到已吊销Token在宽限期外被重放，吊销家族: ${familyId}`
+          `[RefreshToken] 检测到已吊销Token在宽限期外被重放，吊销家族: ${validation.dbToken.id}`
         );
-        await this.revokeTokenFamily(familyId);
+        await this.revokeAllUserTokens(validation.dbToken.user_id);
         throw new Error('invalid_grant: 检测到Refresh Token重放，请重新登录');
       }
       throw new Error(`invalid_grant: ${validation.reason || '刷新令牌无效'}`);
@@ -178,15 +173,14 @@ export class RefreshTokenService {
         throw new Error('invalid_grant: Token已吊销');
       }
 
-      // 2) 写入新Token（继承父令牌的 family_id，保持同一条轮换链归属同一家族）
-      const familyId = validation.dbToken.family_id || validation.dbToken.id;
+      // 2) 写入新Token
       await client.query({
         name: PSN.ROTATE_INSERT_NEW,
         text: `
           INSERT INTO refresh_tokens
-            (id, user_id, token, device_info, parent_id, family_id, expires_at, created_at, last_used_at, client_id)
+            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id)
           VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9)
+            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)
         `,
         values: [
           tokenData.id,
@@ -194,7 +188,6 @@ export class RefreshTokenService {
           tokenData.encryptedToken,
           tokenData.deviceInfo,
           validation.dbToken.id, // parentId
-          familyId,
           tokenData.expiresAt,
           tokenData.createdAt,
           validation.dbToken.client_id, // 轮换时保留clientId
@@ -339,30 +332,6 @@ export class RefreshTokenService {
   }
 
   /**
-   * 吊销整条令牌家族（同一 family_id 的全部未吊销令牌）。
-   * 用于刷新令牌重放检测：只下线受影响的这一条会话链，不波及该用户的其它会话。
-   * @param {string} familyId 家族根令牌ID
-   * @returns {Promise<void>}
-   */
-  async revokeTokenFamily(familyId) {
-    if (!familyId) return;
-    const client = await smartConnect();
-    try {
-      const res = await client.query({
-        name: PSN.REVOKE_BY_FAMILY,
-        text: 'UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = $1 AND revoked = FALSE',
-        values: [familyId],
-      });
-      log('warn', `[RefreshToken] 令牌家族${familyId}已吊销，共${res.rowCount}个`);
-    } catch (error) {
-      log('error', '[RefreshToken] 吊销令牌家族失败:', error);
-      throw new Error('吊销令牌家族失败');
-    } finally {
-      client.release();
-    }
-  }
-
-  /**
    * 生成Token数据（使用原生 randomUUID + 时间戳）
    * @param {string} userId 
    * @param {string} deviceInfo 
@@ -406,16 +375,13 @@ export class RefreshTokenService {
   async _storeToken(tokenData, parentId, clientId = null) {
     const client = await smartConnect();
     try {
-      // 由 createToken 直接签发的都是家族根令牌（parentId 为空），family_id 即自身 id；
-      // 轮换链上的后代令牌由 rotateToken 写入并继承父令牌的 family_id。
-      const familyId = parentId ? parentId : tokenData.id;
       await client.query({
         name: PSN.INSERT_TOKEN,
         text: `
           INSERT INTO refresh_tokens
-            (id, user_id, token, device_info, parent_id, family_id, expires_at, created_at, last_used_at, client_id)
+            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id)
           VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9)
+            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)
         `,
         values: [
           tokenData.id,
@@ -423,7 +389,6 @@ export class RefreshTokenService {
           tokenData.encryptedToken,
           tokenData.deviceInfo,
           parentId,
-          familyId,
           tokenData.expiresAt,
           tokenData.createdAt,
           clientId,
@@ -456,7 +421,7 @@ export class RefreshTokenService {
       const { rows } = await client.query({
         name: PSN.SELECT_TOKEN_BY_ID,
         text: `
-          SELECT id, user_id, token, revoked, expires_at, created_at, client_id, family_id
+          SELECT id, user_id, token, revoked, expires_at, created_at, client_id
           FROM refresh_tokens
           WHERE id = $1
           LIMIT 1
