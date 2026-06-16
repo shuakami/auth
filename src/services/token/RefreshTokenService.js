@@ -23,6 +23,7 @@ const PSN = {
   SELECT_TOKEN_BY_ID: 'rt_select_token_by_id_v1',
   REVOKE_BY_ID: 'rt_revoke_by_id_v1',
   REVOKE_BY_USER: 'rt_revoke_by_user_v1',
+  REVOKE_BY_LINEAGE: 'rt_revoke_by_lineage_v1',
   ROTATE_REVOKE_OLD: 'rt_rotate_revoke_old_v1',
   ROTATE_INSERT_NEW: 'rt_rotate_insert_new_v1',
 };
@@ -133,11 +134,15 @@ export class RefreshTokenService {
         if (replacement) {
           return replacement;
         }
+        // 真正的重放：只吊销受影响的这一条令牌链（lineage），而不是该用户的全部会话。
+        // 按 user_id 连坐吊销会让任何一次良性的「轮换响应丢失后用旧令牌重试」拖垮用户在所有
+        // 客户端/设备上的会话。这里沿现有的 parent_id 链递归定位本条会话链（参见 OAuth 2.0
+        // Security BCP：刷新令牌重用应吊销令牌家族）。
         log(
           'warn',
-          `[RefreshToken] 检测到已吊销Token在宽限期外被重放，吊销家族: ${validation.dbToken.id}`
+          `[RefreshToken] 检测到已吊销Token在宽限期外被重放，吊销本令牌链: ${validation.dbToken.id}`
         );
-        await this.revokeAllUserTokens(validation.dbToken.user_id);
+        await this.revokeTokenLineage(validation.dbToken.id);
         throw new Error('invalid_grant: 检测到Refresh Token重放，请重新登录');
       }
       throw new Error(`invalid_grant: ${validation.reason || '刷新令牌无效'}`);
@@ -326,6 +331,65 @@ export class RefreshTokenService {
     } catch (error) {
       log('error', '[RefreshToken] 批量吊销Token失败:', error);
       throw new Error('批量吊销Token失败');
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 吊销一条令牌家族（lineage）下的全部未吊销令牌。
+   *
+   * 仅依赖现有的 parent_id 列：从传入的令牌沿 parent_id 向上爬到可达的最顶端祖先，
+   * 再向下展开该祖先的所有后代，只吊销这一条轮换链。用于刷新令牌重放检测，
+   * 只下线受影响的这一个会话，不波及该用户的其它会话/设备。
+   * @param {string} tokenId 该令牌链上任一令牌的ID
+   * @returns {Promise<void>}
+   */
+  async revokeTokenLineage(tokenId) {
+    if (!tokenId) return;
+    const client = await smartConnect();
+    try {
+      const res = await client.query({
+        name: PSN.REVOKE_BY_LINEAGE,
+        text: `
+          WITH RECURSIVE up AS (
+            SELECT id, parent_id, 0 AS depth
+            FROM refresh_tokens
+            WHERE id = $1
+            UNION ALL
+            SELECT t.id, t.parent_id, up.depth + 1
+            FROM refresh_tokens t
+            JOIN up ON t.id = up.parent_id
+          ),
+          top AS (
+            SELECT id FROM up ORDER BY depth DESC LIMIT 1
+          ),
+          family AS (
+            SELECT id FROM top
+            UNION
+            SELECT t.id
+            FROM refresh_tokens t
+            JOIN family f ON t.parent_id = f.id
+          )
+          UPDATE refresh_tokens
+          SET revoked = TRUE
+          WHERE id IN (SELECT id FROM family) AND revoked = FALSE
+        `,
+        values: [tokenId],
+      });
+      log('warn', `[RefreshToken] 令牌链 ${tokenId} 已吊销，共${res.rowCount}个`);
+    } catch (error) {
+      log('error', '[RefreshToken] 吊销令牌链失败:', error);
+      // 兑底：退而吊销这一个令牌本身，避免重放检测因查询异常而完全不生效。
+      try {
+        await client.query({
+          name: PSN.REVOKE_BY_ID,
+          text: 'UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND revoked = FALSE',
+          values: [tokenId],
+        });
+      } catch (fallbackError) {
+        log('error', '[RefreshToken] 吊销单个令牌兑底也失败:', fallbackError);
+      }
     } finally {
       client.release();
     }
