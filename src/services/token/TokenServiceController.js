@@ -39,7 +39,8 @@ export class TokenServiceController {
     deviceInfo,
     clientId = null,
     parentId = null,
-    expiresIn = 60 * 60 * 24 * 15
+    expiresIn = 60 * 60 * 24 * 15,
+    scope = null
   ) {
     // 并发执行独立的安全检测，但严格保留原有优先级：异常活动优先，其次是重用攻击
     let anomalyReport = null;
@@ -94,13 +95,14 @@ export class TokenServiceController {
       );
     }
 
-    // 3. 创建新Token（逻辑保持不变）
+    // 3. 创建新Token（逻辑保持不变；额外透传 scope 以便续期时还原授权范围）
     return this.tokenService.createToken(
       userId,
       deviceInfo,
       clientId,
       parentId,
-      expiresIn
+      expiresIn,
+      scope
     );
   }
 

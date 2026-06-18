@@ -519,7 +519,8 @@ export async function init() {
             expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             last_used_at TIMESTAMP WITH TIME ZONE,
-            reason TEXT
+            reason TEXT,
+            scope TEXT
           );
           CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_user_id" ON refresh_tokens (user_id);
           CREATE INDEX IF NOT EXISTS "IDX_refresh_tokens_token" ON refresh_tokens (token);
@@ -656,6 +657,31 @@ export async function init() {
       }
     }, 3, 1000);
     dbLog('info', 'Migration completed: locale column');
+
+    // 迁移：为现有 refresh_tokens 表添加 scope 字段（如果不存在）。
+    // 用于在刷新令牌轮换/续期时还原 access token 的授权范围，避免续期后 scope 丢失
+    // 导致受 scope 保护的接口返回 insufficient_scope（表现为「续期了会断」）。
+    dbLog('info', 'Running migration: add scope column to refresh_tokens table');
+    await withRetry(async () => {
+      const client = await getPool().connect();
+      try {
+        await client.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'refresh_tokens' AND column_name = 'scope'
+            ) THEN
+              ALTER TABLE refresh_tokens ADD COLUMN scope TEXT;
+            END IF;
+          END $$;
+        `);
+        return true;
+      } finally {
+        client.release();
+      }
+    }, 3, 1000);
+    dbLog('info', 'Migration completed: refresh_tokens.scope column');
 
     // 初始化超级管理员
     dbLog('info', 'Initializing super admin');

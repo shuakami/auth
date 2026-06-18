@@ -98,7 +98,7 @@ apiClient.interceptors.response.use(
     }
 
     if (originalRequest.url === '/refresh') {
-      console.error('[API Interceptor] Refresh token本身已失效, 无法刷新。');
+      console.error(`[API Interceptor] /refresh 本身返回 401，Refresh token 已终态失效，无法刷新。code=${(error.response?.data as { code?: string } | undefined)?.code || 'unknown'}`);
       tokenManager.stopAutoRefresh();
       // 不在登录页和 OAuth 授权页面上重定向
       if (typeof window !== 'undefined' && 
@@ -119,18 +119,18 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      console.log('[API Interceptor] 侦测到401，开始刷新Token...');
+      console.log(`[API Interceptor] 侦测到 401 (url=${originalRequest.url})，开始刷新 Token...`);
       
       // 显示Token刷新Logo
       tokenRefreshManager.startRefresh();
       
       const { data } = await apiClient.post('/refresh');
       tokenManager.updateTokenExpiration(data.exp);
-      console.log('[API Interceptor] Token刷新成功，处理等待队列...');
+      console.log(`[API Interceptor] Token 刷新成功 (newExp=${data?.exp ?? 'n/a'})，重试原请求并处理等待队列 (queued=${failedQueue.length})...`);
       processQueue(null);
       return apiClient(originalRequest);
     } catch (refreshError) {
-      console.error('[API Interceptor] 刷新Token失败:', refreshError);
+      console.error(`[API Interceptor] 刷新 Token 失败 (url=${originalRequest.url}):`, refreshError);
       processQueue(refreshError as Error);
       tokenManager.stopAutoRefresh();
       // 不在登录页和 OAuth 授权页面上重定向

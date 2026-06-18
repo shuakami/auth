@@ -6,6 +6,7 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import { smartConnect } from '../../db/index.js';
 import { signRefreshToken, verifyRefreshToken } from '../../auth/jwt.js';
 import { encrypt, decrypt } from '../../auth/cryptoUtils.js';
+import { buildRefreshTokenPayload } from '../../auth/services/oauth/refreshPolicy.js';
 
 // 日志控制
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -56,20 +57,27 @@ export class RefreshTokenService {
     deviceInfo,
     clientId = null,
     parentId = null,
-    expiresIn = this.DEFAULT_EXPIRES_IN
+    expiresIn = this.DEFAULT_EXPIRES_IN,
+    scope = null
   ) {
-    const tokenData = this._generateTokenData(userId, deviceInfo, expiresIn);
+    const tokenData = this._generateTokenData(userId, deviceInfo, expiresIn, scope);
 
     try {
       await this._storeToken(tokenData, parentId, clientId);
+
+      log(
+        'info',
+        `[RefreshToken] 已签发 Refresh Token: id=${tokenData.id} user=${userId} client=${clientId || 'cookie-session'} parent=${parentId || 'none'} scope=${scope || 'none'} expiresAt=${tokenData.expiresAt.toISOString()}`
+      );
 
       return {
         token: tokenData.token,
         id: tokenData.id,
         expiresAt: tokenData.expiresAt,
+        scope,
       };
     } catch (error) {
-      log('error', '[RefreshToken] Token创建失败:', error);
+      log('error', `[RefreshToken] Token创建失败 user=${userId} client=${clientId || 'cookie-session'}:`, error);
       throw new Error('Token创建失败');
     }
   }
@@ -126,6 +134,10 @@ export class RefreshTokenService {
    */
   async rotateToken(oldToken, deviceInfo) {
     const validation = await this.validateToken(oldToken);
+    log(
+      'debug',
+      `[RefreshToken] 轮换请求: valid=${validation.valid} id=${validation.dbToken?.id || 'n/a'} revoked=${validation.dbToken?.revoked ?? 'n/a'} reason=${validation.reason || 'none'}`
+    );
     if (!validation.valid) {
       // 令牌已被吊销：这通常是同一刷新令牌的并发/重试轮换。在宽限窗口内返回
       // 已生成的替代令牌（幂等），窗口外则视为重放并吊销整个家族。
@@ -152,11 +164,15 @@ export class RefreshTokenService {
     try {
       await client.query('BEGIN');
 
-      // 生成新Token数据
+      // 生成新Token数据。轮换必须保留原令牌的授权范围(scope)，否则续期后
+      // 下发的 access token 会丢失 scope，导致受 scope 保护的资源(如 OIDC 敏感接口)
+      // 在续期后返回 insufficient_scope，表现为「续期了会断」。
+      const preservedScope = validation.dbToken.scope || validation.payload?.scope || null;
       const tokenData = this._generateTokenData(
         validation.dbToken.user_id,
         deviceInfo,
-        this.DEFAULT_EXPIRES_IN
+        this.DEFAULT_EXPIRES_IN,
+        preservedScope
       );
 
       // 1) 吊销旧Token。条件更新会持有行锁，并发的另一个轮换在本事务提交后
@@ -203,13 +219,14 @@ export class RefreshTokenService {
 
       log(
         'info',
-        `[RefreshToken] Token轮换成功 (事务): ${validation.dbToken.id} -> ${tokenData.id}`
+        `[RefreshToken] Token轮换成功 (事务): ${validation.dbToken.id} -> ${tokenData.id} user=${validation.dbToken.user_id} client=${validation.dbToken.client_id || 'cookie-session'} scope=${preservedScope || 'none'}`
       );
 
       return {
         token: tokenData.token,
         id: tokenData.id,
         expiresAt: tokenData.expiresAt,
+        scope: preservedScope,
       };
     } catch (error) {
       try {
@@ -241,7 +258,7 @@ export class RefreshTokenService {
     try {
       const { rows } = await client.query({
         text: `
-          SELECT id, token, expires_at, created_at
+          SELECT id, token, expires_at, created_at, scope
           FROM refresh_tokens
           WHERE parent_id = $1 AND revoked = FALSE
           ORDER BY created_at DESC
@@ -282,7 +299,7 @@ export class RefreshTokenService {
         return null;
       }
 
-      return { token, id: child.id, expiresAt: child.expires_at };
+      return { token, id: child.id, expiresAt: child.expires_at, scope: child.scope || null };
     } catch (error) {
       log('error', '[RefreshToken] 查找替代Token失败:', error);
       return null;
@@ -403,17 +420,16 @@ export class RefreshTokenService {
    * @returns {Object}
    * @private
    */
-  _generateTokenData(userId, deviceInfo, expiresIn) {
+  _generateTokenData(userId, deviceInfo, expiresIn, scope = null) {
     const id = randomUUID();
     const now = nowTs();
     const expiresAt = new Date(now + expiresIn * 1000);
     const createdAt = new Date(now);
 
-    const token = signRefreshToken({
-      jti: id,
-      uid: userId,
-      device: deviceInfo,
-    });
+    // 将 scope 同时写入 JWT 载荷，使其随令牌轮换自然流转，并在 DB 列缺失时仍可恢复。
+    const payload = buildRefreshTokenPayload({ id, userId, deviceInfo, scope });
+
+    const token = signRefreshToken(payload);
 
     const encryptedToken = encrypt(token);
 
@@ -425,6 +441,7 @@ export class RefreshTokenService {
       deviceInfo,
       expiresAt,
       createdAt,
+      scope: scope || null,
     };
   }
 
@@ -443,9 +460,9 @@ export class RefreshTokenService {
         name: PSN.INSERT_TOKEN,
         text: `
           INSERT INTO refresh_tokens
-            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id)
+            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id, scope)
           VALUES
-            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)
+            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9)
         `,
         values: [
           tokenData.id,
@@ -456,6 +473,7 @@ export class RefreshTokenService {
           tokenData.expiresAt,
           tokenData.createdAt,
           clientId,
+          tokenData.scope,
         ],
       });
     } finally {
@@ -485,7 +503,7 @@ export class RefreshTokenService {
       const { rows } = await client.query({
         name: PSN.SELECT_TOKEN_BY_ID,
         text: `
-          SELECT id, user_id, token, revoked, expires_at, created_at, client_id
+          SELECT id, user_id, token, revoked, expires_at, created_at, client_id, scope
           FROM refresh_tokens
           WHERE id = $1
           LIMIT 1

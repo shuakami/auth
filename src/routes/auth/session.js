@@ -7,6 +7,16 @@ import { NODE_ENV } from '../../config/env.js';
 
 const router = express.Router();
 
+// 轻量级日志控制，与 Token 服务保持一致（受 LOG_LEVEL 控制）
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
+function log(level, ...args) {
+  if ((LOG_ORDER[level] || 999) >= (LOG_ORDER[LOG_LEVEL] || 20)) {
+    // eslint-disable-next-line no-console
+    console[level](...args);
+  }
+}
+
 /**
  * POST /logout
  * @tags 认证
@@ -57,7 +67,9 @@ router.post('/refresh', async (req, res) => {
   // 从Cookie获取Refresh Token
   const refreshToken = req.cookies.refreshToken;
   const deviceInfo = req.body?.deviceInfo || req.headers['user-agent'] || '';
+  log('info', `[Session] 收到 Cookie 会话 /refresh 请求 device=${deviceInfo ? deviceInfo.slice(0, 60) : 'unknown'} hasCookie=${Boolean(refreshToken)}`);
   if (!refreshToken || refreshToken === 'undefined' || refreshToken === undefined) {
+    log('warn', '[Session] /refresh 缺少 refreshToken cookie，清除 Cookie 并要求重新登录');
     res.clearCookie('accessToken', { path: '/' });
     res.clearCookie('refreshToken', { path: '/' });
     return res.status(401).json({ error: '无效的Token格式，请重新登录', code: 'refresh_token_missing' });
@@ -65,6 +77,10 @@ router.post('/refresh', async (req, res) => {
   try {
     // 校验旧Token
     const { valid, dbToken, payload, reason } = await RefreshTokenService.validateRefreshToken(refreshToken);
+    log(
+      'debug',
+      `[Session] /refresh 校验结果: valid=${valid} revoked=${dbToken?.revoked ?? 'n/a'} reason=${reason || 'none'} tokenId=${dbToken?.id || 'n/a'}`
+    );
 
     // 已吊销的令牌通常是同一刷新令牌的并发/重试轮换（多标签页、静默刷新）：旧令牌
     // 刚被另一个请求轮换掉。此时不立即退登，交给 rotateRefreshToken 在宽限窗口内幂等
@@ -72,6 +88,7 @@ router.post('/refresh', async (req, res) => {
     // Cookie 并要求重新登录。此前的实现会在这里直接 401 退登，是 Cookie 会话（含 Passkey
     // 登录）「续期老是被退登」的根因——与 OAuth /token 路径不一致地缺少宽限处理。
     if (!valid && !(dbToken && dbToken.revoked)) {
+      log('warn', `[Session] /refresh 终态失效，清除 Cookie 并要求重新登录 reason=${reason || 'unknown'}`);
       res.clearCookie('accessToken', { path: '/' });
       res.clearCookie('refreshToken', { path: '/' });
       if (reason === 'Token超出最大生存期') {
@@ -92,6 +109,7 @@ router.post('/refresh', async (req, res) => {
       ({ token: newRefreshToken } = await RefreshTokenService.rotateRefreshToken(refreshToken, deviceInfo));
     } catch (rotateErr) {
       const msg = rotateErr?.message || '';
+      log('warn', `[Session] /refresh 轮换失败 reason=${msg}`);
       res.clearCookie('accessToken', { path: '/' });
       res.clearCookie('refreshToken', { path: '/' });
       if (msg.includes('重放') || msg.includes('盗用')) {
@@ -140,10 +158,11 @@ router.post('/refresh', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
     
-    console.log('[Session] Token轮换成功 - Access Token长度:', accessToken.length, 'Refresh Token长度:', newRefreshToken.length);
+    log('info', `[Session] Cookie 会话续期成功 user=${userId} accessExp=${exp} 已下发新 accessToken/refreshToken cookie`);
     // 响应体返回exp，便于前端Silent Refresh
     res.json({ ok: true, tokenType: 'Bearer', expiresIn: 1800, exp }); // 30分钟 = 1800秒
   } catch (err) {
+    log('error', '[Session] /refresh 未预期错误:', err);
     res.status(500).json({ error: '服务器内部错误', detail: err?.message });
   }
 });
