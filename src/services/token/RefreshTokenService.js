@@ -7,6 +7,13 @@ import { smartConnect } from '../../db/index.js';
 import { signRefreshToken, verifyRefreshToken } from '../../auth/jwt.js';
 import { encrypt, decrypt } from '../../auth/cryptoUtils.js';
 import { buildRefreshTokenPayload } from '../../auth/services/oauth/refreshPolicy.js';
+import {
+  createScopeColumnEnsurer,
+  buildInsertTokenQuery,
+  buildRotateInsertQuery,
+  buildSelectTokenByIdText,
+  buildFindReplacementText,
+} from './scopeColumn.js';
 
 // 日志控制
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -21,13 +28,23 @@ function log(level, ...args) {
 // 命名预编译语句名称
 const PSN = {
   INSERT_TOKEN: 'rt_insert_token_v1',
+  INSERT_TOKEN_NOSCOPE: 'rt_insert_token_noscope_v1',
   SELECT_TOKEN_BY_ID: 'rt_select_token_by_id_v1',
+  SELECT_TOKEN_BY_ID_NOSCOPE: 'rt_select_token_by_id_noscope_v1',
   REVOKE_BY_ID: 'rt_revoke_by_id_v1',
   REVOKE_BY_USER: 'rt_revoke_by_user_v1',
   REVOKE_BY_LINEAGE: 'rt_revoke_by_lineage_v1',
   ROTATE_REVOKE_OLD: 'rt_rotate_revoke_old_v1',
   ROTATE_INSERT_NEW: 'rt_rotate_insert_new_v1',
+  ROTATE_INSERT_NEW_SCOPE: 'rt_rotate_insert_new_scope_v1',
 };
+
+// scope 列能力探测（每进程一次，幂等）。
+// 该项目的迁移不在 serverless 启动时执行（见 src/db/migration.js），
+// 若生产库尚未跑迁移，refresh_tokens.scope 列会缺失，导致建/轮换 token 直接报错、
+// 连登录都 500。这里在首次写令牌前做一次自愈：列在就用、不在就尝试补列，
+// 补列失败则本进程降级为「不持久化 scope」（登录照常，仅暂不存 scope），永不打挂登录。
+const ensureRefreshTokenScopeColumn = createScopeColumnEnsurer({ connect: smartConnect, log });
 
 // 统一时间获取
 const nowTs = () => Date.now();
@@ -194,26 +211,18 @@ export class RefreshTokenService {
         throw new Error('invalid_grant: Token已吊销');
       }
 
-      // 2) 写入新Token
-      await client.query({
-        name: PSN.ROTATE_INSERT_NEW,
-        text: `
-          INSERT INTO refresh_tokens
-            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id)
-          VALUES
-            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)
-        `,
-        values: [
-          tokenData.id,
-          tokenData.userId,
-          tokenData.encryptedToken,
-          tokenData.deviceInfo,
-          validation.dbToken.id, // parentId
-          tokenData.expiresAt,
-          tokenData.createdAt,
-          validation.dbToken.client_id, // 轮换时保留clientId
-        ],
-      });
+      // 2) 写入新Token。scope 列可用时把保留的 scope 持久化到子令牌行，
+      //    保证后续轮换从 DB 即可读到 scope，不必每次回退 JWT 载荷。
+      const hasScope = await ensureRefreshTokenScopeColumn();
+      await client.query(
+        buildRotateInsertQuery(hasScope, {
+          names: { withScope: PSN.ROTATE_INSERT_NEW_SCOPE, noScope: PSN.ROTATE_INSERT_NEW },
+          tokenData,
+          parentId: validation.dbToken.id,
+          clientId: validation.dbToken.client_id, // 轮换时保留clientId
+          scope: preservedScope,
+        })
+      );
 
       await client.query('COMMIT');
 
@@ -254,16 +263,11 @@ export class RefreshTokenService {
    * @private
    */
   async _findFreshReplacement(parentId, graceMs = ROTATION_GRACE_MS) {
+    const hasScope = await ensureRefreshTokenScopeColumn();
     const client = await smartConnect();
     try {
       const { rows } = await client.query({
-        text: `
-          SELECT id, token, expires_at, created_at, scope
-          FROM refresh_tokens
-          WHERE parent_id = $1 AND revoked = FALSE
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
+        text: buildFindReplacementText(hasScope),
         values: [parentId],
       });
 
@@ -454,28 +458,18 @@ export class RefreshTokenService {
    * @private
    */
   async _storeToken(tokenData, parentId, clientId = null) {
+    // 首次写令牌前确保 scope 列存在；列不可用则自动降级为不写 scope，永不打挂签发。
+    const hasScope = await ensureRefreshTokenScopeColumn();
     const client = await smartConnect();
     try {
-      await client.query({
-        name: PSN.INSERT_TOKEN,
-        text: `
-          INSERT INTO refresh_tokens
-            (id, user_id, token, device_info, parent_id, expires_at, created_at, last_used_at, client_id, scope)
-          VALUES
-            ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, $9)
-        `,
-        values: [
-          tokenData.id,
-          tokenData.userId,
-          tokenData.encryptedToken,
-          tokenData.deviceInfo,
+      await client.query(
+        buildInsertTokenQuery(hasScope, {
+          names: { withScope: PSN.INSERT_TOKEN, noScope: PSN.INSERT_TOKEN_NOSCOPE },
+          tokenData,
           parentId,
-          tokenData.expiresAt,
-          tokenData.createdAt,
           clientId,
-          tokenData.scope,
-        ],
-      });
+        })
+      );
     } finally {
       client.release();
     }
@@ -498,16 +492,12 @@ export class RefreshTokenService {
    * @private
    */
   async _getTokenFromDB(tokenId) {
+    const hasScope = await ensureRefreshTokenScopeColumn();
     const client = await smartConnect();
     try {
       const { rows } = await client.query({
-        name: PSN.SELECT_TOKEN_BY_ID,
-        text: `
-          SELECT id, user_id, token, revoked, expires_at, created_at, client_id, scope
-          FROM refresh_tokens
-          WHERE id = $1
-          LIMIT 1
-        `,
+        name: hasScope ? PSN.SELECT_TOKEN_BY_ID : PSN.SELECT_TOKEN_BY_ID_NOSCOPE,
+        text: buildSelectTokenByIdText(hasScope),
         values: [tokenId],
       });
       return rows[0] || null;
