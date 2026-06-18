@@ -461,7 +461,7 @@ export async function init() {
             redirect_uris TEXT NOT NULL,
             scopes TEXT NOT NULL,
             app_type VARCHAR(50) NOT NULL CHECK (app_type IN ('web', 'mobile', 'desktop', 'server')),
-            issue_refresh_token BOOLEAN DEFAULT FALSE,
+            issue_refresh_token BOOLEAN DEFAULT TRUE,
             is_active BOOLEAN DEFAULT TRUE,
             usage_count INTEGER DEFAULT 0,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -682,6 +682,35 @@ export async function init() {
       }
     }, 3, 1000);
     dbLog('info', 'Migration completed: refresh_tokens.scope column');
+
+    // 迁移：把 oauth_applications.issue_refresh_token 的历史「默认关闭」修正为开启。
+    // 旧默认 DEFAULT FALSE 导致绝大多数客户端默认拿不到 refresh token → 无法续期。
+    // 这里 backfill 存量客户端并把默认改为 TRUE；以「默认值是否已为 TRUE」作幂等标记，
+    // 迁移过一次后不再覆盖管理员后续显式关闭的设置。
+    dbLog('info', 'Running migration: default issue_refresh_token to TRUE');
+    await withRetry(async () => {
+      const client = await getPool().connect();
+      try {
+        await client.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'oauth_applications'
+                AND column_name = 'issue_refresh_token'
+                AND column_default ILIKE '%true%'
+            ) THEN
+              UPDATE oauth_applications SET issue_refresh_token = TRUE WHERE issue_refresh_token IS DISTINCT FROM TRUE;
+              ALTER TABLE oauth_applications ALTER COLUMN issue_refresh_token SET DEFAULT TRUE;
+            END IF;
+          END $$;
+        `);
+        return true;
+      } finally {
+        client.release();
+      }
+    }, 3, 1000);
+    dbLog('info', 'Migration completed: issue_refresh_token default');
 
     // 初始化超级管理员
     dbLog('info', 'Initializing super admin');
