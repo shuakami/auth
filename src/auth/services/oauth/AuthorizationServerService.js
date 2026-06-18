@@ -13,6 +13,7 @@ import { signAccessToken, signIdToken } from '../../jwt.js';
 import { validateRefreshToken, rotateRefreshToken } from '../../../services/refreshTokenService.js';
 import { TokenServiceController } from '../../../services/token/TokenServiceController.js';
 import { shouldIssueRefreshToken, resolveRefreshScope } from './refreshPolicy.js';
+import { createIssueRefreshTokenDefaultEnsurer } from './issueRefreshTokenDefault.js';
 
 const AUTHORIZATION_CODE_LIFETIME = 600; // 10 minutes in seconds
 
@@ -25,6 +26,12 @@ function log(level, ...args) {
     console[level](...args);
   }
 }
+
+// issue_refresh_token「默认关闭」脚枪的一次性自愈（每进程缓存一次）。
+const ensureIssueRefreshTokenDefault = createIssueRefreshTokenDefaultEnsurer({
+  connect: () => pool.connect(),
+  log,
+});
 
 function getUserPermissionGroups(user) {
   return user?.role ? [user.role] : [];
@@ -131,6 +138,11 @@ export class AuthorizationServerService {
    * @returns {Promise<{access_token: string, refresh_token: string, id_token: string, token_type: string, expires_in: number}>}
    */
   async exchangeAuthorizationCode(code, clientId, clientSecret, redirectUri, codeVerifier) {
+    // 在读取客户端配置前先做一次性自愈：把 issue_refresh_token 的历史「默认关闭」
+    // 修正为开启（含 backfill 存量客户端），保证客户端默认就能拿到 refresh token 续期。
+    // 使用独立连接、与下方事务无关；列默认已为 TRUE 时为 no-op。
+    await ensureIssueRefreshTokenDefault();
+
     const client = await pool.connect();
     
     try {
@@ -229,6 +241,11 @@ export class AuthorizationServerService {
       // 为该客户端显式开启的开关，这里以它为准：只要开了就签发，不再额外
       // 强依赖 offline_access 是否存活于过滤后的 scope。签发时一并持久化授权范围
       // (scope)，以便后续轮换/续期能还原 access token 的 scope。
+      //
+      // 另外：issue_refresh_token 历史默认为 FALSE（脚枪），已在本函数开头通过
+      // ensureIssueRefreshTokenDefault() 一次性 backfill 为开启并把默认改为 TRUE，
+      // 因此默认情况下所有客户端都能拿到 refresh token 续期；只有管理员显式关闭
+      // (issue_refresh_token = FALSE) 时才会走下面的 else 分支。
       let refreshToken = null;
       const grantedScopes = typeof authCode.scopes === 'string' ? authCode.scopes : '';
       const requestedOfflineAccess = grantedScopes.split(/\s+/).includes('offline_access');
