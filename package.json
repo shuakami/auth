@@ -9,7 +9,8 @@
     "build": "pnpm run build:client",
     "dev:server": "nodemon src/index.js",
     "dev:client": "cd client && pnpm dev",
-    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\""
+    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\"",
+    "test": "node --test \"src/**/*.test.js\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

@@ -143,6 +143,11 @@ export class EnhancedTokenManager {
       timeSinceActivity < this.config.activityTimeout
     );
 
+    console.log(
+      `[EnhancedTokenManager] 续期检查: force=${force} timeToExpire=${timeToExpire}s threshold=${this.config.refreshThreshold}s ` +
+      `timeSinceActivity=${Math.round(timeSinceActivity / 1000)}s activityTimeout=${this.config.activityTimeout / 1000}s -> ${shouldCheck ? '触发检查' : '跳过'}`
+    );
+
     if (shouldCheck) {
       console.log(`[EnhancedTokenManager] Token即将过期，主动检查认证状态...`);
       // 通过调用一个受保护的端点来触发拦截器（如果需要）

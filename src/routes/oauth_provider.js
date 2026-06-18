@@ -260,6 +260,7 @@ router.post('/token', async (req, res) => {
     } else if (grant_type === 'refresh_token') {
       // 刷新令牌流程
       if (!refresh_token || !client_id) {
+        console.warn(`[OAuth] /token refresh_token 请求缺少参数 hasRefreshToken=${Boolean(refresh_token)} client=${client_id || 'none'}`);
         return res.status(400).json({ 
           error: 'invalid_request', 
           error_description: 'Missing required parameters for refresh_token grant' 
@@ -269,7 +270,8 @@ router.post('/token', async (req, res) => {
       const tokenResponse = await authService.refreshAccessToken(
         refresh_token, client_id, client_secret
       );
-      
+
+      console.log(`[OAuth] /token refresh_token 续期完成 client=${client_id} scope=${tokenResponse?.scope || 'none'} expiresIn=${tokenResponse?.expires_in ?? 'n/a'}`);
       return res.json(tokenResponse);
 
     } else {

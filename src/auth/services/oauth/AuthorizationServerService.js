@@ -12,8 +12,19 @@ import crypto from 'crypto';
 import { signAccessToken, signIdToken } from '../../jwt.js';
 import { validateRefreshToken, rotateRefreshToken } from '../../../services/refreshTokenService.js';
 import { TokenServiceController } from '../../../services/token/TokenServiceController.js';
+import { shouldIssueRefreshToken, resolveRefreshScope } from './refreshPolicy.js';
 
 const AUTHORIZATION_CODE_LIFETIME = 600; // 10 minutes in seconds
+
+// 轻量级日志控制，与 Token 服务保持一致（受 LOG_LEVEL 控制）
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_ORDER = { debug: 10, info: 20, warn: 30, error: 40 };
+function log(level, ...args) {
+  if ((LOG_ORDER[level] || 999) >= (LOG_ORDER[LOG_LEVEL] || 20)) {
+    // eslint-disable-next-line no-console
+    console[level](...args);
+  }
+}
 
 function getUserPermissionGroups(user) {
   return user?.role ? [user.role] : [];
@@ -208,12 +219,39 @@ export class AuthorizationServerService {
 
       // 8. 统计使用次数
       await client.query('UPDATE oauth_applications SET usage_count = usage_count + 1, updated_at = CURRENT_TIMESTAMP WHERE client_id = $1', [clientId]);
-      // 9. 生成refresh token (可选，基于scope和客户端配置)
+      // 9. 生成refresh token
+      //
+      // 过去这里需要同时满足 issue_refresh_token 且 scope 包含 offline_access 才签发。
+      // 但 validateAuthorizationRequest 会把请求的 scope 过滤为「客户端已注册的 scope」
+      // 的交集；若客户端注册的 scopes 里漏了 offline_access，即使客户端请求了
+      // offline_access 也会被静默丢弃，导致「明明开了 issue_refresh_token 却拿不到
+      // refresh token」——表现为「普通登录无法续期」。由于 issue_refresh_token 是管理员
+      // 为该客户端显式开启的开关，这里以它为准：只要开了就签发，不再额外
+      // 强依赖 offline_access 是否存活于过滤后的 scope。签发时一并持久化授权范围
+      // (scope)，以便后续轮换/续期能还原 access token 的 scope。
       let refreshToken = null;
-      if (clientApp.issue_refresh_token && authCode.scopes.includes('offline_access')) {
+      const grantedScopes = typeof authCode.scopes === 'string' ? authCode.scopes : '';
+      const requestedOfflineAccess = grantedScopes.split(/\s+/).includes('offline_access');
+      if (shouldIssueRefreshToken(clientApp)) {
         const tokenController = new TokenServiceController();
-        const result = await tokenController.createRefreshToken(authCode.user_id, 'OAuth Client', clientId);
+        const result = await tokenController.createRefreshToken(
+          authCode.user_id,
+          'OAuth Client',
+          clientId,
+          null,
+          undefined,
+          grantedScopes || null
+        );
         refreshToken = result.token;
+        log(
+          'info',
+          `[OAuth] 授权码流程已签发 refresh token: client=${clientId} user=${authCode.user_id} offline_access=${requestedOfflineAccess} scope=${grantedScopes || 'none'}`
+        );
+      } else {
+        log(
+          'warn',
+          `[OAuth] 客户端未启用 issue_refresh_token，不签发 refresh token（该客户端将无法续期）: client=${clientId} user=${authCode.user_id}`
+        );
       }
       
       await client.query('COMMIT');
@@ -245,9 +283,11 @@ export class AuthorizationServerService {
    * @returns {Promise<object>} 新的令牌集合
    */
   async refreshAccessToken(refreshTokenString, clientId, clientSecret) {
+    log('info', `[OAuth] 收到 refresh_token 续期请求: client=${clientId}`);
     // 1. 验证客户端
     const clientApp = await this.getClientById(clientId);
     if (!clientApp) {
+      log('warn', `[OAuth] 续期失败：客户端不存在 client=${clientId}`);
       throw new Error('invalid_client: 客户端不存在');
     }
     if (clientApp.app_type === 'web' && clientApp.client_secret !== clientSecret) {
@@ -265,6 +305,10 @@ export class AuthorizationServerService {
 
     // 检查刷新令牌是否属于该客户端
     if (dbToken && dbToken.client_id && dbToken.client_id !== clientId) {
+      log(
+        'warn',
+        `[OAuth] 续期失败：刷新令牌不属于此客户端 token_client=${dbToken.client_id} request_client=${clientId}`
+      );
       throw new Error('invalid_grant: 刷新令牌不属于此客户端');
     }
 
@@ -286,7 +330,15 @@ export class AuthorizationServerService {
     }
     const user = userRows[0];
     const userClaims = buildOidcUserClaims(user);
-    const scopes = payload?.scope;
+    // 授权范围优先取自持久化在 refresh token 上的 scope（DB 列），其次是 JWT 载荷中的 scope。
+    // 之前只取 payload?.scope，但 refresh token 的 JWT 载荷原本不含 scope，导致续期后
+    // 下发的 access token scope 为 undefined，受 scope 保护的资源（如 OIDC 敏感接口）会返回
+    // insufficient_scope，表现为「续期了会断」。
+    const scopes = resolveRefreshScope(dbToken, payload);
+    log(
+      'info',
+      `[OAuth] 续期成功，下发新令牌: client=${clientId} user=${user.id} scope=${scopes || 'none'}`
+    );
 
     const newAccessToken = signAccessToken({
       uid: user.id,
